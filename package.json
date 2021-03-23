@@ -1,0 +1,22 @@
+{
+  "name": "@jsonic/expr",
+  "version": "0.0.1",
+  "description": "",
+  "main": "dist/expr.js",
+  "type": "commonjs",
+  "types": "dist/expr.d.ts",
+  "scripts": {
+    "watch": "tsc -w -d",
+    "build": "tsc -d",
+    "test": "lab -v -P test -t 50 --sourcemaps --transform node_modules/lab-transform-typescript -r console -o stdout -r html -o test/coverage.html"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "jsonic": "^1.0.1",
+    "@hapi/code": "^8.0.3",
+    "@hapi/lab": "^24.1.1",
+    "lab-transform-typescript": "^3.0.1",
+    "typescript": "^4.2.3"
+  }
+}

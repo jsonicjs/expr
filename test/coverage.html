@@ -1,0 +1,1292 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Tests &amp; Coverage</title>
+    <script>
+      headings = [];
+    
+      onload = function () {
+          headings = document.querySelectorAll('h2');
+          reset();
+      };
+    
+      onscroll = function (e) {
+          var heading = find(window.scrollY);
+          if (!heading) {
+            var current = document.querySelector('#menu a.active');
+            if (current) {
+              current.className = '';
+            }
+            return;
+          }
+          var links = document.querySelectorAll('#menu a')
+                  , link;
+    
+          for (var i = 0, len = links.length; i < len; ++i) {
+              link = links[i];
+              link.className = link.getAttribute('href') == '#' + heading.id ? 'active' : '';
+          }
+      };
+    
+      function find (y) {
+          var i = headings.length
+                  , heading;
+    
+          while (i--) {
+              heading = headings[i];
+              if (y >= heading.offsetTop) {
+                  return heading;
+              }
+          }
+      }
+    
+      function toggle (className) {
+    
+          var elements = document.getElementsByClassName(className);
+    
+          for (var i = 0, il = elements.length; i < il; ++i) {
+              var element = elements[i];
+    
+              if (element.classList.contains('hide')) {
+                  element.classList.remove('hide');
+                  element.classList.add('show');
+              }
+              else {
+                  element.classList.remove('show');
+                  element.classList.add('hide');
+              }
+          };
+      }
+    
+      function reset () {
+    
+          var shownElements = document.getElementsByClassName('show');
+          var filterElements = document.querySelectorAll('input[type=checkbox]');
+    
+          for (var i = 0, il = filterElements.length; i < il; ++i) {
+              filterElements[i].checked = false;
+          }
+    
+          // Check any filters with visible elements
+          for (i = 0, il = shownElements.length; i < il; ++i) {
+              var shownElement = shownElements[i];
+              var classNames = shownElement.className.split(' ');
+              for (var ci = 0, cl = classNames.length; ci < cl; ++ci){
+                  var element = document.getElementById('show-' + classNames[ci]);
+                  if (element) {
+                      element.checked = true;
+                  }
+              }
+          }
+      };
+    
+      function filter (element) {
+    
+          toggle(element.value);
+          reset();
+      }
+    </script>
+    <style>
+        body {
+            font: 14px/1.6 Helvetica, Arial, sans-serif;
+            margin: 0;
+            color: #2c2c2c;
+        }
+    
+        #tests, #coverage, #linting {
+            padding: 60px;
+        }
+    
+        h1 a:hover {
+            text-decoration: none;
+        }
+    
+        a[href^="#"],
+        a[href^="#"]:visited {
+            color: inherit;
+            text-decoration: none;
+        }
+    
+        h2 {
+            width: 80%;
+            margin-top: 80px;
+            margin-bottom: 0;
+            font-weight: 100;
+            letter-spacing: 1px;
+        }
+    
+        ul {
+            margin-top: 20px;
+            padding: 0 15px;
+            width: 100%;
+        }
+    
+        ul li {
+            float: left;
+            width: 40%;
+            margin-top: 5px;
+            margin-right: 60px;
+            list-style: none;
+            padding: 5px 0;
+            font-size: 12px;
+        }
+    
+        #menu {
+            position: fixed;
+            font-size: 12px;
+            overflow-y: auto;
+            top: 0;
+            right: 0;
+            margin: 0;
+            height: 100%;
+            padding: 15px 15px;
+            border-left: 1px solid #eee;
+            background-color: #666;
+            z-index: 1;
+        }
+    
+        #menu::after {
+            display: block;
+            content: '';
+            padding-top: 80px;
+        }
+    
+        #menu li a {
+            display: block;
+            color: white;
+            padding: 0 5px 0 35px;
+            transition: background 300ms;
+            text-decoration: none;
+        }
+    
+        #menu li {
+            position: relative;
+            list-style: none;
+        }
+    
+        #menu a:hover,
+        #menu a.active {
+            text-decoration: none;
+            background: rgba(255, 255, 255, .4);
+        }
+    
+        #menu li:hover .cov {
+            opacity: 1;
+        }
+    
+        #menu li .dirname {
+            opacity: .60;
+            padding-right: 2px;
+        }
+    
+        #menu li .basename {
+            opacity: 1;
+        }
+    
+        #menu .cov, #menu .lint {
+            background: rgba(0, 0, 0, .3);
+            position: absolute;
+            top: 0;
+            font-size: 9px;
+            text-align: center;
+            opacity: .8;
+            width: 22px;
+            border-radius: 10px;
+            padding: 2px 3px;
+        }
+    
+        #files .stats:nth-child(2n):not(.hide) {
+            display: inline-block;
+            margin-top: 15px;
+            border: 1px solid #eee;
+            padding: 10px;
+            border-radius: 5px;
+        }
+    
+        .stats div {
+            float: left;
+            padding: 0 5px;
+        }
+    
+        .stats::after {
+            display: block;
+            content: '';
+            clear: both;
+        }
+    
+        .stats .sloc::after {
+            content: ' SLOC';
+            color: #b6b6b6;
+        }
+    
+        .stats .percentage::after {
+            content: ' coverage';
+            color: #b6b6b6;
+        }
+    
+        .stats .hits::before {
+            content: '(';
+            color: #b6b6b6;
+        }
+    
+        .stats .hits::after {
+            content: ' Covered';
+            color: #b6b6b6;
+        }
+    
+        .stats .misses::after {
+            content: ' Not Covered)';
+            color: #b6b6b6;
+        }
+    
+        .stats .failures::after {
+            content: ' Failures';
+            color: #b6b6b6;
+        }
+    
+        .stats .skipped::after {
+            content: ' Skipped';
+            color: #b6b6b6;
+        }
+    
+        .stats .test-count::after {
+            content: ' Tests';
+            color: #b6b6b6;
+        }
+    
+        .stats .duration::before {
+            content: '(';
+            color: #b6b6b6;
+        }
+    
+        .stats .duration::after {
+            content: ' ms)';
+            color: #b6b6b6;
+        }
+    
+        .high {
+            color: #00d4b4;
+        }
+    
+        .medium {
+            color: #e87d0d;
+        }
+    
+        .low {
+            color: #d4081a;
+        }
+    
+        .terrible {
+            color: #d4081a;
+            font-weight: bold;
+        }
+    
+        #files table {
+            width: 80%;
+            margin-top: 10px;
+            border-collapse: collapse;
+            border: 1px solid #cbcbcb;
+            color: #363636;
+            border-radius: 3px;
+        }
+    
+        #files thead {
+            display: none;
+        }
+    
+        table td.line,
+        table td.lint,
+        table td.hits,
+        table td.original-line {
+            width: 20px;
+            background: #eaeaea;
+            text-align: right;
+            font-size: 11px;
+            padding: 0 10px;
+            color: #949494;
+            white-space: nowrap;
+        }
+    
+        table td.hits {
+            width: 10px;
+            padding: 2px 5px;
+            color: rgba(0, 0, 0, .2);
+            background: #f0f0f0;
+        }
+    
+        table td.lint.empty {
+            width: 0;
+            padding: 0;
+        }
+    
+        table td.lint > span {
+            border-radius: 50%;
+            width: 8px;
+            height: 8px;
+            display: inline-block;
+            vertical-align: baseline;
+        }
+    
+        table td.lint .errors {
+            background-color: red;
+        }
+    
+        table td.lint .warnings {
+            background-color: orange;
+        }
+    
+        tr.miss td.line,
+        tr.miss td.hits {
+            background: #e6c3c7;
+        }
+    
+        tr.miss td {
+            background: #f8d5d8;
+        }
+    
+        td.source {
+            padding-left: 15px;
+            line-height: 15px;
+            white-space: pre;
+            font: 12px monaco, monospace;
+        }
+    
+        td.source div {
+            display: inline-block;
+        }
+    
+        td.source div.true {
+            background: #bae8bf;
+        }
+    
+        td.source div.false {
+            background: #e8e5ba;
+        }
+    
+        td.source div.never {
+            background: #f8d5d8;
+        }
+    
+        #tests table {
+            width: 80%;
+            margin-top: 10px;
+            border-collapse: collapse;
+            border: 1px solid #cbcbcb;
+            color: #363636;
+            border-radius: 3px;
+        }
+    
+        #tests thead {
+            background: #F5F5F5;
+        }
+    
+        #tests tr {
+            border: 1px solid #ccc;
+        }
+    
+        #tests td {
+            padding-left: 8px;
+            vertical-align: top;
+        }
+    
+        #tests .success:nth-child(2n) {
+            background: #F5F5F5;
+        }
+    
+        #tests .failure {
+            background: #FF9E9E;
+        }
+    
+        #tests table .skipped {
+            background: #AA82FF;
+        }
+    
+        #tests .success {
+            color: #949494;
+        }
+    
+        #tests .failure .test-title {
+            font-weight: bold;
+            margin-top: 5px;
+        }
+    
+        #tests .stack {
+            margin-top: 4px;
+            padding-left: 15px;
+            margin-bottom: 12px;
+            font: 12px monaco, monospace;
+            white-space: pre;
+            line-height: 15px;
+        }
+    
+        .hide {
+            display: none;
+        }
+    
+        .show {
+            display: inherit;
+        }
+    
+        #tests table .show {
+            display: table-row;
+        }
+    
+        [data-tooltip] {
+            position: relative;
+        }
+    
+        [data-tooltip]:hover:before {
+            border: solid;
+            border-color: #333 transparent;
+            border-width: 6px 6px 0 6px;
+            bottom: 20px;
+            content: "";
+            left: 0;
+            position: absolute;
+            z-index: 99;
+        }
+    
+        [data-tooltip]:hover:after {
+            background: #333;
+            background: rgba(0, 0, 0, .8);
+            border-radius: 5px;
+            bottom: 26px;
+            color: #fff;
+            left: -10px;
+            padding: 5px 15px;
+            position: absolute;
+            z-index: 98;
+            content: attr(data-tooltip);
+            white-space: pre;
+            text-align: left;
+        }
+    
+        .line[data-tooltip]:hover:after {
+            content: "Line number";
+        }
+    
+        .hits[data-tooltip]:hover:after {
+            content: "Number of hits";
+        }
+    
+        .miss .source[data-tooltip]:hover:after {
+            content: "Missed line";
+        }
+    
+        .miss.true[data-tooltip]:hover:after {
+            content: "Condition always true";
+        }
+    
+        .miss.false[data-tooltip]:hover:after {
+            content: "Condition always false";
+        }
+    
+        .miss.never[data-tooltip]:hover:after {
+            content: "Statement never reached";
+        }
+    
+        .lint .errors[data-tooltip]:hover:after {
+            content: "Linting errors:\A" attr(data-tooltip);
+        }
+    
+        .lint .warnings[data-tooltip]:hover:after {
+            content: "Linting warnings:\A" attr(data-tooltip);
+        }
+    
+        .original-line[data-tooltip]:hover:after {
+            content: "Original line in file " attr(data-tooltip);
+        }
+    
+        #filters {
+            width: 75%;
+            margin-top: 25px;
+        }
+    
+        #filters label {
+            margin-right: 10px;
+        }
+    
+        .lint-stats .lint-errors::after {
+            content: ' linting errors';
+            color: #b6b6b6;
+        }
+    
+        .lint-stats .lint-warnings::after {
+            content: ' linting warnings';
+            color: #b6b6b6;
+        }
+    
+        .lint-entry {
+            color: #b6b6b6;
+            float: none;
+            padding: 0;
+        }
+    
+        .lint-entry .level-ERROR {
+            color: #d4081a;
+        }
+    
+        .lint-entry .level-WARNING {
+            color: #e87d0d;
+        }
+    </style>
+  </head>
+  <body>
+    <div id="menu">
+        <li><a href="#tests">Test Report</a></li>
+        <li><a href="#coverage">Coverage Report</a></li>
+        <li class="generated">
+            <span class="cov high">100</span>
+            <a href="#expr.ts"><span class="basename">expr.ts</span></a>
+        </li>
+        <li><a href="#linting">Linting Report</a></li>
+    </div>
+    <div id="tests">
+      <h1>Test Report</h1>
+      <div class="stats high">
+          <div class="failures">0</div>
+          <div class="skipped">0</div>
+          <div class="test-count">1</div>
+          <div class="duration">26</div>
+      </div>
+      <div id="filters">
+          <input type="checkbox" checked="" onchange="filter(this)" value="success" id="show-success">
+          <label for="show-success">Show Success</label>
+          <input type="checkbox" checked="" onchange="filter(this)" value="failure" id="show-failure">
+          <label for="show-failure">Show Failure</label>
+          <br>
+          <input type="checkbox" checked="" onchange="filter(this)" value="expr" id="show-expr">
+          <label for="show-expr">expr</label>
+      </div>
+      <table>
+          <thead>
+          <tr>
+              <th>ID</th>
+              <th>Title</th>
+              <th>Duration (ms)</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr class="show expr success">
+              <td class="test-id">1</td>
+              <td class="test-title">expr happy
+                  
+              </td>
+              <td class="test-duration">24</td>
+          </tr>
+          </tbody>
+      </table>
+    
+    </div>    <div id="coverage">
+        <h1>Code Coverage Report</h1>
+        <div class="stats high">
+            <div class="percentage">100%</div>
+            <div class="sloc">102</div>
+            <div class="hits">102</div>
+            <div class="misses">0</div>
+        </div>
+        <div id="filters">
+          <input type="checkbox" checked="" onchange="filter(this)" value="generated" id="show-generated">
+          <label for="show-generated">Show generated files</label>
+        </div>
+        <div id="files">
+            <div class="file show generated">
+                <h2 id="expr.ts">expr.ts </h2>
+                <div class="stats high">
+                    <div class="percentage">100%</div>
+                    <div class="sloc">102</div>
+                    <div class="hits">102</div>
+                    <div class="misses">0</div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Line</th>
+                            <th>Lint</th>
+                            <th>Hits</th>
+                            <th>Source</th>
+                            <th>Original line</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr id="expr.ts__1" class="hit">
+                          <td class="line" data-tooltip>1</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">&quot;use strict&quot;;</td>
+                          
+                        </tr>            <tr id="expr.ts__2" class="hit">
+                          <td class="line" data-tooltip>2</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">/* Copyright (c) 2021 Richard Rodger, MIT License */</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__1">1</a></td>
+                        </tr>            <tr id="expr.ts__3" class="hit">
+                          <td class="line" data-tooltip>3</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">Object.defineProperty(exports, &quot;__esModule&quot;, { value: true });</td>
+                          
+                        </tr>            <tr id="expr.ts__4" class="hit">
+                          <td class="line" data-tooltip>4</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">exports.Expr &#x3D; void 0;</td>
+                          
+                        </tr>            <tr id="expr.ts__5" class="hit">
+                          <td class="line" data-tooltip>5</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">// FAQ: p in close does not really work as child rule only runs later</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__3">3</a></td>
+                        </tr>            <tr id="expr.ts__6" class="hit">
+                          <td class="line" data-tooltip>6</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">const jsonic_1 &#x3D; require(&quot;jsonic&quot;);</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__6">6</a></td>
+                        </tr>            <tr id="expr.ts__7" class="hit">
+                          <td class="line" data-tooltip>7</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">let Expr &#x3D; function expr(jsonic) {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__9">9</a></td>
+                        </tr>            <tr id="expr.ts__8" class="hit">
+                          <td class="line" data-tooltip>8</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">    jsonic.options({</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__10">10</a></td>
+                        </tr>            <tr id="expr.ts__9" class="hit">
+                          <td class="line" data-tooltip>9</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">        token: {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__11">11</a></td>
+                        </tr>            <tr id="expr.ts__10" class="hit">
+                          <td class="line" data-tooltip>10</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            &#x27;#E+&#x27;: { c: &#x27;+&#x27; },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__12">12</a></td>
+                        </tr>            <tr id="expr.ts__11" class="hit">
+                          <td class="line" data-tooltip>11</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            &#x27;#E*&#x27;: { c: &#x27;*&#x27; }</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__13">13</a></td>
+                        </tr>            <tr id="expr.ts__12" class="hit">
+                          <td class="line" data-tooltip>12</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">        }</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__14">14</a></td>
+                        </tr>            <tr id="expr.ts__13" class="hit">
+                          <td class="line" data-tooltip>13</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">    });</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__15">15</a></td>
+                        </tr>            <tr id="expr.ts__14" class="hit">
+                          <td class="line" data-tooltip>14</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">    let NR &#x3D; jsonic.token.NR;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__18">18</a></td>
+                        </tr>            <tr id="expr.ts__15" class="hit">
+                          <td class="line" data-tooltip>15</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">    //let AA &#x3D; jsonic.token.AA</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__19">19</a></td>
+                        </tr>            <tr id="expr.ts__16" class="hit">
+                          <td class="line" data-tooltip>16</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">    let ADD &#x3D; jsonic.token[&#x27;#E+&#x27;];</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__20">20</a></td>
+                        </tr>            <tr id="expr.ts__17" class="hit">
+                          <td class="line" data-tooltip>17</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">    let MUL &#x3D; jsonic.token[&#x27;#E*&#x27;];</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__21">21</a></td>
+                        </tr>            <tr id="expr.ts__18" class="hit">
+                          <td class="line" data-tooltip>18</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">    // TODO: move Alt param rightward for consistency?</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__23">23</a></td>
+                        </tr>            <tr id="expr.ts__19" class="hit">
+                          <td class="line" data-tooltip>19</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">    //let one &#x3D; (_: Alt, r: Rule) &#x3D;&gt; r.node &#x3D; null &#x3D;&#x3D; r.node ? 1 : r.node</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__24">24</a></td>
+                        </tr>            <tr id="expr.ts__20" class="hit">
+                          <td class="line" data-tooltip>20</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">    //let zero &#x3D; (_: Alt, r: Rule) &#x3D;&gt; r.node &#x3D; null &#x3D;&#x3D; r.node ? 0 : r.node</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__25">25</a></td>
+                        </tr>            <tr id="expr.ts__21" class="hit">
+                          <td class="line" data-tooltip>21</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">    let addop &#x3D; (a, b) &#x3D;&gt; a + b;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__28">28</a></td>
+                        </tr>            <tr id="expr.ts__22" class="hit">
+                          <td class="line" data-tooltip>22</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">    let mulop &#x3D; (a, b) &#x3D;&gt; a * b;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__29">29</a></td>
+                        </tr>            <tr id="expr.ts__23" class="hit">
+                          <td class="line" data-tooltip>23</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">    addop.toString &#x3D; () &#x3D;&gt; &#x27;+&#x27;;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__30">30</a></td>
+                        </tr>            <tr id="expr.ts__24" class="hit">
+                          <td class="line" data-tooltip>24</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">    mulop.toString &#x3D; () &#x3D;&gt; &#x27;*&#x27;;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__31">31</a></td>
+                        </tr>            <tr id="expr.ts__25" class="hit">
+                          <td class="line" data-tooltip>25</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">    function evaluate(n) {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__34">34</a></td>
+                        </tr>            <tr id="expr.ts__26" class="hit">
+                          <td class="line" data-tooltip>26</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>16</td>
+                          <td class="source">        let a &#x3D; &#x27;number&#x27; &#x3D;&#x3D;&#x3D; typeof n.a ? n.a : evaluate(n.a);</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__35">35</a></td>
+                        </tr>            <tr id="expr.ts__27" class="hit">
+                          <td class="line" data-tooltip>27</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>16</td>
+                          <td class="source">        let b &#x3D; &#x27;number&#x27; &#x3D;&#x3D;&#x3D; typeof n.b ? n.b : evaluate(n.b);</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__36">36</a></td>
+                        </tr>            <tr id="expr.ts__28" class="hit">
+                          <td class="line" data-tooltip>28</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>16</td>
+                          <td class="source">        return (&#x27;+&#x27; &#x3D;&#x3D;&#x3D; n.o ? addop : mulop)(a, b);</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__37">37</a></td>
+                        </tr>            <tr id="expr.ts__29" class="hit">
+                          <td class="line" data-tooltip>29</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">    }</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__38">38</a></td>
+                        </tr>            <tr id="expr.ts__30" class="hit">
+                          <td class="line" data-tooltip>30</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">    let i &#x3D; 0;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__41">41</a></td>
+                        </tr>            <tr id="expr.ts__31" class="hit">
+                          <td class="line" data-tooltip>31</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">    jsonic.rule(&#x27;expr&#x27;, () &#x3D;&gt; {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__43">43</a></td>
+                        </tr>            <tr id="expr.ts__32" class="hit">
+                          <td class="line" data-tooltip>32</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">        return new jsonic_1.RuleSpec({</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__44">44</a></td>
+                        </tr>            <tr id="expr.ts__33" class="hit">
+                          <td class="line" data-tooltip>33</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            open: [</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__45">45</a></td>
+                        </tr>            <tr id="expr.ts__34" class="hit">
+                          <td class="line" data-tooltip>34</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                { s: [NR, MUL], b: 2, p: &#x27;mul&#x27; },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__46">46</a></td>
+                        </tr>            <tr id="expr.ts__35" class="hit">
+                          <td class="line" data-tooltip>35</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                { s: [NR, ADD], b: 2, p: &#x27;add&#x27; },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__47">47</a></td>
+                        </tr>            <tr id="expr.ts__36" class="hit">
+                          <td class="line" data-tooltip>36</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            ],</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__48">48</a></td>
+                        </tr>            <tr id="expr.ts__37" class="hit">
+                          <td class="line" data-tooltip>37</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            before_open: (rule) &#x3D;&gt; {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__49">49</a></td>
+                        </tr>            <tr id="expr.ts__38" class="hit">
+                          <td class="line" data-tooltip>38</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                rule.node &#x3D; { i: i++ };</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__50">50</a></td>
+                        </tr>            <tr id="expr.ts__39" class="hit">
+                          <td class="line" data-tooltip>39</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__51">51</a></td>
+                        </tr>            <tr id="expr.ts__40" class="hit">
+                          <td class="line" data-tooltip>40</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            after_close: (rule) &#x3D;&gt; {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__52">52</a></td>
+                        </tr>            <tr id="expr.ts__41" class="hit">
+                          <td class="line" data-tooltip>41</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                console.dir(rule.node, { depth: null });</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__53">53</a></td>
+                        </tr>            <tr id="expr.ts__42" class="hit">
+                          <td class="line" data-tooltip>42</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>8</td>
+                          <td class="source">                rule.node &#x3D; evaluate(rule.node);</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__54">54</a></td>
+                        </tr>            <tr id="expr.ts__43" class="hit">
+                          <td class="line" data-tooltip>43</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__55">55</a></td>
+                        </tr>            <tr id="expr.ts__44" class="hit">
+                          <td class="line" data-tooltip>44</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">        });</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__56">56</a></td>
+                        </tr>            <tr id="expr.ts__45" class="hit">
+                          <td class="line" data-tooltip>45</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">    });</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__57">57</a></td>
+                        </tr>            <tr id="expr.ts__46" class="hit">
+                          <td class="line" data-tooltip>46</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">    jsonic.rule(&#x27;add&#x27;, () &#x3D;&gt; {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__59">59</a></td>
+                        </tr>            <tr id="expr.ts__47" class="hit">
+                          <td class="line" data-tooltip>47</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">        return new jsonic_1.RuleSpec({</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__60">60</a></td>
+                        </tr>            <tr id="expr.ts__48" class="hit">
+                          <td class="line" data-tooltip>48</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            open: [</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__61">61</a></td>
+                        </tr>            <tr id="expr.ts__49" class="hit">
+                          <td class="line" data-tooltip>49</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                // TODO: h sig should have Rule first</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__63">63</a></td>
+                        </tr>            <tr id="expr.ts__50" class="hit">
+                          <td class="line" data-tooltip>50</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                // TODO: handler for matched alts!</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__64">64</a></td>
+                        </tr>            <tr id="expr.ts__51" class="hit">
+                          <td class="line" data-tooltip>51</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                { s: [NR, ADD] },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__65">65</a></td>
+                        </tr>            <tr id="expr.ts__52" class="hit">
+                          <td class="line" data-tooltip>52</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                { s: [NR], b: 1 },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__66">66</a></td>
+                        </tr>            <tr id="expr.ts__53" class="hit">
+                          <td class="line" data-tooltip>53</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            ],</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__67">67</a></td>
+                        </tr>            <tr id="expr.ts__54" class="hit">
+                          <td class="line" data-tooltip>54</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            close: [</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__68">68</a></td>
+                        </tr>            <tr id="expr.ts__55" class="hit">
+                          <td class="line" data-tooltip>55</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                { s: [NR, MUL], b: 2, r: &#x27;mul&#x27; },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__69">69</a></td>
+                        </tr>            <tr id="expr.ts__56" class="hit">
+                          <td class="line" data-tooltip>56</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                { s: [NR, ADD], b: 2, r: &#x27;add&#x27; },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__70">70</a></td>
+                        </tr>            <tr id="expr.ts__57" class="hit">
+                          <td class="line" data-tooltip>57</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                { s: [NR] },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__71">71</a></td>
+                        </tr>            <tr id="expr.ts__58" class="hit">
+                          <td class="line" data-tooltip>58</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            ],</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__72">72</a></td>
+                        </tr>            <tr id="expr.ts__59" class="hit">
+                          <td class="line" data-tooltip>59</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            after_open: (rule) &#x3D;&gt; {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__73">73</a></td>
+                        </tr>            <tr id="expr.ts__60" class="hit">
+                          <td class="line" data-tooltip>60</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                // TODO: how to move this to alts?</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__74">74</a></td>
+                        </tr>            <tr id="expr.ts__61" class="hit">
+                          <td class="line" data-tooltip>61</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                if (1 &lt; rule.open.length) {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__75">75</a></td>
+                        </tr>            <tr id="expr.ts__62" class="hit">
+                          <td class="line" data-tooltip>62</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>5</td>
+                          <td class="source">                    rule.node.a &#x3D; rule.open[0].val;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__76">76</a></td>
+                        </tr>            <tr id="expr.ts__63" class="hit">
+                          <td class="line" data-tooltip>63</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                }</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__77">77</a></td>
+                        </tr>            <tr id="expr.ts__64" class="hit">
+                          <td class="line" data-tooltip>64</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>8</td>
+                          <td class="source">                rule.node.o &#x3D; &#x27;+&#x27;;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__79">79</a></td>
+                        </tr>            <tr id="expr.ts__65" class="hit">
+                          <td class="line" data-tooltip>65</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__80">80</a></td>
+                        </tr>            <tr id="expr.ts__66" class="hit">
+                          <td class="line" data-tooltip>66</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            after_close: (rule, _, next) &#x3D;&gt; {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__81">81</a></td>
+                        </tr>            <tr id="expr.ts__67" class="hit">
+                          <td class="line" data-tooltip>67</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                if (1 &#x3D;&#x3D;&#x3D; rule.close.length) {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__82">82</a></td>
+                        </tr>            <tr id="expr.ts__68" class="hit">
+                          <td class="line" data-tooltip>68</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>4</td>
+                          <td class="source">                    rule.node.b &#x3D; rule.close[0].val;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__83">83</a></td>
+                        </tr>            <tr id="expr.ts__69" class="hit">
+                          <td class="line" data-tooltip>69</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                }</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__84">84</a></td>
+                        </tr>            <tr id="expr.ts__70" class="hit">
+                          <td class="line" data-tooltip>70</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                else {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__85">85</a></td>
+                        </tr>            <tr id="expr.ts__71" class="hit">
+                          <td class="line" data-tooltip>71</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>4</td>
+                          <td class="source">                    rule.node.b &#x3D; { i: i++ };</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__86">86</a></td>
+                        </tr>            <tr id="expr.ts__72" class="hit">
+                          <td class="line" data-tooltip>72</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>4</td>
+                          <td class="source">                    next.node &#x3D; rule.node.b;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__87">87</a></td>
+                        </tr>            <tr id="expr.ts__73" class="hit">
+                          <td class="line" data-tooltip>73</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                }</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__88">88</a></td>
+                        </tr>            <tr id="expr.ts__74" class="hit">
+                          <td class="line" data-tooltip>74</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            }</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__89">89</a></td>
+                        </tr>            <tr id="expr.ts__75" class="hit">
+                          <td class="line" data-tooltip>75</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">        });</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__90">90</a></td>
+                        </tr>            <tr id="expr.ts__76" class="hit">
+                          <td class="line" data-tooltip>76</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">    });</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__91">91</a></td>
+                        </tr>            <tr id="expr.ts__77" class="hit">
+                          <td class="line" data-tooltip>77</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">    jsonic.rule(&#x27;mul&#x27;, () &#x3D;&gt; {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__93">93</a></td>
+                        </tr>            <tr id="expr.ts__78" class="hit">
+                          <td class="line" data-tooltip>78</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">        return new jsonic_1.RuleSpec({</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__94">94</a></td>
+                        </tr>            <tr id="expr.ts__79" class="hit">
+                          <td class="line" data-tooltip>79</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            open: [</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__95">95</a></td>
+                        </tr>            <tr id="expr.ts__80" class="hit">
+                          <td class="line" data-tooltip>80</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                { s: [NR, MUL], },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__96">96</a></td>
+                        </tr>            <tr id="expr.ts__81" class="hit">
+                          <td class="line" data-tooltip>81</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            ],</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__97">97</a></td>
+                        </tr>            <tr id="expr.ts__82" class="hit">
+                          <td class="line" data-tooltip>82</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            close: [</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__98">98</a></td>
+                        </tr>            <tr id="expr.ts__83" class="hit">
+                          <td class="line" data-tooltip>83</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                { s: [NR, ADD], r: &#x27;add&#x27; },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__99">99</a></td>
+                        </tr>            <tr id="expr.ts__84" class="hit">
+                          <td class="line" data-tooltip>84</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                { s: [NR, MUL], b: 2, r: &#x27;mul&#x27; },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__100">100</a></td>
+                        </tr>            <tr id="expr.ts__85" class="hit">
+                          <td class="line" data-tooltip>85</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                { s: [NR] },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__101">101</a></td>
+                        </tr>            <tr id="expr.ts__86" class="hit">
+                          <td class="line" data-tooltip>86</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            ],</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__102">102</a></td>
+                        </tr>            <tr id="expr.ts__87" class="hit">
+                          <td class="line" data-tooltip>87</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            after_open: (rule) &#x3D;&gt; {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__103">103</a></td>
+                        </tr>            <tr id="expr.ts__88" class="hit">
+                          <td class="line" data-tooltip>88</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                rule.node.a &#x3D; rule.open[0].val;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__104">104</a></td>
+                        </tr>            <tr id="expr.ts__89" class="hit">
+                          <td class="line" data-tooltip>89</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>8</td>
+                          <td class="source">                rule.node.o &#x3D; &#x27;*&#x27;;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__105">105</a></td>
+                        </tr>            <tr id="expr.ts__90" class="hit">
+                          <td class="line" data-tooltip>90</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__106">106</a></td>
+                        </tr>            <tr id="expr.ts__91" class="hit">
+                          <td class="line" data-tooltip>91</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            after_close: (rule, _, next) &#x3D;&gt; {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__107">107</a></td>
+                        </tr>            <tr id="expr.ts__92" class="hit">
+                          <td class="line" data-tooltip>92</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                if (1 &#x3D;&#x3D;&#x3D; rule.close.length) {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__108">108</a></td>
+                        </tr>            <tr id="expr.ts__93" class="hit">
+                          <td class="line" data-tooltip>93</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>4</td>
+                          <td class="source">                    rule.node.b &#x3D; rule.close[0].val;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__109">109</a></td>
+                        </tr>            <tr id="expr.ts__94" class="hit">
+                          <td class="line" data-tooltip>94</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                }</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__110">110</a></td>
+                        </tr>            <tr id="expr.ts__95" class="hit">
+                          <td class="line" data-tooltip>95</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>4</td>
+                          <td class="source">                else if (ADD &#x3D;&#x3D;&#x3D; rule.close[1].tin) {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__111">111</a></td>
+                        </tr>            <tr id="expr.ts__96" class="hit">
+                          <td class="line" data-tooltip>96</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>3</td>
+                          <td class="source">                    rule.node.a &#x3D; { i: i++, a: rule.node.a, b: rule.close[0].val };</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__112">112</a></td>
+                        </tr>            <tr id="expr.ts__97" class="hit">
+                          <td class="line" data-tooltip>97</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                }</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__113">113</a></td>
+                        </tr>            <tr id="expr.ts__98" class="hit">
+                          <td class="line" data-tooltip>98</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                else {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__114">114</a></td>
+                        </tr>            <tr id="expr.ts__99" class="hit">
+                          <td class="line" data-tooltip>99</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">                    rule.node.b &#x3D; { i: i++ };</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__115">115</a></td>
+                        </tr>            <tr id="expr.ts__100" class="hit">
+                          <td class="line" data-tooltip>100</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">                    next.node &#x3D; rule.node.b;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__116">116</a></td>
+                        </tr>            <tr id="expr.ts__101" class="hit">
+                          <td class="line" data-tooltip>101</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">                }</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__117">117</a></td>
+                        </tr>            <tr id="expr.ts__102" class="hit">
+                          <td class="line" data-tooltip>102</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            }</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__118">118</a></td>
+                        </tr>            <tr id="expr.ts__103" class="hit">
+                          <td class="line" data-tooltip>103</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">        });</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__119">119</a></td>
+                        </tr>            <tr id="expr.ts__104" class="hit">
+                          <td class="line" data-tooltip>104</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">    });</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__120">120</a></td>
+                        </tr>            <tr id="expr.ts__105" class="hit">
+                          <td class="line" data-tooltip>105</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">    jsonic.rule(&#x27;val&#x27;, (rs) &#x3D;&gt; {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__123">123</a></td>
+                        </tr>            <tr id="expr.ts__106" class="hit">
+                          <td class="line" data-tooltip>106</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">        rs.def.open.unshift({ s: [NR, ADD], b: 2, p: &#x27;expr&#x27; });</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__124">124</a></td>
+                        </tr>            <tr id="expr.ts__107" class="hit">
+                          <td class="line" data-tooltip>107</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">        rs.def.open.unshift({ s: [NR, MUL], b: 2, p: &#x27;expr&#x27; });</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__125">125</a></td>
+                        </tr>            <tr id="expr.ts__108" class="hit">
+                          <td class="line" data-tooltip>108</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">        return rs;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__126">126</a></td>
+                        </tr>            <tr id="expr.ts__109" class="hit">
+                          <td class="line" data-tooltip>109</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">    });</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__127">127</a></td>
+                        </tr>            <tr id="expr.ts__110" class="hit">
+                          <td class="line" data-tooltip>110</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">};</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__128">128</a></td>
+                        </tr>            <tr id="expr.ts__111" class="hit">
+                          <td class="line" data-tooltip>111</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">exports.Expr &#x3D; Expr;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__132">132</a></td>
+                        </tr>            <tr id="expr.ts__112" class="hit">
+                          <td class="line" data-tooltip>112</td>
+                          <td class="lint empty"></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">//# sourceMappingURL&#x3D;data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZXhwci5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbImV4cHIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLG9EQUFvRDs7O0FBRXBELHFFQUFxRTtBQUdyRSxtQ0FBcUU7QUFHckUsSUFBSSxJQUFJLEdBQVcsU0FBUyxJQUFJLENBQUMsTUFBYztJQUM3QyxNQUFNLENBQUMsT0FBTyxDQUFDO1FBQ2IsS0FBSyxFQUFFO1lBQ0wsS0FBSyxFQUFFLEVBQUUsQ0FBQyxFQUFFLEdBQUcsRUFBRTtZQUNqQixLQUFLLEVBQUUsRUFBRSxDQUFDLEVBQUUsR0FBRyxFQUFFO1NBQ2xCO0tBQ0YsQ0FBQyxDQUFBO0lBR0YsSUFBSSxFQUFFLEdBQUcsTUFBTSxDQUFDLEtBQUssQ0FBQyxFQUFFLENBQUE7SUFDeEIsMEJBQTBCO0lBQzFCLElBQUksR0FBRyxHQUFHLE1BQU0sQ0FBQyxLQUFLLENBQUMsS0FBSyxDQUFDLENBQUE7SUFDN0IsSUFBSSxHQUFHLEdBQUcsTUFBTSxDQUFDLEtBQUssQ0FBQyxLQUFLLENBQUMsQ0FBQTtJQUU3QixrREFBa0Q7SUFDbEQscUVBQXFFO0lBQ3JFLHNFQUFzRTtJQUd0RSxJQUFJLEtBQUssR0FBRyxDQUFDLENBQVMsRUFBRSxDQUFTLEVBQUUsRUFBRSxDQUFDLENBQUMsR0FBRyxDQUFDLENBQUE7SUFDM0MsSUFBSSxLQUFLLEdBQUcsQ0FBQyxDQUFTLEVBQUUsQ0FBUyxFQUFFLEVBQUUsQ0FBQyxDQUFDLEdBQUcsQ0FBQyxDQUFBO0lBQzNDLEtBQUssQ0FBQyxRQUFRLEdBQUcsR0FBRyxFQUFFLENBQUMsR0FBRyxDQUFBO0lBQzFCLEtBQUssQ0FBQyxRQUFRLEdBQUcsR0FBRyxFQUFFLENBQUMsR0FBRyxDQUFBO0lBRzFCLFNBQVMsUUFBUSxDQUFDLENBQU07UUFDdEIsSUFBSSxDQUFDLEdBQUcsUUFBUSxLQUFLLE9BQU8sQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFD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&#x3D;</td>
+                          
+                        </tr>        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>    <div id="linting">
+        <h1>Linting Report</h1>
+            <span>Nothing to show here, linting is disabled.</span>
+    </div>  </body>
+</html>
