@@ -2,26 +2,31 @@
 
 // FAQ: p in close does not really work as child rule only runs later
 
-// TODO: minus, divide, modulo, parens
-
-import { Jsonic, Plugin, Rule, RuleSpec, Context, Alt } from 'jsonic'
+import { Jsonic, Plugin, Rule, RuleSpec } from 'jsonic'
 
 
-
-let addop = (a: number, b: number) => a + b
-let mulop = (a: number, b: number) => a * b
-addop.toString = () => '+'
-mulop.toString = () => '*'
+const ops: any = {
+  '+': function addop(a: number, b: number) { return a + b },
+  '-': function minop(a: number, b: number) { return a - b },
+  '*': function mulop(a: number, b: number) { return a * b },
+  '/': function divop(a: number, b: number) { return a / b },
+  '%': function modop(a: number, b: number) { return a % b },
+  '^': function powop(a: number, b: number) { return a ** b },
+}
 
 
 function evaluate(n: any): number {
-  let a = 'number' === typeof n.a ? n.a : evaluate(n.a)
-  let b = 'number' === typeof n.b ? n.b : evaluate(n.b)
-  return ('+' === n.o ? addop : mulop)(a, b)
+  let a = 'number' === typeof n[1] ? n[1] : evaluate(n[1])
+  let b = 'number' === typeof n[2] ? n[2] : evaluate(n[2])
+  let v = ops[n[0]](a, b)
+  return v
 }
 
 
 let Expr: Plugin = function expr(jsonic: Jsonic) {
+  let eval_expr = jsonic.options.plugin.expr.evaluate
+  eval_expr = null == eval_expr ? true : eval_expr
+
   jsonic.options({
     token: {
       '#E^': { c: '^' },
@@ -53,6 +58,17 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
   //let one = (_: Alt, r: Rule) => r.node = null == r.node ? 1 : r.node
   //let zero = (_: Alt, r: Rule) => r.node = null == r.node ? 0 : r.node
 
+
+
+  jsonic.rule('expr-evaluate', () => {
+    return new RuleSpec({
+      open: [{ s: [], p: 'expr' }],
+      close: [{ s: [] }],
+      after_close: (rule: Rule) => {
+        rule.node = evaluate(rule.child.node)
+      },
+    })
+  })
 
 
   jsonic.rule('expr', () => {
@@ -90,8 +106,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
       before_open: (rule: Rule) => rule.node = null,
       after_close: (rule: Rule) => {
         rule.node = null == rule.node ? rule.child.node : rule.node
-        console.log('EXPR CLOSE')
-        console.dir(rule.child.node, { depth: null })
+        //console.log('EXPR CLOSE')
+        //console.dir(rule.child.node, { depth: null })
         //rule.node = evaluate(rule.node)
       },
     })
@@ -277,14 +293,16 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
   })
 
 
+  let expr_rule = eval_expr ? 'expr-evaluate' : 'expr'
+
   jsonic.rule('val', (rs: RuleSpec) => {
-    rs.def.open.unshift({ s: [NR, ADD], b: 2, p: 'expr' })
-    rs.def.open.unshift({ s: [NR, MIN], b: 2, p: 'expr' })
-    rs.def.open.unshift({ s: [NR, MUL], b: 2, p: 'expr' })
-    rs.def.open.unshift({ s: [NR, DIV], b: 2, p: 'expr' })
-    rs.def.open.unshift({ s: [NR, MOD], b: 2, p: 'expr' })
-    rs.def.open.unshift({ s: [NR, POW], b: 2, p: 'expr' })
-    rs.def.open.unshift({ s: [OP], b: 1, p: 'expr' })
+    rs.def.open.unshift({ s: [NR, ADD], b: 2, p: expr_rule })
+    rs.def.open.unshift({ s: [NR, MIN], b: 2, p: expr_rule })
+    rs.def.open.unshift({ s: [NR, MUL], b: 2, p: expr_rule })
+    rs.def.open.unshift({ s: [NR, DIV], b: 2, p: expr_rule })
+    rs.def.open.unshift({ s: [NR, MOD], b: 2, p: expr_rule })
+    rs.def.open.unshift({ s: [NR, POW], b: 2, p: expr_rule })
+    rs.def.open.unshift({ s: [OP], b: 1, p: expr_rule })
     return rs
   })
 }
