@@ -54,6 +54,19 @@ describe('expr', function() {
 
     console.log(s = '2 - ((3 + 4) * 5)', j0(s, { xlog: -1 }))
 
+    console.log(s = '2 / 3', j0(s, { xlog: -1 }))
+    console.log(s = '2 % 3', j0(s, { xlog: -1 }))
+
+    console.log(s = '1 + 2 / 3', j0(s, { xlog: -1 }))
+    console.log(s = '1 + 2 % 3', j0(s, { xlog: -1 }))
+
+
+    console.log(s = '2 ^ 3', j0(s, { xlog: -1 }))
+    console.log(s = '2 * 3 ^ 4', j0(s, { xlog: -1 }))
+    console.log(s = '2 + 3 ^ 4', j0(s, { xlog: -1 }))
+    console.log(s = '(2 * 3) ^ 4', j0(s, { xlog: -1 }))
+    console.log(s = '(2 + 3) ^ 4', j0(s, { xlog: -1 }))
+
     return;
 
 

@@ -68,11 +68,20 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
           s: [NR, MUL], b: 2, p: 'add'
         },
         {
-          s: [NR], a: (r: Rule) => r.node = r.open[0].val
+          s: [NR, DIV], b: 2, p: 'add'
+        },
+        {
+          s: [NR, MOD], b: 2, p: 'add'
+        },
+        {
+          s: [NR, POW], b: 2, p: 'add'
         },
         {
           s: [OP], b: 1, p: 'add'
-        }
+        },
+        {
+          s: [NR], a: (r: Rule) => r.node = r.open[0].val
+        },
       ],
       close: [
         { s: [CP] },
@@ -84,7 +93,6 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
         console.log('EXPR CLOSE')
         console.dir(rule.child.node, { depth: null })
         //rule.node = evaluate(rule.node)
-
       },
     })
   })
@@ -105,6 +113,15 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
         },
         {
           s: [NR, MUL], b: 2, p: 'mul'
+        },
+        {
+          s: [NR, DIV], b: 2, p: 'mul'
+        },
+        {
+          s: [NR, MOD], b: 2, p: 'mul'
+        },
+        {
+          s: [NR, POW], b: 2, p: 'mul'
         },
         {
           s: [NR],
@@ -129,6 +146,21 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
           s: [MUL],
           r: 'mul',
           a: (r: Rule) => { r.node = ['*'] }
+        },
+        {
+          s: [DIV],
+          r: 'mul',
+          a: (r: Rule) => { r.node = ['*'] }
+        },
+        {
+          s: [MOD],
+          r: 'mul',
+          a: (r: Rule) => { r.node = ['*'] }
+        },
+        {
+          s: [POW],
+          r: 'mul',
+          a: (r: Rule) => { r.node = ['^'] }
         },
         {}
       ],
@@ -156,6 +188,19 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
           p: 'mul'
         },
         {
+          s: [NR, DIV],
+          a: (r: Rule) => { r.node = ['/', r.open[0].val] },
+          p: 'mul'
+        },
+        {
+          s: [NR, MOD],
+          a: (r: Rule) => { r.node = ['%', r.open[0].val] },
+          p: 'mul'
+        },
+        {
+          s: [NR, POW], b: 2, p: 'pow'
+        },
+        {
           s: [NR],
           a: (r: Rule) => r.node.push(r.open[0].val)
         }
@@ -165,6 +210,21 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
           s: [MUL],
           r: 'mul',
           a: (r: Rule) => { r.node = ['*'] }
+        },
+        {
+          s: [DIV],
+          r: 'mul',
+          a: (r: Rule) => { r.node = ['%'] }
+        },
+        {
+          s: [MOD],
+          r: 'mul',
+          a: (r: Rule) => { r.node = ['%'] }
+        },
+        {
+          s: [POW],
+          r: 'pow',
+          a: (r: Rule) => { r.node = ['^'] }
         },
         {}
       ],
@@ -181,10 +241,49 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
     })
   })
 
+
+  jsonic.rule('pow', () => {
+    return new RuleSpec({
+      open: [
+        {
+          s: [NR, POW],
+          a: (r: Rule) => { r.node = ['^', r.open[0].val] },
+          p: 'pow'
+        },
+        {
+          s: [NR],
+          a: (r: Rule) => r.node.push(r.open[0].val)
+        }
+      ],
+      close: [
+        {
+          s: [POW],
+          r: 'pow',
+          a: (r: Rule) => { r.node = ['^'] }
+        },
+        {}
+      ],
+      after_close: (r: Rule) => {
+        if (null == r.node) {
+          r.node = r.child.node
+        }
+        else {
+          if (null != r.child.node && r.node != r.child.node) {
+            r.node.push(r.child.node)
+          }
+        }
+      }
+    })
+  })
+
+
   jsonic.rule('val', (rs: RuleSpec) => {
     rs.def.open.unshift({ s: [NR, ADD], b: 2, p: 'expr' })
     rs.def.open.unshift({ s: [NR, MIN], b: 2, p: 'expr' })
     rs.def.open.unshift({ s: [NR, MUL], b: 2, p: 'expr' })
+    rs.def.open.unshift({ s: [NR, DIV], b: 2, p: 'expr' })
+    rs.def.open.unshift({ s: [NR, MOD], b: 2, p: 'expr' })
+    rs.def.open.unshift({ s: [NR, POW], b: 2, p: 'expr' })
     rs.def.open.unshift({ s: [OP], b: 1, p: 'expr' })
     return rs
   })
