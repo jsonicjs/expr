@@ -24,8 +24,15 @@ function evaluate(n: any): number {
 let Expr: Plugin = function expr(jsonic: Jsonic) {
   jsonic.options({
     token: {
-      '#E+': { c: '+' },
+      '#E^': { c: '^' },
+
       '#E*': { c: '*' },
+      '#E/': { c: '/' },
+      '#E%': { c: '%' },
+
+      '#E+': { c: '+' },
+      '#E-': { c: '-' },
+
       '#E(': { c: '(' },
       '#E)': { c: ')' },
     }
@@ -34,7 +41,11 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
 
   let NR = jsonic.token.NR
   let ADD = jsonic.token['#E+']
+  let MIN = jsonic.token['#E-']
   let MUL = jsonic.token['#E*']
+  let DIV = jsonic.token['#E/']
+  let MOD = jsonic.token['#E%']
+  let POW = jsonic.token['#E^']
   let OP = jsonic.token['#E(']
   let CP = jsonic.token['#E)']
 
@@ -51,10 +62,16 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
           s: [NR, ADD], b: 2, p: 'add'
         },
         {
+          s: [NR, MIN], b: 2, p: 'add'
+        },
+        {
           s: [NR, MUL], b: 2, p: 'add'
         },
         {
-          s: [OP], r: 'expr'
+          s: [NR], a: (r: Rule) => r.node = r.open[0].val
+        },
+        {
+          s: [OP], b: 1, p: 'add'
         }
       ],
       close: [
@@ -82,6 +99,11 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
           p: 'add'
         },
         {
+          s: [NR, MIN],
+          a: (r: Rule) => { r.node = ['-', r.open[0].val] },
+          p: 'add'
+        },
+        {
           s: [NR, MUL], b: 2, p: 'mul'
         },
         {
@@ -97,6 +119,16 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
           s: [ADD],
           r: 'add',
           a: (r: Rule) => { r.node = ['+'] }
+        },
+        {
+          s: [MIN],
+          r: 'add',
+          a: (r: Rule) => { r.node = ['-'] }
+        },
+        {
+          s: [MUL],
+          r: 'mul',
+          a: (r: Rule) => { r.node = ['*'] }
         },
         {}
       ],
@@ -151,8 +183,9 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
 
   jsonic.rule('val', (rs: RuleSpec) => {
     rs.def.open.unshift({ s: [NR, ADD], b: 2, p: 'expr' })
+    rs.def.open.unshift({ s: [NR, MIN], b: 2, p: 'expr' })
     rs.def.open.unshift({ s: [NR, MUL], b: 2, p: 'expr' })
-    rs.def.open.unshift({ s: [OP], p: 'expr' })
+    rs.def.open.unshift({ s: [OP], b: 1, p: 'expr' })
     return rs
   })
 }

@@ -22,6 +22,8 @@ describe('expr', function() {
     let j0 = Jsonic.make().use(Expr)
 
     let s = ''
+    console.log(s = '2', j0(s, { xlog: -1 }))
+
     console.log(s = '2 + 3', j0(s, { xlog: -1 }))
     console.log(s = '2 + 3 + 4', j0(s, { xlog: -1 }))
 
@@ -35,7 +37,23 @@ describe('expr', function() {
     console.log(s = '3 + 4 * 5 + 6', j0(s, { xlog: -1 }))
     console.log(s = '3 * 4 + 5 * 6', j0(s, { xlog: -1 }))
 
+    console.log(s = '(2)', j0(s, { xlog: -1 }))
     console.log(s = '(2 + 3)', j0(s, { xlog: -1 }))
+    console.log(s = '(2) + (3)', j0(s, { xlog: -1 }))
+
+
+    console.log(s = '(2 + 3) + 4', j0(s, { xlog: -1 }))
+    console.log(s = '2 + (3 + 4)', j0(s, { xlog: -1 }))
+
+    console.log(s = '(2 + 3) * 4', j0(s, { xlog: -1 }))
+
+
+    console.log(s = '2 - 3', j0(s, { xlog: -1 }))
+    console.log(s = '2 - 3 - 4', j0(s, { xlog: -1 }))
+    console.log(s = '2 - (3 + 4)', j0(s, { xlog: -1 }))
+
+    console.log(s = '2 - ((3 + 4) * 5)', j0(s, { xlog: -1 }))
+
     return;
 
 
@@ -51,6 +69,9 @@ describe('expr', function() {
 
     expect(j0('3 + 4 * 5 + 6', { log: -1 })).equal(29)
     expect(j0('3 * 4 + 5 * 6', { xlog: -1 })).equal(42)
+
+
+
   })
 
   it('evaluate', () => {
