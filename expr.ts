@@ -7,11 +7,27 @@
 import { Jsonic, Plugin, Rule, RuleSpec, Context, Alt } from 'jsonic'
 
 
+
+let addop = (a: number, b: number) => a + b
+let mulop = (a: number, b: number) => a * b
+addop.toString = () => '+'
+mulop.toString = () => '*'
+
+
+function evaluate(n: any): number {
+  let a = 'number' === typeof n.a ? n.a : evaluate(n.a)
+  let b = 'number' === typeof n.b ? n.b : evaluate(n.b)
+  return ('+' === n.o ? addop : mulop)(a, b)
+}
+
+
 let Expr: Plugin = function expr(jsonic: Jsonic) {
   jsonic.options({
     token: {
       '#E+': { c: '+' },
-      '#E*': { c: '*' }
+      '#E*': { c: '*' },
+      '#E(': { c: '(' },
+      '#E)': { c: ')' },
     }
   })
 
@@ -20,37 +36,31 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
   //let AA = jsonic.token.AA
   let ADD = jsonic.token['#E+']
   let MUL = jsonic.token['#E*']
+  let OP = jsonic.token['#E(']
+  let CP = jsonic.token['#E)']
 
   // TODO: move Alt param rightward for consistency?
   //let one = (_: Alt, r: Rule) => r.node = null == r.node ? 1 : r.node
   //let zero = (_: Alt, r: Rule) => r.node = null == r.node ? 0 : r.node
 
 
-  let addop = (a: number, b: number) => a + b
-  let mulop = (a: number, b: number) => a * b
-  addop.toString = () => '+'
-  mulop.toString = () => '*'
 
-
-  function evaluate(n: any): number {
-    let a = 'number' === typeof n.a ? n.a : evaluate(n.a)
-    let b = 'number' === typeof n.b ? n.b : evaluate(n.b)
-    return ('+' === n.o ? addop : mulop)(a, b)
-  }
-
-
-  let i = 0
 
   jsonic.rule('expr', () => {
     return new RuleSpec({
       open: [
-        { s: [NR, MUL], b: 2, p: 'mul' },
-        { s: [NR, ADD], b: 2, p: 'add' },
+        {
+          s: [NR, MUL], p: 'mul',
+          a: (r: Rule) => r.node = { a: r.open[0].val, o: '*' }
+        },
+        {
+          s: [NR, ADD], p: 'add',
+          a: (r: Rule) => r.node = { a: r.open[0].val, o: '+' }
+        },
+        //{ s: [OP], p: 'expr' },
       ],
-      before_open: (rule: Rule) => {
-        rule.node = { i: i++ }
-      },
       after_close: (rule: Rule) => {
+        console.log('EXPR CLOSE')
         console.dir(rule.node, { depth: null })
         rule.node = evaluate(rule.node)
       },
@@ -60,67 +70,45 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
   jsonic.rule('add', () => {
     return new RuleSpec({
       open: [
-        // open paren -> p:'expr'
-
-
-        // TODO: h sig should have Rule first
-        // TODO: handler for matched alts!
-        { s: [NR, ADD] },
-        { s: [NR], b: 1 },
+        { s: [NR], a: (r: Rule) => r.node.b = r.open[0].val },
+        { s: [OP], p: 'expr' }
       ],
       close: [
-        { s: [NR, MUL], b: 2, r: 'mul' },
-        { s: [NR, ADD], b: 2, r: 'add' },
-        { s: [NR] },
-      ],
-      after_open: (rule: Rule) => {
-        // TODO: how to move this to alts?
-        if (1 < rule.open.length) {
-          rule.node.a = rule.open[0].val
-        }
-
-        rule.node.o = '+'
-      },
-      after_close: (rule: Rule, _: Context, next: Rule) => {
-        if (1 === rule.close.length) {
-          rule.node.b = rule.close[0].val
-        }
-        else {
-          rule.node.b = { i: i++ }
-          next.node = rule.node.b
-        }
-      }
+        {
+          s: [ADD], p: 'add',
+          a: (r: Rule) =>
+            r.node = r.node.b = { a: r.node.b, o: '+' }
+        },
+        {
+          s: [MUL], p: 'mul',
+          a: (r: Rule) =>
+            r.node = r.node.b = { a: r.node.b, o: '*' }
+        },
+        { s: [CP], a: (r: Rule) => r.node.b = r.child.node },
+      ]
     })
   })
 
   jsonic.rule('mul', () => {
     return new RuleSpec({
       open: [
-        { s: [NR, MUL], },
+        { s: [NR], a: (r: Rule) => r.node.b = r.open[0].val },
       ],
       close: [
-        { s: [NR, ADD], r: 'add' },
-        { s: [NR, MUL], b: 2, r: 'mul' },
-        { s: [NR] },
-      ],
-      after_open: (rule: Rule) => {
-        rule.node.a = rule.open[0].val
-        rule.node.o = '*'
-      },
-      after_close: (rule: Rule, _: Context, next: Rule) => {
-        if (1 === rule.close.length) {
-          rule.node.b = rule.close[0].val
+        {
+          s: [MUL], p: 'mul',
+          a: (r: Rule) =>
+            r.node = r.node.b = { a: r.node.b, o: '*' }
+        },
+        {
+          s: [ADD], p: 'add',
+          a: (r: Rule) => {
+            r.node.a = { a: r.node.a, o: '*', b: r.node.b }
+            r.node.o = '+'
+            delete r.node.b
+          }
         }
-
-        // TODO: generalize
-        else if (ADD === rule.close[1].tin) {
-          rule.node.a = { i: i++, a: rule.node.a, b: rule.close[0].val }
-        }
-        else {
-          rule.node.b = { i: i++ }
-          next.node = rule.node.b
-        }
-      }
+      ]
     })
   })
 
@@ -134,5 +122,6 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
 
 
 export {
-  Expr
+  Expr,
+  evaluate,
 }
