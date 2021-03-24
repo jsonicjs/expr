@@ -71,10 +71,13 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
   })
 
 
+
+
   jsonic.rule('expr', () => {
     return new RuleSpec({
       open: [
         {
+          // TODO: group sets: s: [NR, [ADD,MIN,MUL,...]]
           s: [NR, ADD], b: 2, p: 'add'
         },
         {
@@ -106,9 +109,6 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
       before_open: (rule: Rule) => rule.node = null,
       after_close: (rule: Rule) => {
         rule.node = null == rule.node ? rule.child.node : rule.node
-        //console.log('EXPR CLOSE')
-        //console.dir(rule.child.node, { depth: null })
-        //rule.node = evaluate(rule.node)
       },
     })
   })
@@ -166,12 +166,12 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
         {
           s: [DIV],
           r: 'mul',
-          a: (r: Rule) => { r.node = ['*'] }
+          a: (r: Rule) => { r.node = ['/'] }
         },
         {
           s: [MOD],
           r: 'mul',
-          a: (r: Rule) => { r.node = ['*'] }
+          a: (r: Rule) => { r.node = ['%'] }
         },
         {
           s: [POW],
