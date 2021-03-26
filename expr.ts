@@ -1,6 +1,8 @@
 /* Copyright (c) 2021 Richard Rodger, MIT License */
 
 // FAQ: p in close does not really work as child rule only runs later
+// TODO: OP-CP match using counters
+
 
 import { Jsonic, Plugin, Rule, RuleSpec } from 'jsonic'
 
@@ -54,10 +56,36 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
   let OP = jsonic.token['#E(']
   let CP = jsonic.token['#E)']
 
-  // TODO: move Alt param rightward for consistency?
-  //let one = (_: Alt, r: Rule) => r.node = null == r.node ? 1 : r.node
-  //let zero = (_: Alt, r: Rule) => r.node = null == r.node ? 0 : r.node
+  let t2op = {
+    [ADD]: '+',
+    [MIN]: '-',
+    [MUL]: '*',
+    [DIV]: '/',
+    [MOD]: '%',
+    [POW]: '^',
+  }
 
+  let binop_ac = (r: Rule) => {
+    if (null == r.node) {
+      r.node = r.child.node
+    }
+    else {
+      if (null != r.child.node && r.node != r.child.node) {
+        r.node.push(r.child.node)
+      }
+    }
+  }
+
+  let endop = [
+    {
+      s: [NR],
+      a: (r: Rule) => r.node.push(r.open[0].val)
+    },
+    { s: [OP], p: 'expr' }
+  ]
+
+  let startop = (r: Rule) => { r.node = [t2op[r.open[1].tin], r.open[0].val] }
+  let followop = (r: Rule) => { r.node = [t2op[r.close[0].tin]] }
 
 
   jsonic.rule('expr-evaluate', () => {
@@ -65,26 +93,18 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
       open: [{ s: [], p: 'expr' }],
       close: [{ s: [] }],
       ac: (rule: Rule) => {
+        console.dir(rule.child.node, { depth: null })
         rule.node = evaluate(rule.child.node)
       },
     })
   })
 
-
-
-
   jsonic.rule('expr', () => {
     return new RuleSpec({
       open: [
-        {
-          s: [NR, [ADD, MIN, MUL, DIV, MOD, POW]], b: 2, p: 'add'
-        },
-        {
-          s: [OP], b: 1, p: 'add'
-        },
-        {
-          s: [NR], a: (r: Rule) => r.node = r.open[0].val
-        },
+        { s: [NR, [ADD, MIN, MUL, DIV, MOD, POW]], p: 'add', b: 2 },
+        { s: [OP], p: 'add', b: 1 },
+        { s: [NR], a: (r: Rule) => r.node = r.open[0].val },
       ],
       close: [
         { s: [CP] },
@@ -97,182 +117,49 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
     })
   })
 
-
   jsonic.rule('add', () => {
     return new RuleSpec({
       open: [
-        {
-          s: [NR, ADD],
-          a: (r: Rule) => { r.node = ['+', r.open[0].val] },
-          p: 'add'
-        },
-        {
-          s: [NR, MIN],
-          a: (r: Rule) => { r.node = ['-', r.open[0].val] },
-          p: 'add'
-        },
-        {
-          s: [NR, MUL], b: 2, p: 'mul'
-        },
-        {
-          s: [NR, DIV], b: 2, p: 'mul'
-        },
-        {
-          s: [NR, MOD], b: 2, p: 'mul'
-        },
-        {
-          s: [NR, POW], b: 2, p: 'mul'
-        },
-        {
-          s: [NR],
-          a: (r: Rule) => r.node.push(r.open[0].val)
-        },
-        {
-          s: [OP], p: 'expr'
-        }
+        { s: [NR, [ADD, MIN]], p: 'add', a: startop, },
+        { s: [NR, [MUL, DIV, MOD, POW]], p: 'mul', b: 2, },
+        ...endop
       ],
       close: [
-        {
-          s: [ADD],
-          r: 'add',
-          a: (r: Rule) => { r.node = ['+'] }
-        },
-        {
-          s: [MIN],
-          r: 'add',
-          a: (r: Rule) => { r.node = ['-'] }
-        },
-        {
-          s: [MUL],
-          r: 'mul',
-          a: (r: Rule) => { r.node = ['*'] }
-        },
-        {
-          s: [DIV],
-          r: 'mul',
-          a: (r: Rule) => { r.node = ['/'] }
-        },
-        {
-          s: [MOD],
-          r: 'mul',
-          a: (r: Rule) => { r.node = ['%'] }
-        },
-        {
-          s: [POW],
-          r: 'mul',
-          a: (r: Rule) => { r.node = ['^'] }
-        },
+        { s: [[ADD, MIN]], r: 'add', a: followop, },
+        { s: [[MUL, DIV, MOD, POW]], r: 'mul', a: followop, },
         {}
       ],
-      ac: (r: Rule) => {
-        if (null == r.node) {
-          r.node = r.child.node
-        }
-        else {
-          if (null != r.child.node && r.node != r.child.node) {
-            r.node.push(r.child.node)
-          }
-        }
-      }
+      ac: binop_ac,
     })
   })
-
-
 
   jsonic.rule('mul', () => {
     return new RuleSpec({
       open: [
-        {
-          s: [NR, MUL],
-          a: (r: Rule) => { r.node = ['*', r.open[0].val] },
-          p: 'mul'
-        },
-        {
-          s: [NR, DIV],
-          a: (r: Rule) => { r.node = ['/', r.open[0].val] },
-          p: 'mul'
-        },
-        {
-          s: [NR, MOD],
-          a: (r: Rule) => { r.node = ['%', r.open[0].val] },
-          p: 'mul'
-        },
-        {
-          s: [NR, POW], b: 2, p: 'pow'
-        },
-        {
-          s: [NR],
-          a: (r: Rule) => r.node.push(r.open[0].val)
-        }
+        { s: [NR, [MUL, DIV, MOD]], p: 'mul', a: startop, },
+        { s: [NR, POW], p: 'pow', b: 2, },
+        ...endop
       ],
       close: [
-        {
-          s: [MUL],
-          r: 'mul',
-          a: (r: Rule) => { r.node = ['*'] }
-        },
-        {
-          s: [DIV],
-          r: 'mul',
-          a: (r: Rule) => { r.node = ['/'] }
-        },
-        {
-          s: [MOD],
-          r: 'mul',
-          a: (r: Rule) => { r.node = ['%'] }
-        },
-        {
-          s: [POW],
-          r: 'pow',
-          a: (r: Rule) => { r.node = ['^'] }
-        },
+        { s: [[MUL, DIV, MOD]], r: 'mul', a: followop, },
+        { s: [POW], r: 'pow', a: followop, },
         {}
       ],
-      ac: (r: Rule) => {
-        if (null == r.node) {
-          r.node = r.child.node
-        }
-        else {
-          if (null != r.child.node && r.node != r.child.node) {
-            r.node.push(r.child.node)
-          }
-        }
-      }
+      ac: binop_ac,
     })
   })
-
 
   jsonic.rule('pow', () => {
     return new RuleSpec({
       open: [
-        {
-          s: [NR, POW],
-          a: (r: Rule) => { r.node = ['^', r.open[0].val] },
-          p: 'pow'
-        },
-        {
-          s: [NR],
-          a: (r: Rule) => r.node.push(r.open[0].val)
-        }
+        { s: [NR, POW], p: 'pow', a: startop, },
+        ...endop
       ],
       close: [
-        {
-          s: [POW],
-          r: 'pow',
-          a: (r: Rule) => { r.node = ['^'] }
-        },
+        { s: [POW], r: 'pow', a: followop },
         {}
       ],
-      ac: (r: Rule) => {
-        if (null == r.node) {
-          r.node = r.child.node
-        }
-        else {
-          if (null != r.child.node && r.node != r.child.node) {
-            r.node.push(r.child.node)
-          }
-        }
-      }
+      ac: binop_ac,
     })
   })
 
@@ -280,12 +167,9 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
   let expr_rule = eval_expr ? 'expr-evaluate' : 'expr'
 
   jsonic.rule('val', (rs: RuleSpec) => {
-    rs.def.open.unshift({ s: [NR, ADD], b: 2, p: expr_rule })
-    rs.def.open.unshift({ s: [NR, MIN], b: 2, p: expr_rule })
-    rs.def.open.unshift({ s: [NR, MUL], b: 2, p: expr_rule })
-    rs.def.open.unshift({ s: [NR, DIV], b: 2, p: expr_rule })
-    rs.def.open.unshift({ s: [NR, MOD], b: 2, p: expr_rule })
-    rs.def.open.unshift({ s: [NR, POW], b: 2, p: expr_rule })
+    rs.def.open.unshift({
+      s: [NR, [ADD, MIN, MUL, DIV, MOD, POW]], b: 2, p: expr_rule,
+    })
     rs.def.open.unshift({ s: [OP], b: 1, p: expr_rule })
     return rs
   })
