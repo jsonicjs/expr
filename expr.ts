@@ -64,7 +64,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
     return new RuleSpec({
       open: [{ s: [], p: 'expr' }],
       close: [{ s: [] }],
-      after_close: (rule: Rule) => {
+      ac: (rule: Rule) => {
         rule.node = evaluate(rule.child.node)
       },
     })
@@ -77,23 +77,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
     return new RuleSpec({
       open: [
         {
-          // TODO: group sets: s: [NR, [ADD,MIN,MUL,...]]
-          s: [NR, ADD], b: 2, p: 'add'
-        },
-        {
-          s: [NR, MIN], b: 2, p: 'add'
-        },
-        {
-          s: [NR, MUL], b: 2, p: 'add'
-        },
-        {
-          s: [NR, DIV], b: 2, p: 'add'
-        },
-        {
-          s: [NR, MOD], b: 2, p: 'add'
-        },
-        {
-          s: [NR, POW], b: 2, p: 'add'
+          s: [NR, [ADD, MIN, MUL, DIV, MOD, POW]], b: 2, p: 'add'
         },
         {
           s: [OP], b: 1, p: 'add'
@@ -106,8 +90,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
         { s: [CP] },
         { s: [] }
       ],
-      before_open: (rule: Rule) => rule.node = null,
-      after_close: (rule: Rule) => {
+      bo: (rule: Rule) => rule.node = null,
+      ac: (rule: Rule) => {
         rule.node = null == rule.node ? rule.child.node : rule.node
       },
     })
@@ -180,7 +164,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
         },
         {}
       ],
-      after_close: (r: Rule) => {
+      ac: (r: Rule) => {
         if (null == r.node) {
           r.node = r.child.node
         }
@@ -230,7 +214,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
         {
           s: [DIV],
           r: 'mul',
-          a: (r: Rule) => { r.node = ['%'] }
+          a: (r: Rule) => { r.node = ['/'] }
         },
         {
           s: [MOD],
@@ -244,7 +228,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
         },
         {}
       ],
-      after_close: (r: Rule) => {
+      ac: (r: Rule) => {
         if (null == r.node) {
           r.node = r.child.node
         }
@@ -279,7 +263,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
         },
         {}
       ],
-      after_close: (r: Rule) => {
+      ac: (r: Rule) => {
         if (null == r.node) {
           r.node = r.child.node
         }
