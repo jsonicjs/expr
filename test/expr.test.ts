@@ -22,6 +22,12 @@ describe('expr', function() {
     let j0 = Jsonic.make().use(Expr, { evaluate: false })
 
     let s = ''
+
+    console.log(s = '+1', j0(s, { log: -1 }))
+    console.log(s = '-1', j0(s, { log: -1 }))
+
+    console.log(s = '2+(1)', j0(s, { log: -1 }))
+
     console.log(s = '2', j0(s, { xlog: -1 }))
 
     console.log(s = '2 + 3', j0(s, { xlog: -1 }))
@@ -55,6 +61,7 @@ describe('expr', function() {
     console.log(s = '2 - (3 + 4)', j0(s, { xlog: -1 }))
 
     console.log(s = '2 - ((3 + 4) * 5)', j0(s, { xlog: -1 }))
+    console.log(s = '2 * ((3 - 4) * 5)', j0(s, { xlog: -1 }))
 
     console.log(s = '2 / 3', j0(s, { xlog: -1 }))
     console.log(s = '2 % 3', j0(s, { xlog: -1 }))
@@ -68,6 +75,12 @@ describe('expr', function() {
     console.log(s = '2 + 3 ^ 4', j0(s, { xlog: -1 }))
     console.log(s = '(2 * 3) ^ 4', j0(s, { xlog: -1 }))
     console.log(s = '(2 + 3) ^ 4', j0(s, { xlog: -1 }))
+
+    console.log(s = '-2 + 2', j0(s, { xlog: -1 }))
+    console.log(s = '+2 + 2', j0(s, { xlog: -1 }))
+
+    console.log(s = '1+-2', j0(s, { xlog: -1 }))
+    console.log(s = '1-+2', j0(s, { xlog: -1 }))
   })
 
 
@@ -87,6 +100,21 @@ describe('expr', function() {
     expect(j0('3 * 4 + 5 * 6', { xlog: -1 })).equal(42)
 
     expect(j0('a: 2 + 3', { xlog: -1 })).equal({ a: 5 })
+
+    expect(j0('-2', { xlog: -1 })).equal(-2)
+    expect(j0('+2', { xlog: -1 })).equal(2)
+    expect(j0('(2)', { xlog: -1 })).equal(2)
+
+    expect(j0('1 + -2', { xlog: -1 })).equal(-1)
+    expect(j0('1 + +2', { xlog: -1 })).equal(3)
+    expect(j0('1 + (2)', { xlog: -1 })).equal(3)
+
+    expect(j0('1 +-2', { xlog: -1 })).equal(-1)
+
+    expect(j0('(2 + 3) * 4', { xlog: -1 })).equal(20)
+    expect(j0('2 * (3 + 4)', { xlog: -1 })).equal(14)
+    expect(j0('2 * ((3 + 4) * 5)', { xlog: -1 })).equal(70)
+    expect(j0('2 * (3 * (4 + 5))', { xlog: -1 })).equal(54)
   })
 
   it('evaluate', () => {

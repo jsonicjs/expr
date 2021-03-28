@@ -536,7 +536,7 @@
         <li><a href="#tests">Test Report</a></li>
         <li><a href="#coverage">Coverage Report</a></li>
         <li class="generated">
-            <span class="cov high">97.33</span>
+            <span class="cov high">97.24</span>
             <a href="#expr.ts"><span class="basename">expr.ts</span></a>
         </li>
         <li><a href="#linting">Linting Report</a></li>
@@ -547,7 +547,7 @@
           <div class="failures">0</div>
           <div class="skipped">0</div>
           <div class="test-count">3</div>
-          <div class="duration">31</div>
+          <div class="duration">41</div>
       </div>
       <div id="filters">
           <input type="checkbox" checked="" onchange="filter(this)" value="success" id="show-success">
@@ -572,14 +572,14 @@
               <td class="test-title">expr ast
                   
               </td>
-              <td class="test-duration">19</td>
+              <td class="test-duration">30</td>
           </tr>
           <tr class="show expr success">
               <td class="test-id">2</td>
               <td class="test-title">expr expr-evaluate
                   
               </td>
-              <td class="test-duration">10</td>
+              <td class="test-duration">9</td>
           </tr>
           <tr class="show expr success">
               <td class="test-id">3</td>
@@ -594,9 +594,9 @@
     </div>    <div id="coverage">
         <h1>Code Coverage Report</h1>
         <div class="stats high">
-            <div class="percentage">97.33%</div>
-            <div class="sloc">150</div>
-            <div class="hits">146</div>
+            <div class="percentage">97.24%</div>
+            <div class="sloc">145</div>
+            <div class="hits">141</div>
             <div class="misses">4</div>
         </div>
         <div id="filters">
@@ -607,9 +607,9 @@
             <div class="file show generated">
                 <h2 id="expr.ts">expr.ts </h2>
                 <div class="stats high">
-                    <div class="percentage">97.33%</div>
-                    <div class="sloc">150</div>
-                    <div class="hits">146</div>
+                    <div class="percentage">97.24%</div>
+                    <div class="sloc">145</div>
+                    <div class="hits">141</div>
                     <div class="misses">4</div>
                 </div>
                 <table>
@@ -722,830 +722,800 @@
                         </tr>            <tr id="expr.ts__17" class="hit">
                           <td class="line" data-tooltip>17</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>19</td>
-                          <td class="source">    let a &#x3D; &#x27;number&#x27; &#x3D;&#x3D;&#x3D; typeof n[1] ? n[1] : evaluate(n[1]);</td>
+                          <td class="hits" data-tooltip>34</td>
+                          <td class="source">    if (&#x27;number&#x27; &#x3D;&#x3D;&#x3D; typeof n)</td>
                           <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__21">21</a></td>
                         </tr>            <tr id="expr.ts__18" class="hit">
                           <td class="line" data-tooltip>18</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>19</td>
-                          <td class="source">    let b &#x3D; &#x27;number&#x27; &#x3D;&#x3D;&#x3D; typeof n[2] ? n[2] : evaluate(n[2]);</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__22">22</a></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">        return n;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__21">21</a></td>
                         </tr>            <tr id="expr.ts__19" class="hit">
                           <td class="line" data-tooltip>19</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>19</td>
-                          <td class="source">    let v &#x3D; ops[n[0]](a, b);</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__23">23</a></td>
+                          <td class="hits" data-tooltip>33</td>
+                          <td class="source">    let a &#x3D; &#x27;number&#x27; &#x3D;&#x3D;&#x3D; typeof n[1] ? n[1] : evaluate(n[1]);</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__22">22</a></td>
                         </tr>            <tr id="expr.ts__20" class="hit">
                           <td class="line" data-tooltip>20</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>19</td>
-                          <td class="source">    return v;</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__24">24</a></td>
+                          <td class="hits" data-tooltip>33</td>
+                          <td class="source">    let b &#x3D; &#x27;number&#x27; &#x3D;&#x3D;&#x3D; typeof n[2] ? n[2] : evaluate(n[2]);</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__23">23</a></td>
                         </tr>            <tr id="expr.ts__21" class="hit">
                           <td class="line" data-tooltip>21</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip></td>
-                          <td class="source">}</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__25">25</a></td>
+                          <td class="hits" data-tooltip>33</td>
+                          <td class="source">    let v &#x3D; ops[n[0]](a, b);</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__24">24</a></td>
                         </tr>            <tr id="expr.ts__22" class="hit">
                           <td class="line" data-tooltip>22</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>1</td>
-                          <td class="source">exports.evaluate &#x3D; evaluate;</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__181">181</a></td>
+                          <td class="hits" data-tooltip>33</td>
+                          <td class="source">    return v;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__25">25</a></td>
                         </tr>            <tr id="expr.ts__23" class="hit">
                           <td class="line" data-tooltip>23</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>1</td>
-                          <td class="source">let Expr &#x3D; function expr(jsonic) {</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__28">28</a></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">}</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__26">26</a></td>
                         </tr>            <tr id="expr.ts__24" class="hit">
                           <td class="line" data-tooltip>24</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip></td>
-                          <td class="source">    let eval_expr &#x3D; jsonic.options.plugin.expr.evaluate;</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__29">29</a></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">exports.evaluate &#x3D; evaluate;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__179">179</a></td>
                         </tr>            <tr id="expr.ts__25" class="hit">
                           <td class="line" data-tooltip>25</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>2</td>
-                          <td class="source">    eval_expr &#x3D; null &#x3D;&#x3D; eval_expr ? true : eval_expr;</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__30">30</a></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">let Expr &#x3D; function expr(jsonic) {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__29">29</a></td>
                         </tr>            <tr id="expr.ts__26" class="hit">
                           <td class="line" data-tooltip>26</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>2</td>
-                          <td class="source">    jsonic.options({</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__32">32</a></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">    let eval_expr &#x3D; jsonic.options.plugin.expr.evaluate;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__30">30</a></td>
                         </tr>            <tr id="expr.ts__27" class="hit">
                           <td class="line" data-tooltip>27</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip></td>
-                          <td class="source">        token: {</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__33">33</a></td>
+                          <td class="hits" data-tooltip>2</td>
+                          <td class="source">    eval_expr &#x3D; null &#x3D;&#x3D; eval_expr ? true : eval_expr;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__31">31</a></td>
                         </tr>            <tr id="expr.ts__28" class="hit">
                           <td class="line" data-tooltip>28</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip></td>
-                          <td class="source">            &#x27;#E^&#x27;: { c: &#x27;^&#x27; },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__34">34</a></td>
+                          <td class="hits" data-tooltip>2</td>
+                          <td class="source">    jsonic.options({</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__33">33</a></td>
                         </tr>            <tr id="expr.ts__29" class="hit">
                           <td class="line" data-tooltip>29</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            &#x27;#E*&#x27;: { c: &#x27;*&#x27; },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__36">36</a></td>
+                          <td class="source">        token: {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__34">34</a></td>
                         </tr>            <tr id="expr.ts__30" class="hit">
                           <td class="line" data-tooltip>30</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            &#x27;#E/&#x27;: { c: &#x27;/&#x27; },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__37">37</a></td>
+                          <td class="source">            &#x27;#E^&#x27;: { c: &#x27;^&#x27; },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__35">35</a></td>
                         </tr>            <tr id="expr.ts__31" class="hit">
                           <td class="line" data-tooltip>31</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            &#x27;#E%&#x27;: { c: &#x27;%&#x27; },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__38">38</a></td>
+                          <td class="source">            &#x27;#E*&#x27;: { c: &#x27;*&#x27; },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__37">37</a></td>
                         </tr>            <tr id="expr.ts__32" class="hit">
                           <td class="line" data-tooltip>32</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            &#x27;#E+&#x27;: { c: &#x27;+&#x27; },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__40">40</a></td>
+                          <td class="source">            &#x27;#E/&#x27;: { c: &#x27;/&#x27; },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__38">38</a></td>
                         </tr>            <tr id="expr.ts__33" class="hit">
                           <td class="line" data-tooltip>33</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            &#x27;#E-&#x27;: { c: &#x27;-&#x27; },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__41">41</a></td>
+                          <td class="source">            &#x27;#E%&#x27;: { c: &#x27;%&#x27; },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__39">39</a></td>
                         </tr>            <tr id="expr.ts__34" class="hit">
                           <td class="line" data-tooltip>34</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            &#x27;#E(&#x27;: { c: &#x27;(&#x27; },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__43">43</a></td>
+                          <td class="source">            &#x27;#E+&#x27;: { c: &#x27;+&#x27; },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__41">41</a></td>
                         </tr>            <tr id="expr.ts__35" class="hit">
                           <td class="line" data-tooltip>35</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            &#x27;#E)&#x27;: { c: &#x27;)&#x27; },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__44">44</a></td>
+                          <td class="source">            &#x27;#E-&#x27;: { c: &#x27;-&#x27; },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__42">42</a></td>
                         </tr>            <tr id="expr.ts__36" class="hit">
                           <td class="line" data-tooltip>36</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">        }</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__45">45</a></td>
+                          <td class="source">            &#x27;#E(&#x27;: { c: &#x27;(&#x27; },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__44">44</a></td>
                         </tr>            <tr id="expr.ts__37" class="hit">
                           <td class="line" data-tooltip>37</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">    });</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__46">46</a></td>
+                          <td class="source">            &#x27;#E)&#x27;: { c: &#x27;)&#x27; },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__45">45</a></td>
                         </tr>            <tr id="expr.ts__38" class="hit">
                           <td class="line" data-tooltip>38</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>2</td>
-                          <td class="source">    let NR &#x3D; jsonic.token.NR;</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__49">49</a></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">        }</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__46">46</a></td>
                         </tr>            <tr id="expr.ts__39" class="hit">
                           <td class="line" data-tooltip>39</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>2</td>
-                          <td class="source">    let ADD &#x3D; jsonic.token[&#x27;#E+&#x27;];</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__50">50</a></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">    });</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__47">47</a></td>
                         </tr>            <tr id="expr.ts__40" class="hit">
                           <td class="line" data-tooltip>40</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip>2</td>
-                          <td class="source">    let MIN &#x3D; jsonic.token[&#x27;#E-&#x27;];</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__51">51</a></td>
+                          <td class="source">    let NR &#x3D; jsonic.token.NR;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__50">50</a></td>
                         </tr>            <tr id="expr.ts__41" class="hit">
                           <td class="line" data-tooltip>41</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip>2</td>
-                          <td class="source">    let MUL &#x3D; jsonic.token[&#x27;#E*&#x27;];</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__52">52</a></td>
+                          <td class="source">    let ADD &#x3D; jsonic.token[&#x27;#E+&#x27;];</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__51">51</a></td>
                         </tr>            <tr id="expr.ts__42" class="hit">
                           <td class="line" data-tooltip>42</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip>2</td>
-                          <td class="source">    let DIV &#x3D; jsonic.token[&#x27;#E/&#x27;];</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__53">53</a></td>
+                          <td class="source">    let MIN &#x3D; jsonic.token[&#x27;#E-&#x27;];</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__52">52</a></td>
                         </tr>            <tr id="expr.ts__43" class="hit">
                           <td class="line" data-tooltip>43</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip>2</td>
-                          <td class="source">    let MOD &#x3D; jsonic.token[&#x27;#E%&#x27;];</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__54">54</a></td>
+                          <td class="source">    let MUL &#x3D; jsonic.token[&#x27;#E*&#x27;];</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__53">53</a></td>
                         </tr>            <tr id="expr.ts__44" class="hit">
                           <td class="line" data-tooltip>44</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip>2</td>
-                          <td class="source">    let POW &#x3D; jsonic.token[&#x27;#E^&#x27;];</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__55">55</a></td>
+                          <td class="source">    let DIV &#x3D; jsonic.token[&#x27;#E/&#x27;];</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__54">54</a></td>
                         </tr>            <tr id="expr.ts__45" class="hit">
                           <td class="line" data-tooltip>45</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip>2</td>
-                          <td class="source">    let OP &#x3D; jsonic.token[&#x27;#E(&#x27;];</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__56">56</a></td>
+                          <td class="source">    let MOD &#x3D; jsonic.token[&#x27;#E%&#x27;];</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__55">55</a></td>
                         </tr>            <tr id="expr.ts__46" class="hit">
                           <td class="line" data-tooltip>46</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip>2</td>
-                          <td class="source">    let CP &#x3D; jsonic.token[&#x27;#E)&#x27;];</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__57">57</a></td>
+                          <td class="source">    let POW &#x3D; jsonic.token[&#x27;#E^&#x27;];</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__56">56</a></td>
                         </tr>            <tr id="expr.ts__47" class="hit">
                           <td class="line" data-tooltip>47</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip>2</td>
-                          <td class="source">    let t2op &#x3D; {</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__59">59</a></td>
+                          <td class="source">    let OP &#x3D; jsonic.token[&#x27;#E(&#x27;];</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__57">57</a></td>
                         </tr>            <tr id="expr.ts__48" class="hit">
                           <td class="line" data-tooltip>48</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip></td>
-                          <td class="source">        [ADD]: &#x27;+&#x27;,</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__60">60</a></td>
+                          <td class="hits" data-tooltip>2</td>
+                          <td class="source">    let CP &#x3D; jsonic.token[&#x27;#E)&#x27;];</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__58">58</a></td>
                         </tr>            <tr id="expr.ts__49" class="hit">
                           <td class="line" data-tooltip>49</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip></td>
-                          <td class="source">        [MIN]: &#x27;-&#x27;,</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__61">61</a></td>
+                          <td class="hits" data-tooltip>2</td>
+                          <td class="source">    let t2op &#x3D; {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__60">60</a></td>
                         </tr>            <tr id="expr.ts__50" class="hit">
                           <td class="line" data-tooltip>50</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">        [MUL]: &#x27;*&#x27;,</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__62">62</a></td>
+                          <td class="source">        [ADD]: &#x27;+&#x27;,</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__61">61</a></td>
                         </tr>            <tr id="expr.ts__51" class="hit">
                           <td class="line" data-tooltip>51</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">        [DIV]: &#x27;/&#x27;,</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__63">63</a></td>
+                          <td class="source">        [MIN]: &#x27;-&#x27;,</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__62">62</a></td>
                         </tr>            <tr id="expr.ts__52" class="hit">
                           <td class="line" data-tooltip>52</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">        [MOD]: &#x27;%&#x27;,</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__64">64</a></td>
+                          <td class="source">        [MUL]: &#x27;*&#x27;,</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__63">63</a></td>
                         </tr>            <tr id="expr.ts__53" class="hit">
                           <td class="line" data-tooltip>53</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">        [POW]: &#x27;^&#x27;,</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__65">65</a></td>
+                          <td class="source">        [DIV]: &#x27;/&#x27;,</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__64">64</a></td>
                         </tr>            <tr id="expr.ts__54" class="hit">
                           <td class="line" data-tooltip>54</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">    };</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__66">66</a></td>
+                          <td class="source">        [MOD]: &#x27;%&#x27;,</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__65">65</a></td>
                         </tr>            <tr id="expr.ts__55" class="hit">
                           <td class="line" data-tooltip>55</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>2</td>
-                          <td class="source">    let binop_ac &#x3D; (r) &#x3D;&gt; {</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__68">68</a></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">        [POW]: &#x27;^&#x27;,</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__66">66</a></td>
                         </tr>            <tr id="expr.ts__56" class="hit">
                           <td class="line" data-tooltip>56</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">        if (null &#x3D;&#x3D; r.node) {</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__69">69</a></td>
+                          <td class="source">    };</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__67">67</a></td>
                         </tr>            <tr id="expr.ts__57" class="hit">
                           <td class="line" data-tooltip>57</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>12</td>
-                          <td class="source">            r.node &#x3D; r.child.node;</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__70">70</a></td>
+                          <td class="hits" data-tooltip>2</td>
+                          <td class="source">    let binop_ac &#x3D; (r) &#x3D;&gt; {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__69">69</a></td>
                         </tr>            <tr id="expr.ts__58" class="hit">
                           <td class="line" data-tooltip>58</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">        }</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__71">71</a></td>
+                          <td class="source">        if (null &#x3D;&#x3D; r.node) {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__70">70</a></td>
                         </tr>            <tr id="expr.ts__59" class="hit">
                           <td class="line" data-tooltip>59</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip></td>
-                          <td class="source">        else {</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__72">72</a></td>
+                          <td class="hits" data-tooltip>18</td>
+                          <td class="source">            r.node &#x3D; r.child.node;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__71">71</a></td>
                         </tr>            <tr id="expr.ts__60" class="hit">
                           <td class="line" data-tooltip>60</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>124</td>
-                          <td class="source">            if (null !&#x3D; r.child.node &amp;&amp; r.node !&#x3D; r.child.node) {</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__73">73</a></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">        }</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__72">72</a></td>
                         </tr>            <tr id="expr.ts__61" class="hit">
                           <td class="line" data-tooltip>61</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>31</td>
-                          <td class="source">                r.node.push(r.child.node);</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__74">74</a></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">        else {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__73">73</a></td>
                         </tr>            <tr id="expr.ts__62" class="hit">
                           <td class="line" data-tooltip>62</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip></td>
-                          <td class="source">            }</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__75">75</a></td>
+                          <td class="hits" data-tooltip>168</td>
+                          <td class="source">            if (null !&#x3D; r.child.node &amp;&amp; r.node !&#x3D; r.child.node) {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__74">74</a></td>
                         </tr>            <tr id="expr.ts__63" class="hit">
                           <td class="line" data-tooltip>63</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip></td>
-                          <td class="source">        }</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__76">76</a></td>
+                          <td class="hits" data-tooltip>41</td>
+                          <td class="source">                r.node.push(r.child.node);</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__75">75</a></td>
                         </tr>            <tr id="expr.ts__64" class="hit">
                           <td class="line" data-tooltip>64</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">    };</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__77">77</a></td>
+                          <td class="source">            }</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__76">76</a></td>
                         </tr>            <tr id="expr.ts__65" class="hit">
                           <td class="line" data-tooltip>65</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>2</td>
-                          <td class="source">    let endop &#x3D; [</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__79">79</a></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">        }</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__77">77</a></td>
                         </tr>            <tr id="expr.ts__66" class="hit">
                           <td class="line" data-tooltip>66</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">        {</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__80">80</a></td>
+                          <td class="source">    };</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__78">78</a></td>
                         </tr>            <tr id="expr.ts__67" class="hit">
                           <td class="line" data-tooltip>67</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip></td>
-                          <td class="source">            s: [NR],</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__81">81</a></td>
+                          <td class="hits" data-tooltip>2</td>
+                          <td class="source">    let endop &#x3D; [</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__80">80</a></td>
                         </tr>            <tr id="expr.ts__68" class="hit">
                           <td class="line" data-tooltip>68</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            a: (r) &#x3D;&gt; r.node.push(r.open[0].val)</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__82">82</a></td>
+                          <td class="source">        { s: [NR], a: (r) &#x3D;&gt; r.node.push(r.open[0].val) },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__81">81</a></td>
                         </tr>            <tr id="expr.ts__69" class="hit">
                           <td class="line" data-tooltip>69</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">        },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__83">83</a></td>
+                          <td class="source">        { s: [OP], p: &#x27;expr&#x27; }</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__82">82</a></td>
                         </tr>            <tr id="expr.ts__70" class="hit">
                           <td class="line" data-tooltip>70</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">        { s: [OP], p: &#x27;expr&#x27; }</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__84">84</a></td>
+                          <td class="source">    ];</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__83">83</a></td>
                         </tr>            <tr id="expr.ts__71" class="hit">
                           <td class="line" data-tooltip>71</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip></td>
-                          <td class="source">    ];</td>
+                          <td class="hits" data-tooltip>2</td>
+                          <td class="source">    let startop &#x3D; (r) &#x3D;&gt; { r.node &#x3D; [t2op[r.open[1].tin], r.open[0].val]; };</td>
                           <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__85">85</a></td>
                         </tr>            <tr id="expr.ts__72" class="hit">
                           <td class="line" data-tooltip>72</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip>2</td>
-                          <td class="source">    let startop &#x3D; (r) &#x3D;&gt; { r.node &#x3D; [t2op[r.open[1].tin], r.open[0].val]; };</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__87">87</a></td>
+                          <td class="source">    let followop &#x3D; (r) &#x3D;&gt; { r.node &#x3D; [t2op[r.close[0].tin]]; };</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__86">86</a></td>
                         </tr>            <tr id="expr.ts__73" class="hit">
                           <td class="line" data-tooltip>73</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip>2</td>
-                          <td class="source">    let followop &#x3D; (r) &#x3D;&gt; { r.node &#x3D; [t2op[r.close[0].tin]]; };</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__88">88</a></td>
+                          <td class="source">    jsonic.rule(&#x27;expr-evaluate&#x27;, () &#x3D;&gt; {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__89">89</a></td>
                         </tr>            <tr id="expr.ts__74" class="hit">
                           <td class="line" data-tooltip>74</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>2</td>
-                          <td class="source">    jsonic.rule(&#x27;expr-evaluate&#x27;, () &#x3D;&gt; {</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__91">91</a></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">        return new jsonic_1.RuleSpec({</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__90">90</a></td>
                         </tr>            <tr id="expr.ts__75" class="hit">
                           <td class="line" data-tooltip>75</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">        return new jsonic_1.RuleSpec({</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__92">92</a></td>
+                          <td class="source">            open: [{ s: [], p: &#x27;expr&#x27; }],</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__91">91</a></td>
                         </tr>            <tr id="expr.ts__76" class="hit">
                           <td class="line" data-tooltip>76</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            open: [{ s: [], p: &#x27;expr&#x27; }],</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__93">93</a></td>
+                          <td class="source">            close: [{ s: [] }],</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__92">92</a></td>
                         </tr>            <tr id="expr.ts__77" class="hit">
                           <td class="line" data-tooltip>77</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            close: [{ s: [] }],</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__94">94</a></td>
+                          <td class="source">            ac: (rule) &#x3D;&gt; {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__93">93</a></td>
                         </tr>            <tr id="expr.ts__78" class="hit">
                           <td class="line" data-tooltip>78</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            ac: (rule) &#x3D;&gt; {</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__95">95</a></td>
+                          <td class="source">                rule.node &#x3D; evaluate(rule.child.node);</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__94">94</a></td>
                         </tr>            <tr id="expr.ts__79" class="hit">
                           <td class="line" data-tooltip>79</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">                console.dir(rule.child.node, { depth: null });</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__96">96</a></td>
+                          <td class="source">            },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__95">95</a></td>
                         </tr>            <tr id="expr.ts__80" class="hit">
                           <td class="line" data-tooltip>80</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>9</td>
-                          <td class="source">                rule.node &#x3D; evaluate(rule.child.node);</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__97">97</a></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">        });</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__96">96</a></td>
                         </tr>            <tr id="expr.ts__81" class="hit">
                           <td class="line" data-tooltip>81</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__98">98</a></td>
+                          <td class="source">    });</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__97">97</a></td>
                         </tr>            <tr id="expr.ts__82" class="hit">
                           <td class="line" data-tooltip>82</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip></td>
-                          <td class="source">        });</td>
+                          <td class="hits" data-tooltip>2</td>
+                          <td class="source">    jsonic.rule(&#x27;expr&#x27;, () &#x3D;&gt; {</td>
                           <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__99">99</a></td>
                         </tr>            <tr id="expr.ts__83" class="hit">
                           <td class="line" data-tooltip>83</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">    });</td>
+                          <td class="source">        return new jsonic_1.RuleSpec({</td>
                           <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__100">100</a></td>
                         </tr>            <tr id="expr.ts__84" class="hit">
                           <td class="line" data-tooltip>84</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>2</td>
-                          <td class="source">    jsonic.rule(&#x27;expr&#x27;, () &#x3D;&gt; {</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__102">102</a></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            open: [</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__101">101</a></td>
                         </tr>            <tr id="expr.ts__85" class="hit">
                           <td class="line" data-tooltip>85</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">        return new jsonic_1.RuleSpec({</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__103">103</a></td>
+                          <td class="source">                { s: [NR, [ADD, MIN, MUL, DIV, MOD, POW]], p: &#x27;add&#x27;, b: 2 },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__102">102</a></td>
                         </tr>            <tr id="expr.ts__86" class="hit">
                           <td class="line" data-tooltip>86</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            open: [</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__104">104</a></td>
+                          <td class="source">                { s: [OP], p: &#x27;add&#x27;, b: 1 },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__103">103</a></td>
                         </tr>            <tr id="expr.ts__87" class="hit">
                           <td class="line" data-tooltip>87</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">                { s: [NR, [ADD, MIN, MUL, DIV, MOD, POW]], p: &#x27;add&#x27;, b: 2 },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__105">105</a></td>
+                          <td class="source">                { s: [NR], a: (r) &#x3D;&gt; r.node &#x3D; r.open[0].val },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__104">104</a></td>
                         </tr>            <tr id="expr.ts__88" class="hit">
                           <td class="line" data-tooltip>88</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">                { s: [OP], p: &#x27;add&#x27;, b: 1 },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__106">106</a></td>
+                          <td class="source">            ],</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__105">105</a></td>
                         </tr>            <tr id="expr.ts__89" class="hit">
                           <td class="line" data-tooltip>89</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">                { s: [NR], a: (r) &#x3D;&gt; r.node &#x3D; r.open[0].val },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__107">107</a></td>
+                          <td class="source">            close: [</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__106">106</a></td>
                         </tr>            <tr id="expr.ts__90" class="hit">
                           <td class="line" data-tooltip>90</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            ],</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__108">108</a></td>
+                          <td class="source">                { s: [CP] },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__107">107</a></td>
                         </tr>            <tr id="expr.ts__91" class="hit">
                           <td class="line" data-tooltip>91</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            close: [</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__109">109</a></td>
+                          <td class="source">                { s: [] }</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__108">108</a></td>
                         </tr>            <tr id="expr.ts__92" class="hit">
                           <td class="line" data-tooltip>92</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">                { s: [CP] },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__110">110</a></td>
+                          <td class="source">            ],</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__109">109</a></td>
                         </tr>            <tr id="expr.ts__93" class="hit">
                           <td class="line" data-tooltip>93</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">                { s: [] }</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__111">111</a></td>
+                          <td class="source">            bo: (rule) &#x3D;&gt; rule.node &#x3D; null,</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__110">110</a></td>
                         </tr>            <tr id="expr.ts__94" class="hit">
                           <td class="line" data-tooltip>94</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            ],</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__112">112</a></td>
+                          <td class="source">            ac: (rule) &#x3D;&gt; {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__111">111</a></td>
                         </tr>            <tr id="expr.ts__95" class="hit">
                           <td class="line" data-tooltip>95</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            bo: (rule) &#x3D;&gt; rule.node &#x3D; null,</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__113">113</a></td>
+                          <td class="source">                rule.node &#x3D; null &#x3D;&#x3D; rule.node ? rule.child.node : rule.node;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__112">112</a></td>
                         </tr>            <tr id="expr.ts__96" class="hit">
                           <td class="line" data-tooltip>96</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            ac: (rule) &#x3D;&gt; {</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__114">114</a></td>
+                          <td class="source">            },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__113">113</a></td>
                         </tr>            <tr id="expr.ts__97" class="hit">
                           <td class="line" data-tooltip>97</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">                rule.node &#x3D; null &#x3D;&#x3D; rule.node ? rule.child.node : rule.node;</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__115">115</a></td>
+                          <td class="source">        });</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__114">114</a></td>
                         </tr>            <tr id="expr.ts__98" class="hit">
                           <td class="line" data-tooltip>98</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__116">116</a></td>
+                          <td class="source">    });</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__115">115</a></td>
                         </tr>            <tr id="expr.ts__99" class="hit">
                           <td class="line" data-tooltip>99</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip></td>
-                          <td class="source">        });</td>
+                          <td class="hits" data-tooltip>2</td>
+                          <td class="source">    jsonic.rule(&#x27;add&#x27;, () &#x3D;&gt; {</td>
                           <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__117">117</a></td>
                         </tr>            <tr id="expr.ts__100" class="hit">
                           <td class="line" data-tooltip>100</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">    });</td>
+                          <td class="source">        return new jsonic_1.RuleSpec({</td>
                           <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__118">118</a></td>
                         </tr>            <tr id="expr.ts__101" class="hit">
                           <td class="line" data-tooltip>101</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>2</td>
-                          <td class="source">    jsonic.rule(&#x27;add&#x27;, () &#x3D;&gt; {</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__120">120</a></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            open: [</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__119">119</a></td>
                         </tr>            <tr id="expr.ts__102" class="hit">
                           <td class="line" data-tooltip>102</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">        return new jsonic_1.RuleSpec({</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__121">121</a></td>
+                          <td class="source">                { s: [NR, [ADD, MIN]], p: &#x27;add&#x27;, a: startop, },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__120">120</a></td>
                         </tr>            <tr id="expr.ts__103" class="hit">
                           <td class="line" data-tooltip>103</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            open: [</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__122">122</a></td>
+                          <td class="source">                { s: [NR, [MUL, DIV, MOD, POW]], p: &#x27;mul&#x27;, b: 2, },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__121">121</a></td>
                         </tr>            <tr id="expr.ts__104" class="hit">
                           <td class="line" data-tooltip>104</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">                { s: [NR, [ADD, MIN]], p: &#x27;add&#x27;, a: startop, },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__123">123</a></td>
+                          <td class="source">                ...endop</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__122">122</a></td>
                         </tr>            <tr id="expr.ts__105" class="hit">
                           <td class="line" data-tooltip>105</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">                { s: [NR, [MUL, DIV, MOD, POW]], p: &#x27;mul&#x27;, b: 2, },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__124">124</a></td>
+                          <td class="source">            ],</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__123">123</a></td>
                         </tr>            <tr id="expr.ts__106" class="hit">
                           <td class="line" data-tooltip>106</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">                ...endop</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__125">125</a></td>
+                          <td class="source">            close: [</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__124">124</a></td>
                         </tr>            <tr id="expr.ts__107" class="hit">
                           <td class="line" data-tooltip>107</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            ],</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__126">126</a></td>
+                          <td class="source">                { s: [[ADD, MIN]], r: &#x27;add&#x27;, a: followop, },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__125">125</a></td>
                         </tr>            <tr id="expr.ts__108" class="hit">
                           <td class="line" data-tooltip>108</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            close: [</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__127">127</a></td>
+                          <td class="source">                { s: [[MUL, DIV, MOD, POW]], r: &#x27;mul&#x27;, a: followop, },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__126">126</a></td>
                         </tr>            <tr id="expr.ts__109" class="hit">
                           <td class="line" data-tooltip>109</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">                { s: [[ADD, MIN]], r: &#x27;add&#x27;, a: followop, },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__128">128</a></td>
+                          <td class="source">                {}</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__127">127</a></td>
                         </tr>            <tr id="expr.ts__110" class="hit">
                           <td class="line" data-tooltip>110</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">                { s: [[MUL, DIV, MOD, POW]], r: &#x27;mul&#x27;, a: followop, },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__129">129</a></td>
+                          <td class="source">            ],</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__128">128</a></td>
                         </tr>            <tr id="expr.ts__111" class="hit">
                           <td class="line" data-tooltip>111</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">                {}</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__130">130</a></td>
+                          <td class="source">            ac: binop_ac,</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__129">129</a></td>
                         </tr>            <tr id="expr.ts__112" class="hit">
                           <td class="line" data-tooltip>112</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            ],</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__131">131</a></td>
+                          <td class="source">        });</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__130">130</a></td>
                         </tr>            <tr id="expr.ts__113" class="hit">
                           <td class="line" data-tooltip>113</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            ac: binop_ac,</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__132">132</a></td>
+                          <td class="source">    });</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__131">131</a></td>
                         </tr>            <tr id="expr.ts__114" class="hit">
                           <td class="line" data-tooltip>114</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip></td>
-                          <td class="source">        });</td>
+                          <td class="hits" data-tooltip>2</td>
+                          <td class="source">    jsonic.rule(&#x27;mul&#x27;, () &#x3D;&gt; {</td>
                           <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__133">133</a></td>
                         </tr>            <tr id="expr.ts__115" class="hit">
                           <td class="line" data-tooltip>115</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">    });</td>
+                          <td class="source">        return new jsonic_1.RuleSpec({</td>
                           <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__134">134</a></td>
                         </tr>            <tr id="expr.ts__116" class="hit">
                           <td class="line" data-tooltip>116</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>2</td>
-                          <td class="source">    jsonic.rule(&#x27;mul&#x27;, () &#x3D;&gt; {</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__136">136</a></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            open: [</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__135">135</a></td>
                         </tr>            <tr id="expr.ts__117" class="hit">
                           <td class="line" data-tooltip>117</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">        return new jsonic_1.RuleSpec({</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__137">137</a></td>
+                          <td class="source">                { s: [NR, [MUL, DIV, MOD]], p: &#x27;mul&#x27;, a: startop, },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__136">136</a></td>
                         </tr>            <tr id="expr.ts__118" class="hit">
                           <td class="line" data-tooltip>118</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            open: [</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__138">138</a></td>
+                          <td class="source">                { s: [NR, POW], p: &#x27;pow&#x27;, b: 2, },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__137">137</a></td>
                         </tr>            <tr id="expr.ts__119" class="hit">
                           <td class="line" data-tooltip>119</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">                { s: [NR, [MUL, DIV, MOD]], p: &#x27;mul&#x27;, a: startop, },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__139">139</a></td>
+                          <td class="source">                ...endop</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__138">138</a></td>
                         </tr>            <tr id="expr.ts__120" class="hit">
                           <td class="line" data-tooltip>120</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">                { s: [NR, POW], p: &#x27;pow&#x27;, b: 2, },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__140">140</a></td>
+                          <td class="source">            ],</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__139">139</a></td>
                         </tr>            <tr id="expr.ts__121" class="hit">
                           <td class="line" data-tooltip>121</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">                ...endop</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__141">141</a></td>
+                          <td class="source">            close: [</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__140">140</a></td>
                         </tr>            <tr id="expr.ts__122" class="hit">
                           <td class="line" data-tooltip>122</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            ],</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__142">142</a></td>
+                          <td class="source">                { s: [[MUL, DIV, MOD]], r: &#x27;mul&#x27;, a: followop, },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__141">141</a></td>
                         </tr>            <tr id="expr.ts__123" class="hit">
                           <td class="line" data-tooltip>123</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            close: [</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__143">143</a></td>
+                          <td class="source">                { s: [POW], r: &#x27;pow&#x27;, a: followop, },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__142">142</a></td>
                         </tr>            <tr id="expr.ts__124" class="hit">
                           <td class="line" data-tooltip>124</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">                { s: [[MUL, DIV, MOD]], r: &#x27;mul&#x27;, a: followop, },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__144">144</a></td>
+                          <td class="source">                {}</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__143">143</a></td>
                         </tr>            <tr id="expr.ts__125" class="hit">
                           <td class="line" data-tooltip>125</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">                { s: [POW], r: &#x27;pow&#x27;, a: followop, },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__145">145</a></td>
+                          <td class="source">            ],</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__144">144</a></td>
                         </tr>            <tr id="expr.ts__126" class="hit">
                           <td class="line" data-tooltip>126</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">                {}</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__146">146</a></td>
+                          <td class="source">            ac: binop_ac,</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__145">145</a></td>
                         </tr>            <tr id="expr.ts__127" class="hit">
                           <td class="line" data-tooltip>127</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            ],</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__147">147</a></td>
+                          <td class="source">        });</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__146">146</a></td>
                         </tr>            <tr id="expr.ts__128" class="hit">
                           <td class="line" data-tooltip>128</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            ac: binop_ac,</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__148">148</a></td>
+                          <td class="source">    });</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__147">147</a></td>
                         </tr>            <tr id="expr.ts__129" class="hit">
                           <td class="line" data-tooltip>129</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip></td>
-                          <td class="source">        });</td>
+                          <td class="hits" data-tooltip>2</td>
+                          <td class="source">    jsonic.rule(&#x27;pow&#x27;, () &#x3D;&gt; {</td>
                           <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__149">149</a></td>
                         </tr>            <tr id="expr.ts__130" class="hit">
                           <td class="line" data-tooltip>130</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">    });</td>
+                          <td class="source">        return new jsonic_1.RuleSpec({</td>
                           <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__150">150</a></td>
                         </tr>            <tr id="expr.ts__131" class="hit">
                           <td class="line" data-tooltip>131</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>2</td>
-                          <td class="source">    jsonic.rule(&#x27;pow&#x27;, () &#x3D;&gt; {</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__152">152</a></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">            open: [</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__151">151</a></td>
                         </tr>            <tr id="expr.ts__132" class="hit">
                           <td class="line" data-tooltip>132</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">        return new jsonic_1.RuleSpec({</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__153">153</a></td>
+                          <td class="source">                { s: [NR, POW], p: &#x27;pow&#x27;, a: startop, },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__152">152</a></td>
                         </tr>            <tr id="expr.ts__133" class="hit">
                           <td class="line" data-tooltip>133</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            open: [</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__154">154</a></td>
+                          <td class="source">                ...endop</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__153">153</a></td>
                         </tr>            <tr id="expr.ts__134" class="hit">
                           <td class="line" data-tooltip>134</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">                { s: [NR, POW], p: &#x27;pow&#x27;, a: startop, },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__155">155</a></td>
+                          <td class="source">            ],</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__154">154</a></td>
                         </tr>            <tr id="expr.ts__135" class="hit">
                           <td class="line" data-tooltip>135</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">                ...endop</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__156">156</a></td>
+                          <td class="source">            close: [</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__155">155</a></td>
                         </tr>            <tr id="expr.ts__136" class="hit">
                           <td class="line" data-tooltip>136</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            ],</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__157">157</a></td>
+                          <td class="source">                { s: [POW], r: &#x27;pow&#x27;, a: followop },</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__156">156</a></td>
                         </tr>            <tr id="expr.ts__137" class="hit">
                           <td class="line" data-tooltip>137</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            close: [</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__158">158</a></td>
+                          <td class="source">                {}</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__157">157</a></td>
                         </tr>            <tr id="expr.ts__138" class="hit">
                           <td class="line" data-tooltip>138</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">                { s: [POW], r: &#x27;pow&#x27;, a: followop },</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__159">159</a></td>
+                          <td class="source">            ],</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__158">158</a></td>
                         </tr>            <tr id="expr.ts__139" class="hit">
                           <td class="line" data-tooltip>139</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">                {}</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__160">160</a></td>
+                          <td class="source">            ac: binop_ac,</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__159">159</a></td>
                         </tr>            <tr id="expr.ts__140" class="hit">
                           <td class="line" data-tooltip>140</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            ],</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__161">161</a></td>
+                          <td class="source">        });</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__160">160</a></td>
                         </tr>            <tr id="expr.ts__141" class="hit">
                           <td class="line" data-tooltip>141</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            ac: binop_ac,</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__162">162</a></td>
+                          <td class="source">    });</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__161">161</a></td>
                         </tr>            <tr id="expr.ts__142" class="hit">
                           <td class="line" data-tooltip>142</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip></td>
-                          <td class="source">        });</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__163">163</a></td>
+                          <td class="hits" data-tooltip>2</td>
+                          <td class="source">    let expr_rule &#x3D; eval_expr ? &#x27;expr-evaluate&#x27; : &#x27;expr&#x27;;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__164">164</a></td>
                         </tr>            <tr id="expr.ts__143" class="hit">
                           <td class="line" data-tooltip>143</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip></td>
-                          <td class="source">    });</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__164">164</a></td>
+                          <td class="hits" data-tooltip>2</td>
+                          <td class="source">    jsonic.rule(&#x27;val&#x27;, (rs) &#x3D;&gt; {</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__166">166</a></td>
                         </tr>            <tr id="expr.ts__144" class="hit">
                           <td class="line" data-tooltip>144</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>2</td>
-                          <td class="source">    let expr_rule &#x3D; eval_expr ? &#x27;expr-evaluate&#x27; : &#x27;expr&#x27;;</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__167">167</a></td>
+                          <td class="hits" data-tooltip></td>
+                          <td class="source">        rs.def.open.unshift({ s: [NR, [ADD, MIN, MUL, DIV, MOD, POW]], b: 2, p: expr_rule }, { s: [[ADD, MIN], NR], b: 2, p: expr_rule }, { s: [OP], b: 1, p: expr_rule });</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__171">171</a></td>
                         </tr>            <tr id="expr.ts__145" class="hit">
                           <td class="line" data-tooltip>145</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip>2</td>
-                          <td class="source">    jsonic.rule(&#x27;val&#x27;, (rs) &#x3D;&gt; {</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__169">169</a></td>
+                          <td class="source">        return rs;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__172">172</a></td>
                         </tr>            <tr id="expr.ts__146" class="hit">
                           <td class="line" data-tooltip>146</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">        rs.def.open.unshift({</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__170">170</a></td>
+                          <td class="source">    });</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__173">173</a></td>
                         </tr>            <tr id="expr.ts__147" class="hit">
                           <td class="line" data-tooltip>147</td>
                           <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">            s: [NR, [ADD, MIN, MUL, DIV, MOD, POW]], b: 2, p: expr_rule,</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__171">171</a></td>
+                          <td class="source">};</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__174">174</a></td>
                         </tr>            <tr id="expr.ts__148" class="hit">
                           <td class="line" data-tooltip>148</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip></td>
-                          <td class="source">        });</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__172">172</a></td>
+                          <td class="hits" data-tooltip>1</td>
+                          <td class="source">exports.Expr &#x3D; Expr;</td>
+                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__178">178</a></td>
                         </tr>            <tr id="expr.ts__149" class="hit">
                           <td class="line" data-tooltip>149</td>
                           <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>2</td>
-                          <td class="source">        rs.def.open.unshift({ s: [OP], b: 1, p: expr_rule });</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__173">173</a></td>
-                        </tr>            <tr id="expr.ts__150" class="hit">
-                          <td class="line" data-tooltip>150</td>
-                          <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>2</td>
-                          <td class="source">        return rs;</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__174">174</a></td>
-                        </tr>            <tr id="expr.ts__151" class="hit">
-                          <td class="line" data-tooltip>151</td>
-                          <td class="lint empty"></td>
                           <td class="hits" data-tooltip></td>
-                          <td class="source">    });</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__175">175</a></td>
-                        </tr>            <tr id="expr.ts__152" class="hit">
-                          <td class="line" data-tooltip>152</td>
-                          <td class="lint empty"></td>
-                          <td class="hits" data-tooltip></td>
-                          <td class="source">};</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__176">176</a></td>
-                        </tr>            <tr id="expr.ts__153" class="hit">
-                          <td class="line" data-tooltip>153</td>
-                          <td class="lint empty"></td>
-                          <td class="hits" data-tooltip>1</td>
-                          <td class="source">exports.Expr &#x3D; Expr;</td>
-                          <td class="original-line" data-tooltip="expr.ts"><a href="#expr.ts__180">180</a></td>
-                        </tr>            <tr id="expr.ts__154" class="hit">
-                          <td class="line" data-tooltip>154</td>
-                          <td class="lint empty"></td>
-                          <td class="hits" data-tooltip></td>
-                          <td class="source">//# sourceMappingURL&#x3D;data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZXhwci5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbImV4cHIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLG9EQUFvRDs7O0FBRXBELHFFQUFxRTtBQUNyRSxtQ0FBbUM7QUFHbkMsbUNBQXVEO0FBR3ZELE1BQU0sR0FBRyxHQUFRO0lBQ2YsR0FBRyxFQUFFLFNBQVMsS0FBSyxDQUFDLENBQVMsRUFBRSxDQUFTLElBQUksT0FBTyxDQUFDLEdBQUcsQ0FBQyxDQUFBLENBQUMsQ0FBQztJQUMxRCxHQUFHLEVBQUUsU0FBUyxLQUFLLENBQUMsQ0FBUyxFQUFFLENBQVMsSUFBSSxPQUFPLENBQUMsR0FBRyxDQUFDLENBQUEsQ0FBQyxDQUFDO0lBQzFELEdBQUcsRUFBRSxTQUFTLEtBQUssQ0FBQyxDQUFTLEVBQUUsQ0FBUyxJQUFJLE9BQU8sQ0FBQyxHQUFHLENBQUMsQ0FBQSxDQUFDLENBQUM7SUFDMUQsR0FBRyxFQUFFLFNBQVMsS0FBSyxDQUFDLENBQVMsRUFBRSxDQUFTLElBQUksT0FBTyxDQUFDLEdBQUcsQ0FBQyxDQUFBLENBQUMsQ0FBQztJQUMxRCxHQUFHLEVBQUUsU0FBUyxLQUFLLENBQUMsQ0FBUyxFQUFFLENBQVMsSUFBSSxPQUFPLENBQUMsR0FBRyxDQUFDLENBQUEsQ0FBQyxDQUFDO0lBQzFELEdBQUcsRUFBRSxTQUFTLEtBQUssQ0FBQyxDQUFTLEVBQUUsQ0FBUyxJQUFJLE9BQU8sQ0FBQyxJQUFJLENBQUMsQ0FBQSxDQUFDLENBQUM7Q0FDNUQsQ0FBQTtBQUdELFNBQVMsUUFBUSxDQUFDLENBQU07SUFDdEIsSUFBSSxDQUFDLEdBQUcsUUFBUSxLQUFLLE9BQU8sQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLFFBQVEsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQTtJQUN4RCxJQUFJLENBQUMsR0FBRyxRQUFRLEtBQUssT0FBTyxD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QUFDLENBQUMsQ0FBQyxlQUFlLENBQUMsQ0FBQyxDQUFDLE1BQU0sQ0FBQTtJQUVwRCxNQUFNLENBQUMsSUFBSSxDQUFDLEtBQUssRUFBRSxDQUFDLEVBQVksRUFBRSxFQUFFO1FBQ2xDLEVBQUUsQ0FBQyxHQUFHLENBQUMsSUFBSSxDQUFDLE9BQU8sQ0FBQztZQUNsQixDQUFDLEVBQUUsQ0FBQyxFQUFFLEVBQUUsQ0FBQyxHQUFHLEVBQUUsR0FBRyxFQUFFLEdBQUcsRUFBRSxHQUFHLEVBQUUsR0FBRyxFQUFFLEdBQUcsQ0FBQyxDQUFDLEVBQUUsQ0FBQyxFQUFFLENBQUMsRUFBRSxDQUFDLEVBQUUsU0FBUztTQUM1RCxDQUFDLENBQUE7UUFDRixFQUFFLENBQUMsR0FBRyxDQUFDLElBQUksQ0FBQyxPQUFPLENBQUMsRUFBRSxDQUFDLEVBQUUsQ0FBQyxFQUFFLENBQUMsRUFBRSxDQUFDLEVBQUUsQ0FBQyxFQUFFLENBQUMsRUFBRSxTQUFTLEVBQUUsQ0FBQyxDQUFBO1FBQ3BELE9BQU8sRUFBRSxDQUFBO0lBQ1gsQ0FBQyxDQUFDLENBQUE7QUFDSixDQUFDLENBQUE7QUFJQyxvQkFBSSJ9</td>
+                          <td class="source">//# sourceMappingURL&#x3D;data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZXhwci5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbImV4cHIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLG9EQUFvRDs7O0FBRXBELHFFQUFxRTtBQUNyRSxtQ0FBbUM7QUFHbkMsbUNBQXVEO0FBR3ZELE1BQU0sR0FBRyxHQUFRO0lBQ2YsR0FBRyxFQUFFLFNBQVMsS0FBSyxDQUFDLENBQVMsRUFBRSxDQUFTLElBQUksT0FBTyxDQUFDLEdBQUcsQ0FBQyxDQUFBLENBQUMsQ0FBQztJQUMxRCxHQUFHLEVBQUUsU0FBUyxLQUFLLENBQUMsQ0FBUyxFQUFFLENBQVMsSUFBSSxPQUFPLENBQUMsR0FBRyxDQUFDLENBQUEsQ0FBQyxDQUFDO0lBQzFELEdBQUcsRUFBRSxTQUFTLEtBQUssQ0FBQyxDQUFTLEVBQUUsQ0FBUyxJQUFJLE9BQU8sQ0FBQyxHQUFHLENBQUMsQ0FBQSxDQUFDLENBQUM7SUFDMUQsR0FBRyxFQUFFLFNBQVMsS0FBSyxDQUFDLENBQVMsRUFBRSxDQUFTLElBQUksT0FBTyxDQUFDLEdBQUcsQ0FBQyxDQUFBLENBQUMsQ0FBQztJQUMxRCxHQUFHLEVBQUUsU0FBUyxLQUFLLENBQUMsQ0FBUyxFQUFFLENBQVMsSUFBSSxPQUFPLENBQUMsR0FBRyxDQUFDLENBQUEsQ0FBQyxDQUFDO0lBQzFELEdBQUcsRUFBRSxTQUFTLEtBQUssQ0FBQyxDQUFTLEVBQUUsQ0FBUyxJQUFJLE9BQU8sQ0FBQyxJQUFJLENBQUMsQ0FBQSxDQUFDLENBQUM7Q0FDNUQsQ0FBQTtBQUdELFNBQVMsUUFBUSxDQUFDLENBQU07SUFDdEIsSUFBSSxRQUFRLEtBQUssT0FBTyxDQUFDO1FBQUUsT0FBTyxDQUFDLENBQUE7SUFDbkMsSUFBSSxDQUFDLEdBQUcsUUFBUSxLQUFLLE9BQU8sQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLFFBQVEsQ0FBQyxDQUFDLENBQUMsQ0FBQyxD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&#x3D;</td>
                           
                         </tr>        </tbody>
                 </table>

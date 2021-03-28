@@ -18,6 +18,7 @@ const ops: any = {
 
 
 function evaluate(n: any): number {
+  if ('number' === typeof n) return n
   let a = 'number' === typeof n[1] ? n[1] : evaluate(n[1])
   let b = 'number' === typeof n[2] ? n[2] : evaluate(n[2])
   let v = ops[n[0]](a, b)
@@ -77,10 +78,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
   }
 
   let endop = [
-    {
-      s: [NR],
-      a: (r: Rule) => r.node.push(r.open[0].val)
-    },
+    { s: [NR], a: (r: Rule) => r.node.push(r.open[0].val) },
     { s: [OP], p: 'expr' }
   ]
 
@@ -93,7 +91,6 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
       open: [{ s: [], p: 'expr' }],
       close: [{ s: [] }],
       ac: (rule: Rule) => {
-        console.dir(rule.child.node, { depth: null })
         rule.node = evaluate(rule.child.node)
       },
     })
@@ -167,10 +164,11 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
   let expr_rule = eval_expr ? 'expr-evaluate' : 'expr'
 
   jsonic.rule('val', (rs: RuleSpec) => {
-    rs.def.open.unshift({
-      s: [NR, [ADD, MIN, MUL, DIV, MOD, POW]], b: 2, p: expr_rule,
-    })
-    rs.def.open.unshift({ s: [OP], b: 1, p: expr_rule })
+    rs.def.open.unshift(
+      { s: [NR, [ADD, MIN, MUL, DIV, MOD, POW]], b: 2, p: expr_rule },
+      { s: [[ADD, MIN], NR], b: 2, p: expr_rule },
+      { s: [OP], b: 1, p: expr_rule }
+    )
     return rs
   })
 }
