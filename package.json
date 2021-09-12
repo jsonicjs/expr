@@ -14,10 +14,10 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "jsonic": "^1.0.1",
+    "jsonic": "jsonicjs/jsonic#nextgen",
     "@hapi/code": "^8.0.3",
-    "@hapi/lab": "^24.1.1",
+    "@hapi/lab": "^24.3.2",
     "lab-transform-typescript": "^3.0.1",
-    "typescript": "^4.2.3"
+    "typescript": "^4.4.2"
   }
 }
