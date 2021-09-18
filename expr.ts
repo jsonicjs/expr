@@ -5,7 +5,7 @@
 // https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
 
 
-import { Jsonic, Plugin, Rule, RuleSpec } from 'jsonic'
+import { Jsonic, Plugin, Rule, RuleSpec, Tin } from 'jsonic'
 
 
 const ops: any = {
@@ -27,93 +27,217 @@ function evaluate(n: any): number {
 }
 
 
+type OpDef = {
+  name: string,
+  order: number,
+  bp: number[],
+  src: string
+}
 
-let Expr: Plugin = function expr(jsonic: Jsonic) {
-  let eval_expr = jsonic.options.plugin?.expr?.evaluate
-  eval_expr = null == eval_expr ? true : eval_expr
+type OpFullDef = OpDef & {
+  tkn: string,
+  tin: number,
+}
+
+
+type ExprOptions = {
+  op: OpDef[]
+
+  paren: {
+    open: string
+    close: string
+  }
+
+}
+
+
+let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
+  // let eval_expr = jsonic.options.plugin?.expr?.evaluate
+  // eval_expr = null == eval_expr ? true : eval_expr
+
+  // Lookup operator definitions; trim the operator names.
+  const opm: { [opname: string]: OpFullDef } =
+    options.op.reduce((a: any, od: OpDef) =>
+      (od = jsonic.util.deep(od), od.name = od.name.trim(), a[od.name] = od, a), {})
+
+  // Lookup for binding powers.
+  const obp = jsonic.util.omap(opm, ([n, od]: [string, OpDef]) => [n, od.bp])
+
+  // Determine unique token names. Some operations may share
+  // operators (eg. positive, addition).
+  const tm: { [src: string]: { tn: string, n: string[] } } =
+    Object.keys(opm).reduce((a: any, n: any) =>
+    ((a[opm[n].src] = {
+      tn: (a[opm[n].src]?.tn || '') + '#expr-' + n + opm[n].src,
+      n: (a[opm[n].src]?.n || [])
+    }), a[opm[n].src].n.push(n), a), {})
+
+  // Fixed tokens for Jsonic options.
+  const fixed =
+    jsonic.util.omap(tm, ([src, tm]: [string, { tn: string }]) => [tm.tn, src])
+
+  // Lookup token name by operation name. Some operations may share
+  // tokens (eg. negative, subtraction).
+  const op2tn: { [opname: string]: string } =
+    Object.keys(fixed).reduce((a: any, tn: string) =>
+      (tm[fixed[tn]].n.map(on => a[on] = tn), a), {})
+
+  // Tokens for the parens.
+  fixed['#expr-open-paren'] = options.paren.open
+  fixed['#expr-close-paren'] = options.paren.close
+
+  // console.log(opm)
+  // console.log(obp)
+  // console.log(tm)
+  // console.log(fixed)
+  // console.log(op2tn)
+
 
   jsonic.options({
     fixed: {
-      token: {
-        // '#E^': { c: '^' },
+      token: fixed
+      // token: {
+      //   // // '#E^': { c: '^' },
 
-        '#E*': '*',
-        // '#E/': '/' ,
-        // '#E%': '%' ,
+      //   // '#E*': '*',
+      //   // // '#E/': '/' ,
+      //   // // '#E%': '%' ,
 
-        '#E+': '+',
-        '#E-': '-',
+      //   // '#E+': '+',
+      //   // '#E-': '-',
 
-        '#E(': '(',
-        '#E)': ')',
-      }
+      //   // '#E(': '(',
+      //   // '#E)': ')',
+      // }
     }
   })
 
 
-  // let NR = jsonic.token.NR
-  let ADD = jsonic.token['#E+']
-  let MIN = jsonic.token['#E-']
-  let MUL = jsonic.token['#E*']
-  // let DIV = jsonic.token['#E/']
-  // let MOD = jsonic.token['#E%']
-  // let POW = jsonic.token['#E^']
-  let OP = jsonic.token['#E(']
-  let CP = jsonic.token['#E)']
+  // Lookup token Tin by operator name.
+  // Example: op2t['addition'] === jsonic.token('#expr-addition')
+  // const op2t: { [opname: string]: Tin } = jsonic.util.omap(op2tn,
+  //  ([on, tn]: [string, string]) => [on, jsonic.token(tn)])
 
-  let t2op = {
-    [ADD]: '+',
-    [MIN]: '-',
-    [MUL]: '*',
-    // [DIV]: '/',
-    // [MOD]: '%',
-    // [POW]: '^',
-  }
+  // console.log('op2t', op2t)
 
-  let obp = {
-    [ADD]: [120, 130],
-    [MUL]: [220, 230],
-    [MIN]: [-1, 1120],
-  }
+  Object.values(opm).map((od: OpFullDef) => {
+    od.tkn = op2tn[od.name]
+    od.tin = jsonic.token(od.tkn)
+  })
 
-  let op2tin = {
-    '+': ADD,
-    '*': MUL,
-    '-': MIN,
-  }
 
+  console.dir(opm, { depth: null })
+
+
+  // // let NR = jsonic.token.NR
+  // let ADD = jsonic.token['#E+']
+  // let MIN = jsonic.token['#E-']
+  // let MUL = jsonic.token['#E*']
+  // // let DIV = jsonic.token['#E/']
+  // // let MOD = jsonic.token['#E%']
+  // // let POW = jsonic.token['#E^']
+  // let OP = jsonic.token['#E(']
+  // let CP = jsonic.token['#E)']
+
+  // let t2op = {
+  //   [ADD]: '+',
+  //   [MIN]: '-',
+  //   [MUL]: '*',
+  //   // [DIV]: '/',
+  //   // [MOD]: '%',
+  //   // [POW]: '^',
+  // }
+
+  // let obp = {
+  //   [ADD]: [120, 130],
+  //   [MUL]: [220, 230],
+  //   [MIN]: [-1, 1120],
+  // }
+
+  // let op2tin = {
+  //   '+': ADD,
+  //   '*': MUL,
+  //   '-': MIN,
+  // }
+
+  const OP = jsonic.token['#expr-open-paren']
+  const CP = jsonic.token['#expr-close-paren']
+
+
+  // Apply `fn` to all operations of specified order.
+  const ofOrder =
+    (order: number, fn: (od: OpFullDef) => any) =>
+      Object.values(opm)
+        .filter((od: OpFullDef) => order === od.order)
+        .map(od => fn(od))
+
+  const forUnary = (fn?: (od: OpFullDef) => any) => ofOrder(1, fn || (x => x))
+  const forBinary = (fn?: (od: OpFullDef) => any) => ofOrder(2, fn || (x => x))
+
+
+  const BINARIES = [...forBinary(od => od.tin)]
 
   jsonic
     .rule('val', (rs: RuleSpec) => {
       rs
         .open([
-          {
-            s: [OP], p: 'expr', n: { bp: 0 },
-          },
-          {
-            s: [MIN], p: 'expr', a: (r: Rule) => {
-              r.n.bp = obp[MIN][1]
-              r.node = [t2op[MIN]]
+          { s: [OP], p: 'expr', n: { bp: 0 }, },
+
+          // Unary creates an expression. Example: + ...
+          ...forUnary(od => ({
+            s: [od.tin],
+            p: 'expr',
+            a: (r: Rule) => {
+              r.n.bp = obp[od.name][1]
+              r.node = [od.src]
               r.node.expr$ = 1
             }
-          }
+          }))
+
+          // {
+          //   s: [MIN], p: 'expr', a: (r: Rule) => {
+          //     r.n.bp = obp[MIN][1]
+          //     r.node = [t2op[MIN]]
+          //     r.node.expr$ = 1
+          //   }
+          // }
         ])
         .close([
+          // Value followed by binary operator creates an expression.
+          // Example: 1 + ...
+          // Rule is in CLOSE state, so replace with expr Rule. 
           {
-            s: [[ADD, MUL]], r: 'expr', b: 1
+            s: [BINARIES], r: 'expr', b: 1
           },
-          {
-            s: [CP], b: 1
-          }
+
+          // {
+          //   s: [[ADD, MUL]], r: 'expr', b: 1
+          // },
+
+          { s: [CP], b: 1 }
         ])
     })
 
 
-  let opact = (r: Rule) => {
+  // console.log('val open alts', jsonic.rule('val').def.open)
+  // console.log('val close alts', jsonic.rule('val').def.close)
+
+
+  let unaryByTin = forUnary().reduce((a, od) => (a[od.tin] = od, a), {})
+  let binaryByTin = forBinary().reduce((a, od) => (a[od.tin] = od, a), {})
+
+  // console.log('unaryByTin', unaryByTin)
+  // console.log('binaryByTin', binaryByTin)
+
+
+  let binary = (r: Rule) => {
     let optin = r.o0.tin
     let opsrc = r.o0.src
-    let lbp = obp[optin][0]
-    let rbp = obp[optin][1]
+    // let lbp = obp[optin][0]
+    // let rbp = obp[optin][1]
+    let od = binaryByTin[optin]
+    let lbp = od.bp[0]
+    let rbp = od.bp[1]
     let val = r.prev.node
 
     if (undefined === val) {
@@ -162,21 +286,21 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
         })
 
         .open([
-          {
-            s: [[ADD, MUL]], p: 'val',
-            a: opact
-          },
-          {
-            p: 'val'
-          }
+          { s: [BINARIES], a: binary, p: 'val' },
+
+          // {
+          //   s: [[ADD, MUL]], p: 'val',
+          //   a: binary
+          // },
+          { p: 'val' }
         ])
 
-        .ao(function aox(r: Rule) {
-          // console.log('EXP AO', r.node)
-        })
+        // .ao(function aox(r: Rule) {
+        //   // console.log('EXP AO', r.node)
+        // })
 
         .bc(function bcx(r: Rule) {
-          if (null != r.node && 1 < r.node.expr$) {
+          if (null != r.node && r.node.length - 1 < r.node.expr$) {
             r.node.push(r.child.node)
             // if (undefined === r.node[1]) {
             //   r.node[1] = r.child.node
@@ -188,7 +312,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
         })
 
         .close([
-          { s: [[ADD, MUL]], p: 'expr', b: 1 },
+          // { s: [[ADD, MUL]], p: 'expr', b: 1 },
+          { s: [BINARIES], p: 'expr', b: 1 },
           { s: [CP] },
           { s: [] },
         ])
@@ -219,6 +344,30 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
   // console.dir(jsonic.rule('expr'))
 
 }
+
+
+Expr.defaults = {
+  op: [
+    { name: 'positive      ', order: 1, bp: [-1, 100400], src: '+' },
+    { name: 'negative      ', order: 1, bp: [-1, 100400], src: '-' },
+
+    // NOTE: right-associative as lbp > rbp
+    // Example: 2**3**4 === 2**(3**4)
+    { name: 'exponentiation', order: 2, bp: [1700, 1600], src: '**' },
+
+    // NOTE: all these are left-associative as lbp < rbp
+    // Example: 2+3+4 === (2+3)+4
+    { name: 'addition      ', order: 2, bp: [140, 150], src: '+' },
+    { name: 'subtraction   ', order: 2, bp: [140, 150], src: '-' },
+    { name: 'multiplication', order: 2, bp: [160, 170], src: '*' },
+    { name: 'division      ', order: 2, bp: [160, 170], src: '/' },
+    { name: 'remainder     ', order: 2, bp: [160, 170], src: '%' },
+  ],
+  paren: {
+    open: '(',
+    close: ')',
+  }
+} as ExprOptions
 
 
 export {
