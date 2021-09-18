@@ -1,12 +1,8 @@
 /* Copyright (c) 2021 Richard Rodger, MIT License */
 
-// FAQ: p in close does not really work as child rule only runs later
-// TODO: OP-CP match using counters
-// TODO: is s:[] needed?
-
+// This algorithm is based on Pratt parsing, and draws heavily from
+// the explanation written by Aleksey Kladov here:
 // https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
-
-
 
 
 import { Jsonic, Plugin, Rule, RuleSpec } from 'jsonic'
@@ -46,7 +42,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
         // '#E%': '%' ,
 
         '#E+': '+',
-        // '#E-': '-' ,
+        '#E-': '-',
 
         '#E(': '(',
         '#E)': ')',
@@ -57,7 +53,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
 
   // let NR = jsonic.token.NR
   let ADD = jsonic.token['#E+']
-  // let MIN = jsonic.token['#E-']
+  let MIN = jsonic.token['#E-']
   let MUL = jsonic.token['#E*']
   // let DIV = jsonic.token['#E/']
   // let MOD = jsonic.token['#E%']
@@ -67,7 +63,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
 
   let t2op = {
     [ADD]: '+',
-    // [MIN]: '-',
+    [MIN]: '-',
     [MUL]: '*',
     // [DIV]: '/',
     // [MOD]: '%',
@@ -75,13 +71,15 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
   }
 
   let obp = {
-    [ADD]: [2, 3],
-    [MUL]: [4, 5],
+    [ADD]: [120, 130],
+    [MUL]: [220, 230],
+    [MIN]: [-1, 1120],
   }
 
   let op2tin = {
     '+': ADD,
     '*': MUL,
+    '-': MIN,
   }
 
 
@@ -90,7 +88,14 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
       rs
         .open([
           {
-            s: [OP], p: 'expr', n: { bp: 0 }
+            s: [OP], p: 'expr', n: { bp: 0 },
+          },
+          {
+            s: [MIN], p: 'expr', a: (r: Rule) => {
+              r.n.bp = obp[MIN][1]
+              r.node = [t2op[MIN]]
+              r.node.expr$ = 1
+            }
           }
         ])
         .close([
@@ -115,23 +120,24 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
       val = r.parent.use.root
     }
 
-    // console.log('OP START', r.parent.id)
+    console.log('OP START', r.id, r.n, lbp, r.n.bp)
     if (lbp < r.n.bp) {
-      // console.log('UP A', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node)
+      console.log('UP A', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node)
 
-      r.parent.node[2] = val
+      // r.parent.node[2] = val
+      r.parent.node.push(val)
+
       r.node = [opsrc, r.parent.node]
-      // r.parent.node = r.node
       r.use.root = r.node
 
-      // console.log('UP B', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node)
+      console.log('UP B', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node)
     }
     else {
-      // r.node = r.prev.node = [opsrc, r.prev.node]
-      // console.log('DOWN A', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node)
+      console.log('DOWN A', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node)
 
       if ('expr' === r.parent.name && null != r.parent.node) {
-        r.parent.node[2] = r.node = [opsrc, val]
+        // r.parent.node[2] = r.node = [opsrc, val]
+        r.parent.node.push(r.node = [opsrc, val])
         r.use.root = r.parent.node
       }
       else {
@@ -139,11 +145,11 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
         r.use.root = r.node
       }
 
-      // console.log('DOWN B', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node)
+      console.log('DOWN B', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node)
 
     }
     r.n.bp = rbp
-    r.node.expr$ = true
+    r.node.expr$ = r.node.expr$ || 2
     // console.log('OP END', opsrc, r.n.bp, r.node, r.parent.node)
   }
 
@@ -170,10 +176,14 @@ let Expr: Plugin = function expr(jsonic: Jsonic) {
         })
 
         .bc(function bcx(r: Rule) {
-          if (null != r.node) {
-            if (undefined === r.node[2]) {
-              r.node[2] = r.child.node
-            }
+          if (null != r.node && 1 < r.node.expr$) {
+            r.node.push(r.child.node)
+            // if (undefined === r.node[1]) {
+            //   r.node[1] = r.child.node
+            // }
+            // else if (undefined === r.node[2]) {
+            //   r.node[2] = r.child.node
+            // }
           }
         })
 

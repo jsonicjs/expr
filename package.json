@@ -1,23 +1,55 @@
 {
   "name": "@jsonic/expr",
   "version": "0.0.1",
-  "description": "",
-  "main": "dist/expr.js",
+  "description": "This plugin allows the [Jsonic](https://jsonic.senecajs.org) JSON parser to support expression syntax.",
+  "main": "expr.js",
   "type": "commonjs",
-  "types": "dist/expr.d.ts",
-  "scripts": {
-    "watch": "tsc -w -d",
-    "build": "tsc -d",
-    "test": "lab -v -P test -t 50 --sourcemaps --transform node_modules/lab-transform-typescript -r console -o stdout -r html -o test/coverage.html",
-    "test-some": "lab -v -P test --sourcemaps --transform node_modules/lab-transform-typescript -g"
+  "browser": "expr.min.js",
+  "types": "expr.d.ts",
+  "homepage": "https://github.com/jsonicjs/expr",
+  "keywords": [
+    "pattern",
+    "matcher",
+    "object",
+    "property",
+    "json"
+  ],
+  "author": "Richard Rodger (http://richardrodger.com)",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/jsonicjs/expr.git"
   },
-  "author": "",
+  "scripts": {
+    "test": "jest --coverage",
+    "test-some": "jest -t",
+    "test-watch": "jest --coverage --watchAll",
+    "watch": "tsc -w -d",
+    "build": "tsc -d && cp expr.js expr.min.js && browserify -o expr.min.js -e expr.js -s @JsonicExpr -im -i assert -p tinyify",
+    "prettier": "prettier --write --no-semi --single-quote *.ts test/*.js",
+    "clean": "rm -rf node_modules yarn.lock package-lock.json",
+    "reset": "npm run clean && npm i && npm test",
+    "repo-tag": "REPO_VERSION=`node -e \"console.log(require('./package').version)\"` && echo TAG: v$REPO_VERSION && git commit -a -m v$REPO_VERSION && git push && git tag v$REPO_VERSION && git push --tags;",
+    "repo-publish": "npm run clean && npm i && npm run repo-publish-quick",
+    "repo-publish-quick": "npm run prettier && npm run build && npm run test && npm run repo-tag && npm publish --access public --registry http://registry.npmjs.org "
+  },
   "license": "MIT",
+  "files": [
+    "*.ts",
+    "*.js",
+    "*.map",
+    "LICENSE"
+  ],
   "devDependencies": {
-    "jsonic": "jsonicjs/jsonic#nextgen",
-    "@hapi/code": "^8.0.3",
-    "@hapi/lab": "^24.3.2",
-    "lab-transform-typescript": "^3.0.1",
-    "typescript": "^4.4.2"
-  }
+    "@types/jest": "^27.0.1",
+    "browserify": "^17.0.0",
+    "esbuild": "^0.12.28",
+    "esbuild-jest": "^0.5.0",
+    "jest": "^27.2.0",
+    "jsonic": "github:jsonicjs/jsonic#nextgen",
+    "prettier": "^2.4.1",
+    "tinyify": "^3.0.0",
+    "ts-jest": "^27.0.5",
+    "typescript": "^4.4.3"
+  },
+  "dependencies": {}
 }
