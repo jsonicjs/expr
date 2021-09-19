@@ -5,6 +5,11 @@
 // https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
 
 
+// TODO: messes up implicit lists
+
+// TODO: paren binaries: a(b), a[c], a?b:c
+
+
 import { Jsonic, Plugin, Rule, RuleSpec, Tin } from 'jsonic'
 
 
@@ -28,26 +33,25 @@ function evaluate(n: any): number {
 
 
 type OpDef = {
-  name: string,
   order: number,
   bp: number[],
   src: string
 }
 
 type OpFullDef = OpDef & {
+  name: string,
   tkn: string,
   tin: number,
 }
 
 
 type ExprOptions = {
-  op: OpDef[]
+  op?: { [name: string]: OpDef },
 
-  paren: {
-    open: string
-    close: string
+  paren?: {
+    open?: string
+    close?: string
   }
-
 }
 
 
@@ -55,10 +59,21 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   // let eval_expr = jsonic.options.plugin?.expr?.evaluate
   // eval_expr = null == eval_expr ? true : eval_expr
 
+  // NOTE: the following transformations convert the user-friendly operations
+  // definition list in options.op into more useful internal lookup structures.
+
   // Lookup operator definitions; trim the operator names.
+  // const opm: { [opname: string]: OpFullDef } =
+  //   options.op.reduce((a: any, od: OpDef) =>
+  //     (od = jsonic.util.deep(od), od.name = od.name.trim(), a[od.name] = od, a), {})
+
   const opm: { [opname: string]: OpFullDef } =
-    options.op.reduce((a: any, od: OpDef) =>
-      (od = jsonic.util.deep(od), od.name = od.name.trim(), a[od.name] = od, a), {})
+    jsonic.util.omap(options.op, ([n, od]: [string, OpDef]) => [n, {
+      ...od,
+      name: n,
+      tkn: '',
+      tin: -1
+    }])
 
   // Lookup for binding powers.
   const obp = jsonic.util.omap(opm, ([n, od]: [string, OpDef]) => [n, od.bp])
@@ -68,7 +83,10 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   const tm: { [src: string]: { tn: string, n: string[] } } =
     Object.keys(opm).reduce((a: any, n: any) =>
     ((a[opm[n].src] = {
-      tn: (a[opm[n].src]?.tn || '') + '#expr-' + n + opm[n].src,
+
+      // Operator src may be used for an existing token, in which case, use that.
+      tn: jsonic.token(jsonic.fixed(opm[n].src)) ||
+        ((a[opm[n].src]?.tn || '') + '#expr-' + n + opm[n].src),
       n: (a[opm[n].src]?.n || [])
     }), a[opm[n].src].n.push(n), a), {})
 
@@ -83,8 +101,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
       (tm[fixed[tn]].n.map(on => a[on] = tn), a), {})
 
   // Tokens for the parens.
-  fixed['#expr-open-paren'] = options.paren.open
-  fixed['#expr-close-paren'] = options.paren.close
+  fixed['#expr-open-paren'] = options?.paren?.open
+  fixed['#expr-close-paren'] = options?.paren?.close
 
   // console.log(opm)
   // console.log(obp)
@@ -126,7 +144,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   })
 
 
-  console.dir(opm, { depth: null })
+  // console.dir(opm, { depth: null })
 
 
   // // let NR = jsonic.token.NR
@@ -181,17 +199,18 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
     .rule('val', (rs: RuleSpec) => {
       rs
         .open([
-          { s: [OP], p: 'expr', n: { bp: 0 }, },
+          { s: [OP], p: 'expr', n: { bp: 0 }, g: 'expr' },
 
-          // Unary creates an expression. Example: + ...
-          ...forUnary(od => ({
+          // Unary prefix creates an expression. Example: + ...
+          ...forUnary().filter(od => -1 !== od.bp[1]).map(od => ({
             s: [od.tin],
             p: 'expr',
             a: (r: Rule) => {
               r.n.bp = obp[od.name][1]
               r.node = [od.src]
               r.node.expr$ = 1
-            }
+            },
+            g: 'expr'
           }))
 
           // {
@@ -207,14 +226,14 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           // Example: 1 + ...
           // Rule is in CLOSE state, so replace with expr Rule. 
           {
-            s: [BINARIES], r: 'expr', b: 1
+            s: [BINARIES], r: 'expr', b: 1, g: 'expr'
           },
 
           // {
           //   s: [[ADD, MUL]], r: 'expr', b: 1
           // },
 
-          { s: [CP], b: 1 }
+          { s: [CP], b: 1, g: 'expr' }
         ])
     })
 
@@ -244,9 +263,9 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
       val = r.parent.use.root
     }
 
-    console.log('OP START', r.id, r.n, lbp, r.n.bp)
+    // console.log('OP START', r.id, r.n, lbp, r.n.bp)
     if (lbp < r.n.bp) {
-      console.log('UP A', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node)
+      // console.log('UP A', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node)
 
       // r.parent.node[2] = val
       r.parent.node.push(val)
@@ -254,10 +273,10 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
       r.node = [opsrc, r.parent.node]
       r.use.root = r.node
 
-      console.log('UP B', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node)
+      // console.log('UP B', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node)
     }
     else {
-      console.log('DOWN A', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node)
+      // console.log('DOWN A', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node)
 
       if ('expr' === r.parent.name && null != r.parent.node) {
         // r.parent.node[2] = r.node = [opsrc, val]
@@ -269,7 +288,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
         r.use.root = r.node
       }
 
-      console.log('DOWN B', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node)
+      // console.log('DOWN B', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node)
 
     }
     r.n.bp = rbp
@@ -286,13 +305,13 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
         })
 
         .open([
-          { s: [BINARIES], a: binary, p: 'val' },
+          { s: [BINARIES], a: binary, p: 'val', g: 'expr' },
 
           // {
           //   s: [[ADD, MUL]], p: 'val',
           //   a: binary
           // },
-          { p: 'val' }
+          { p: 'val', g: 'expr' }
         ])
 
         // .ao(function aox(r: Rule) {
@@ -313,9 +332,9 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
         .close([
           // { s: [[ADD, MUL]], p: 'expr', b: 1 },
-          { s: [BINARIES], p: 'expr', b: 1 },
-          { s: [CP] },
-          { s: [] },
+          { s: [BINARIES], p: 'expr', b: 1, g: 'expr' },
+          { s: [CP], g: 'expr' },
+          { s: [], g: 'expr' },
         ])
 
         .ac(function acx(r: Rule) {
@@ -347,22 +366,40 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
 
 Expr.defaults = {
-  op: [
-    { name: 'positive      ', order: 1, bp: [-1, 100400], src: '+' },
-    { name: 'negative      ', order: 1, bp: [-1, 100400], src: '-' },
+
+  // TODO: this should not be a list, use a map for easier overrides
+  op: {
+    positive: {
+      order: 1, bp: [-1, 100400], src: '+'
+    },
+    negative: {
+      order: 1, bp: [-1, 100400], src: '-'
+    },
 
     // NOTE: right-associative as lbp > rbp
     // Example: 2**3**4 === 2**(3**4)
-    { name: 'exponentiation', order: 2, bp: [1700, 1600], src: '**' },
+    exponentiation: {
+      order: 2, bp: [1700, 1600], src: '**'
+    },
 
     // NOTE: all these are left-associative as lbp < rbp
     // Example: 2+3+4 === (2+3)+4
-    { name: 'addition      ', order: 2, bp: [140, 150], src: '+' },
-    { name: 'subtraction   ', order: 2, bp: [140, 150], src: '-' },
-    { name: 'multiplication', order: 2, bp: [160, 170], src: '*' },
-    { name: 'division      ', order: 2, bp: [160, 170], src: '/' },
-    { name: 'remainder     ', order: 2, bp: [160, 170], src: '%' },
-  ],
+    addition: {
+      order: 2, bp: [140, 150], src: '+'
+    },
+    subtraction: {
+      order: 2, bp: [140, 150], src: '-'
+    },
+    multiplication: {
+      order: 2, bp: [160, 170], src: '*'
+    },
+    division: {
+      order: 2, bp: [160, 170], src: '/'
+    },
+    remainder: {
+      order: 2, bp: [160, 170], src: '%'
+    },
+  },
   paren: {
     open: '(',
     close: ')',

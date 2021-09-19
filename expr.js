@@ -22,8 +22,19 @@ exports.evaluate = evaluate;
 let Expr = function expr(jsonic, options) {
     // let eval_expr = jsonic.options.plugin?.expr?.evaluate
     // eval_expr = null == eval_expr ? true : eval_expr
+    var _a, _b;
+    // NOTE: the following transformations convert the user-friendly operations
+    // definition list in options.op into more useful internal lookup structures.
     // Lookup operator definitions; trim the operator names.
-    const opm = options.op.reduce((a, od) => (od = jsonic.util.deep(od), od.name = od.name.trim(), a[od.name] = od, a), {});
+    // const opm: { [opname: string]: OpFullDef } =
+    //   options.op.reduce((a: any, od: OpDef) =>
+    //     (od = jsonic.util.deep(od), od.name = od.name.trim(), a[od.name] = od, a), {})
+    const opm = jsonic.util.omap(options.op, ([n, od]) => [n, {
+            ...od,
+            name: n,
+            tkn: '',
+            tin: -1
+        }]);
     // Lookup for binding powers.
     const obp = jsonic.util.omap(opm, ([n, od]) => [n, od.bp]);
     // Determine unique token names. Some operations may share
@@ -31,7 +42,9 @@ let Expr = function expr(jsonic, options) {
     const tm = Object.keys(opm).reduce((a, n) => {
         var _a, _b;
         return ((a[opm[n].src] = {
-            tn: (((_a = a[opm[n].src]) === null || _a === void 0 ? void 0 : _a.tn) || '') + '#expr-' + n + opm[n].src,
+            // Operator src may be used for an existing token, in which case, use that.
+            tn: jsonic.token(jsonic.fixed(opm[n].src)) ||
+                ((((_a = a[opm[n].src]) === null || _a === void 0 ? void 0 : _a.tn) || '') + '#expr-' + n + opm[n].src),
             n: (((_b = a[opm[n].src]) === null || _b === void 0 ? void 0 : _b.n) || [])
         }), a[opm[n].src].n.push(n), a);
     }, {});
@@ -41,8 +54,8 @@ let Expr = function expr(jsonic, options) {
     // tokens (eg. negative, subtraction).
     const op2tn = Object.keys(fixed).reduce((a, tn) => (tm[fixed[tn]].n.map(on => a[on] = tn), a), {});
     // Tokens for the parens.
-    fixed['#expr-open-paren'] = options.paren.open;
-    fixed['#expr-close-paren'] = options.paren.close;
+    fixed['#expr-open-paren'] = (_a = options === null || options === void 0 ? void 0 : options.paren) === null || _a === void 0 ? void 0 : _a.open;
+    fixed['#expr-close-paren'] = (_b = options === null || options === void 0 ? void 0 : options.paren) === null || _b === void 0 ? void 0 : _b.close;
     // console.log(opm)
     // console.log(obp)
     // console.log(tm)
@@ -72,7 +85,7 @@ let Expr = function expr(jsonic, options) {
         od.tkn = op2tn[od.name];
         od.tin = jsonic.token(od.tkn);
     });
-    console.dir(opm, { depth: null });
+    // console.dir(opm, { depth: null })
     // // let NR = jsonic.token.NR
     // let ADD = jsonic.token['#E+']
     // let MIN = jsonic.token['#E-']
@@ -113,16 +126,17 @@ let Expr = function expr(jsonic, options) {
         .rule('val', (rs) => {
         rs
             .open([
-            { s: [OP], p: 'expr', n: { bp: 0 }, },
-            // Unary creates an expression. Example: + ...
-            ...forUnary(od => ({
+            { s: [OP], p: 'expr', n: { bp: 0 }, g: 'expr' },
+            // Unary prefix creates an expression. Example: + ...
+            ...forUnary().filter(od => -1 !== od.bp[1]).map(od => ({
                 s: [od.tin],
                 p: 'expr',
                 a: (r) => {
                     r.n.bp = obp[od.name][1];
                     r.node = [od.src];
                     r.node.expr$ = 1;
-                }
+                },
+                g: 'expr'
             }))
             // {
             //   s: [MIN], p: 'expr', a: (r: Rule) => {
@@ -137,12 +151,12 @@ let Expr = function expr(jsonic, options) {
             // Example: 1 + ...
             // Rule is in CLOSE state, so replace with expr Rule. 
             {
-                s: [BINARIES], r: 'expr', b: 1
+                s: [BINARIES], r: 'expr', b: 1, g: 'expr'
             },
             // {
             //   s: [[ADD, MUL]], r: 'expr', b: 1
             // },
-            { s: [CP], b: 1 }
+            { s: [CP], b: 1, g: 'expr' }
         ]);
     });
     // console.log('val open alts', jsonic.rule('val').def.open)
@@ -163,17 +177,17 @@ let Expr = function expr(jsonic, options) {
         if (undefined === val) {
             val = r.parent.use.root;
         }
-        console.log('OP START', r.id, r.n, lbp, r.n.bp);
+        // console.log('OP START', r.id, r.n, lbp, r.n.bp)
         if (lbp < r.n.bp) {
-            console.log('UP A', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node);
+            // console.log('UP A', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node)
             // r.parent.node[2] = val
             r.parent.node.push(val);
             r.node = [opsrc, r.parent.node];
             r.use.root = r.node;
-            console.log('UP B', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node);
+            // console.log('UP B', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node)
         }
         else {
-            console.log('DOWN A', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node);
+            // console.log('DOWN A', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node)
             if ('expr' === r.parent.name && null != r.parent.node) {
                 // r.parent.node[2] = r.node = [opsrc, val]
                 r.parent.node.push(r.node = [opsrc, val]);
@@ -183,7 +197,7 @@ let Expr = function expr(jsonic, options) {
                 r.node = [opsrc, val];
                 r.use.root = r.node;
             }
-            console.log('DOWN B', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node);
+            // console.log('DOWN B', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node)
         }
         r.n.bp = rbp;
         r.node.expr$ = r.node.expr$ || 2;
@@ -197,12 +211,12 @@ let Expr = function expr(jsonic, options) {
             // console.log('EXP BO', r.node)
         })
             .open([
-            { s: [BINARIES], a: binary, p: 'val' },
+            { s: [BINARIES], a: binary, p: 'val', g: 'expr' },
             // {
             //   s: [[ADD, MUL]], p: 'val',
             //   a: binary
             // },
-            { p: 'val' }
+            { p: 'val', g: 'expr' }
         ])
             // .ao(function aox(r: Rule) {
             //   // console.log('EXP AO', r.node)
@@ -220,9 +234,9 @@ let Expr = function expr(jsonic, options) {
         })
             .close([
             // { s: [[ADD, MUL]], p: 'expr', b: 1 },
-            { s: [BINARIES], p: 'expr', b: 1 },
-            { s: [CP] },
-            { s: [] },
+            { s: [BINARIES], p: 'expr', b: 1, g: 'expr' },
+            { s: [CP], g: 'expr' },
+            { s: [], g: 'expr' },
         ])
             .ac(function acx(r) {
             // console.log('EXP AC', r.node,
@@ -248,20 +262,37 @@ let Expr = function expr(jsonic, options) {
 };
 exports.Expr = Expr;
 Expr.defaults = {
-    op: [
-        { name: 'positive      ', order: 1, bp: [-1, 100400], src: '+' },
-        { name: 'negative      ', order: 1, bp: [-1, 100400], src: '-' },
+    // TODO: this should not be a list, use a map for easier overrides
+    op: {
+        positive: {
+            order: 1, bp: [-1, 100400], src: '+'
+        },
+        negative: {
+            order: 1, bp: [-1, 100400], src: '-'
+        },
         // NOTE: right-associative as lbp > rbp
         // Example: 2**3**4 === 2**(3**4)
-        { name: 'exponentiation', order: 2, bp: [1700, 1600], src: '**' },
+        exponentiation: {
+            order: 2, bp: [1700, 1600], src: '**'
+        },
         // NOTE: all these are left-associative as lbp < rbp
         // Example: 2+3+4 === (2+3)+4
-        { name: 'addition      ', order: 2, bp: [140, 150], src: '+' },
-        { name: 'subtraction   ', order: 2, bp: [140, 150], src: '-' },
-        { name: 'multiplication', order: 2, bp: [160, 170], src: '*' },
-        { name: 'division      ', order: 2, bp: [160, 170], src: '/' },
-        { name: 'remainder     ', order: 2, bp: [160, 170], src: '%' },
-    ],
+        addition: {
+            order: 2, bp: [140, 150], src: '+'
+        },
+        subtraction: {
+            order: 2, bp: [140, 150], src: '-'
+        },
+        multiplication: {
+            order: 2, bp: [160, 170], src: '*'
+        },
+        division: {
+            order: 2, bp: [160, 170], src: '/'
+        },
+        remainder: {
+            order: 2, bp: [160, 170], src: '%'
+        },
+    },
     paren: {
         open: '(',
         close: ')',
