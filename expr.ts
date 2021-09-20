@@ -114,19 +114,6 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   jsonic.options({
     fixed: {
       token: fixed
-      // token: {
-      //   // // '#E^': { c: '^' },
-
-      //   // '#E*': '*',
-      //   // // '#E/': '/' ,
-      //   // // '#E%': '%' ,
-
-      //   // '#E+': '+',
-      //   // '#E-': '-',
-
-      //   // '#E(': '(',
-      //   // '#E)': ')',
-      // }
     }
   })
 
@@ -147,93 +134,112 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   // console.dir(opm, { depth: null })
 
 
-  // // let NR = jsonic.token.NR
-  // let ADD = jsonic.token['#E+']
-  // let MIN = jsonic.token['#E-']
-  // let MUL = jsonic.token['#E*']
-  // // let DIV = jsonic.token['#E/']
-  // // let MOD = jsonic.token['#E%']
-  // // let POW = jsonic.token['#E^']
-  // let OP = jsonic.token['#E(']
-  // let CP = jsonic.token['#E)']
-
-  // let t2op = {
-  //   [ADD]: '+',
-  //   [MIN]: '-',
-  //   [MUL]: '*',
-  //   // [DIV]: '/',
-  //   // [MOD]: '%',
-  //   // [POW]: '^',
-  // }
-
-  // let obp = {
-  //   [ADD]: [120, 130],
-  //   [MUL]: [220, 230],
-  //   [MIN]: [-1, 1120],
-  // }
-
-  // let op2tin = {
-  //   '+': ADD,
-  //   '*': MUL,
-  //   '-': MIN,
-  // }
-
   const OP = jsonic.token['#expr-open-paren']
   const CP = jsonic.token['#expr-close-paren']
 
 
+  const CS = jsonic.token['#CS']
+
+
   // Apply `fn` to all operations of specified order.
   const ofOrder =
-    (order: number, fn: (od: OpFullDef) => any) =>
+    (order: number, map?: (od: OpFullDef) => any) =>
       Object.values(opm)
         .filter((od: OpFullDef) => order === od.order)
-        .map(od => fn(od))
+        .map(map ? od => map(od) : (od => od))
 
-  const forUnary = (fn?: (od: OpFullDef) => any) => ofOrder(1, fn || (x => x))
   const forBinary = (fn?: (od: OpFullDef) => any) => ofOrder(2, fn || (x => x))
 
 
+  const forUnary = (
+    filter: (od: OpFullDef) => boolean,
+    map: (od: OpFullDef) => any
+  ) => ofOrder(1).filter(filter).map(map)
+
+
+  // const unaryPrefix = forUnary().filter(od => -1 === od.bp[0])
+  // const unarySuffix = forUnary().filter(od => -1 === od.bp[1])
+
+  // console.log('P', unaryPrefix, 'S', unarySuffix)
+
+
   const BINARIES = [...forBinary(od => od.tin)]
+
+  const put2od: { [tin: number]: OpFullDef } = {}
+  const PREFIX_UNARIES = [...forUnary(
+    (od => -1 === od.bp[0]),
+    (od => (put2od[od.tin] = od, od.tin))
+  )]
+
+  const sut2od: { [tin: number]: OpFullDef } = {}
+  const SUFFIX_UNARIES = [...forUnary(
+    (od => -1 === od.bp[1]),
+    (od => (sut2od[od.tin] = od, od.tin))
+  )]
+
+  console.log('PREFIX_UNARIES', PREFIX_UNARIES)
+  console.log('SUFFIX_UNARIES', SUFFIX_UNARIES)
 
   jsonic
     .rule('val', (rs: RuleSpec) => {
       rs
         .open([
-          { s: [OP], p: 'expr', n: { bp: 0 }, g: 'expr' },
+          {
+            s: [PREFIX_UNARIES], b: 1, p: 'expr', g: 'expr',
+            u: { prefix: true },
+          }
 
-          // Unary prefix creates an expression. Example: + ...
-          ...forUnary().filter(od => -1 !== od.bp[1]).map(od => ({
-            s: [od.tin],
-            p: 'expr',
-            a: (r: Rule) => {
-              r.n.bp = obp[od.name][1]
-              r.node = [od.src]
-              r.node.expr$ = 1
-            },
-            g: 'expr'
-          }))
+          // // TODO: counter for paren level
+          // { s: [OP], p: 'expr', n: { bp: 0 }, g: 'expr' },
 
-          // {
-          //   s: [MIN], p: 'expr', a: (r: Rule) => {
-          //     r.n.bp = obp[MIN][1]
-          //     r.node = [t2op[MIN]]
+          // // TODO: use [PREFIX_UNARIES] instead
+          // // Unary prefix creates an expression. Example: + ...
+          // //...forUnary().filter(od => -1 !== od.bp[1]).map(od => ({
+          // ...unaryPrefix.map(od => ({
+          //   s: [od.tin],
+          //   p: 'expr',
+          //   a: (r: Rule) => {
+          //     r.n.bp = obp[od.name][1]
+          //     r.node = [od.src]
           //     r.node.expr$ = 1
-          //   }
-          // }
+          //     r.use.root = r
+          //   },
+          //   g: 'expr'
+          // }))
         ])
         .close([
-          // Value followed by binary operator creates an expression.
-          // Example: 1 + ...
-          // Rule is in CLOSE state, so replace with expr Rule. 
           {
-            s: [BINARIES], r: 'expr', b: 1, g: 'expr'
+            s: [SUFFIX_UNARIES], b: 1, g: 'expr', p: 'expr',
+            u: { suffix: true },
+            // a: (r: Rule) => { r.use.val = r.node; r.node = undefined },
+          },
+          {
+            s: [BINARIES], b: 1, g: 'expr',
+            u: { binary: true },
+            // a: (r: Rule) => { r.use.val = r.node; r.node = undefined },
+            h: (r: Rule, _, a: any) => {
+              // console.log('VAL C', r.n)
+              a.p = !r.n.ed ? 'expr' : ''
+              return a
+            }
           },
 
-          // {
-          //   s: [[ADD, MUL]], r: 'expr', b: 1
-          // },
+          // ...unarySuffix.map(od => ({
+          //   s: [od.tin],
+          //   p: 'expr',
+          //   a: (r: Rule) => {
+          //     r.n.bp = obp[od.name][0]
+          //     r.node = [od.src, r.node]
+          //     r.node.expr$ = 1
+          //     r.use.root = r
+          //   },
+          //   g: 'expr'
+          // })),
 
-          { s: [CP], b: 1, g: 'expr' }
+          // // Value followed by binary operator creates an expression.
+          // // Example: 1 + ...
+          // { s: [BINARIES], b: 1, p: 'expr', g: 'expr' },
+          // { s: [CP], b: 1, g: 'expr' },
         ])
     })
 
@@ -242,120 +248,189 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   // console.log('val close alts', jsonic.rule('val').def.close)
 
 
-  let unaryByTin = forUnary().reduce((a, od) => (a[od.tin] = od, a), {})
-  let binaryByTin = forBinary().reduce((a, od) => (a[od.tin] = od, a), {})
+  // let unaryByTin = forUnary().reduce((a, od) => (a[od.tin] = od, a), {})
+  let bt2od = forBinary().reduce((a, od) => (a[od.tin] = od, a), {})
 
   // console.log('unaryByTin', unaryByTin)
   // console.log('binaryByTin', binaryByTin)
 
 
-  let binary = (r: Rule) => {
-    let optin = r.o0.tin
-    let opsrc = r.o0.src
-    // let lbp = obp[optin][0]
-    // let rbp = obp[optin][1]
-    let od = binaryByTin[optin]
-    let lbp = od.bp[0]
-    let rbp = od.bp[1]
-    let val = r.prev.node
+  // let binary = (r: Rule) => {
+  //   // let cn = 'expr' + r.o0.name
+  //   // r.use[cn] = r.n[cn] = null == r.n[cn] ? 1 : r.n[cn] + 1
 
-    if (undefined === val) {
-      val = r.parent.use.root
-    }
+  //   let optin = r.o0.tin
+  //   let opsrc = r.o0.src
+  //   let od = binaryByTin[optin]
+  //   let lbp = od.bp[0]
+  //   let rbp = od.bp[1]
 
-    // console.log('OP START', r.id, r.n, lbp, r.n.bp)
-    if (lbp < r.n.bp) {
-      // console.log('UP A', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node)
+  //   // let val = r.parent.node
+  //   // r.parent.node = undefined
+  //   let val = r.use.val
 
-      // r.parent.node[2] = val
-      r.parent.node.push(val)
+  //   let pexpr = 'expr' === r.parent.parent?.name ? r.parent.parent : undefined
+  //   r.use.root = pexpr?.use.root || r
 
-      r.node = [opsrc, r.parent.node]
-      r.use.root = r.node
+  //   console.log('OP START', opsrc, val, pexpr?.node, r.use.root.node)
+  //   if (lbp < r.n.bp) {
+  //     console.log('OP DOWN A', r.n.bp, lbp, pexpr?.node)
 
-      // console.log('UP B', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node)
-    }
-    else {
-      // console.log('DOWN A', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node)
+  //     // Parent gets value.
+  //     if (pexpr) {
+  //       pexpr.node.push(val)
+  //       r.node = [od.src, pexpr.node]
+  //       r.use.root.node = r.node
+  //     }
 
-      if ('expr' === r.parent.name && null != r.parent.node) {
-        // r.parent.node[2] = r.node = [opsrc, val]
-        r.parent.node.push(r.node = [opsrc, val])
-        r.use.root = r.parent.node
-      }
-      else {
-        r.node = [opsrc, val]
-        r.use.root = r.node
-      }
+  //     console.log('OP DOWN B', r.node, r.use.root.node)
+  //   }
+  //   else {
+  //     console.log('OP UP A', r.n.bp, lbp, pexpr?.node)
 
-      // console.log('DOWN B', opsrc, 'n', r.node, 'prev', r.prev.node, 'parent', r.parent.node)
+  //     r.node = [od.src, val]
 
-    }
-    r.n.bp = rbp
-    r.node.expr$ = r.node.expr$ || 2
-    // console.log('OP END', opsrc, r.n.bp, r.node, r.parent.node)
-  }
+  //     if (pexpr) {
+  //       pexpr.node.push(r.node)
+  //       r.use.root.node = pexpr.node
+  //     }
+  //     else {
+  //       r.use.root.node = r.node
+  //     }
+  //     console.log('OP UP B', r.node, r.use.root.node)
+  //   }
+
+
+  //   r.n.bp = rbp
+  //   r.node.expr$ = r.node.expr$ || 2
+  // }
 
   jsonic
     .rule('expr', (rs: RuleSpec) => {
       rs
         .bo(function box(r: Rule) {
+          // console.log('EXPR', r.parent?.use)
+
           r.n.bp = r.n.bp || 0
-          // console.log('EXP BO', r.node)
+          r.n.ed = (r.n.ed || 0) + 1
+
+          // let val = r.parent.node
+          // r.parent.node = undefined
+
+          // r.use.val = val
+          // // console.log('EXP BO', r.node)
         })
 
         .open([
-          { s: [BINARIES], a: binary, p: 'val', g: 'expr' },
+          {
+            // TODO: handle overlap with SUFFIX_UNARIES
+            s: [PREFIX_UNARIES], p: 'val', g: 'expr',
+            c: (r: Rule) => r.parent.use.prefix,
+            a: (r: Rule) => {
+              let od = put2od[r.o0.tin]
+              r.n.bp = obp[od.name][1]
+              r.node = [od.src]
+              r.node.expr$ = 1
+              // r.use.root = r
+            }
+          },
 
-          // {
-          //   s: [[ADD, MUL]], p: 'val',
-          //   a: binary
-          // },
-          { p: 'val', g: 'expr' }
+          {
+            s: [SUFFIX_UNARIES], g: 'expr',
+            c: (r: Rule) => r.parent.use.suffix,
+            a: (r: Rule) => {
+              let od = sut2od[r.o0.tin]
+              let val = r.parent.node
+              r.n.bp = obp[od.name][0]
+              r.node = [od.src, val]
+              r.node.expr$ = 1
+              // if (r.parent.node?.expr$) {
+              //   r.parent.node = r.node
+              // }
+              // r.use.root = r
+            }
+          },
+
+          {
+            s: [BINARIES], p: 'val', g: 'expr',
+            c: (r: Rule) => r.parent.use.binary,
+            a: (r: Rule) => {
+              let od = bt2od[r.o0.tin]
+              let val = r.parent.node
+
+              let lbp = od.bp[0]
+              let rbp = od.bp[1]
+
+              console.log('BIN', lbp, r.n.bp, od.src, val)
+
+              // r.node = [od.src, val]
+
+              if (lbp < r.n.bp) {
+                r.node = [od.src, val]
+                // r.parent.node = r.node
+              }
+              else {
+                if (r.parent.node.expr$) {
+                  r.node = [od.src, r.parent.node[2]]
+                  // console.log('QQQ', r.node)
+                  r.parent.node[2] = r.node
+                  r.node.child$ = true
+                }
+                else {
+                  r.node = [od.src, val]
+                  // r.parent.node = r.node
+                }
+              }
+
+
+              r.node.expr$ = 2
+
+              // r.parent.node = r.node
+              // if (r.parent.node?.expr$) {
+              //   r.parent.node = r.node
+              // }
+
+              r.n.bp = rbp
+            }
+          },
+
+          // { p: 'val', g: 'expr' }
         ])
 
-        // .ao(function aox(r: Rule) {
-        //   // console.log('EXP AO', r.node)
-        // })
-
         .bc(function bcx(r: Rule) {
-          if (null != r.node && r.node.length - 1 < r.node.expr$) {
+          // Last value.
+          if (r.node.length - 1 < r.node.expr$) {
             r.node.push(r.child.node)
-            // if (undefined === r.node[1]) {
-            //   r.node[1] = r.child.node
-            // }
-            // else if (undefined === r.node[2]) {
-            //   r.node[2] = r.child.node
-            // }
           }
         })
 
         .close([
-          // { s: [[ADD, MUL]], p: 'expr', b: 1 },
-          { s: [BINARIES], p: 'expr', b: 1, g: 'expr' },
-          { s: [CP], g: 'expr' },
-          { s: [], g: 'expr' },
+          { s: [BINARIES], p: 'expr', b: 1, g: 'expr', u: { binary: true } },
+
+          // { s: [BINARIES], p: 'expr', b: 1, g: 'expr' },
+          // { s: [CP], g: 'expr' },
+
+          // {
+          //   s: [CS], g: 'expr', c: (r: Rule) => {
+          //     let cn = 'expr' + r.o0.name
+          //     console.log('CLOSE cn', cn, r.use[cn], r.n[cn], (0 < r.use[cn]))
+          //     return (0 < r.use[cn]) && (r.use[cn] === r.n[cn])
+          //   }
+          // },
+
+          // { g: 'expr' },
         ])
 
-        .ac(function acx(r: Rule) {
-          // console.log('EXP AC', r.node,
-          //   'prev:', r.prev.name, r.prev.id, r.prev.node,
-          //   'parent:', r.parent.name, r.parent.id, r.parent.node,
-          // )
+        .ac((r: Rule) => {
+          // let pexpr = 'expr' === r.parent.parent?.name ? r.parent.parent : undefined
+          // // console.log('EXPR AC', pexpr?.node, r.use.root?.node)
 
-          // TODO: test for each cse below and commentary
+          // if (pexpr && r.use.root?.node) {
+          //   pexpr.node = r.use.root.node
+          // }
 
-          if (null == r.use.root) {
-            r.node = r.child.node
-          }
-          else if ('expr' === r.parent.name) {
-            r.parent.use.root = r.use.root
-          }
-          else if ('val' === r.prev.name) {
-            r.prev.node = r.use.root
-          }
-          else if ('val' === r.parent.name) {
-            r.parent.node = r.use.root
+          if (!r.node.child$) {
+            r.parent.node = r.node
           }
         })
     })
@@ -370,11 +445,16 @@ Expr.defaults = {
   // TODO: this should not be a list, use a map for easier overrides
   op: {
     positive: {
-      order: 1, bp: [-1, 100400], src: '+'
+      order: 1, bp: [-1, 10400], src: '+'
     },
     negative: {
-      order: 1, bp: [-1, 100400], src: '-'
+      order: 1, bp: [-1, 10400], src: '-'
     },
+
+    factorial: {
+      order: 1, bp: [10400, -1], src: '!'
+    },
+
 
     // NOTE: right-associative as lbp > rbp
     // Example: 2**3**4 === 2**(3**4)

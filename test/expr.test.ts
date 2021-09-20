@@ -18,6 +18,25 @@ describe('expr', () => {
   })
 
 
+  test('unary-prefix', () => {
+    const je = Jsonic.make().use(Expr)
+    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+
+    expect(j('-1')).toMatchObject(['-', 1])
+    expect(j('-1+2')).toMatchObject(['+', ['-', 1], 2])
+    expect(j('-1+-2')).toMatchObject(['+', ['-', 1], ['-', 2]])
+    expect(j('1+-2')).toMatchObject(['+', 1, ['-', 2]])
+    expect(j('-2')).toMatchObject(['-', 2])
+
+    // expect(j('-1+3')).toMatchObject(['+', ['-', 1], 3])
+    // expect(j('-1+2+3')).toMatchObject(['+', ['+', ['-', 1], 2], 3])
+    // expect(j('-1+-2+3')).toMatchObject(['+', ['+', ['-', 1], ['-', 2]], 3])
+    // expect(j('1+-2+3')).toMatchObject(['+', ['+', 1, ['-', 2]], 3])
+    // expect(j('-2+3')).toMatchObject(['+', ['-', 2], 3])
+
+  })
+
+
   test('new-binary', () => {
     const je = Jsonic.make().use(Expr, {
       op: {
@@ -44,8 +63,9 @@ describe('expr', () => {
 
     // console.log(je.rule('val').def.close[0])
 
-    // TODO: fix
+    // NOTE: this correctly uses ] as an op - the gammar is ambiguous!
     console.log(j('[1 ] 2]'))
+
     console.log(j('{a:1 ] 2}'))
 
     expect(j('1 ] 2')).toMatchObject([']', 1, 2])
