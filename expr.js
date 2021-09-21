@@ -84,103 +84,134 @@ let Expr = function expr(jsonic, options) {
         .rule('val', (rs) => {
         rs
             .open([
-            {
-                s: [PREFIX_UNARIES], b: 1, p: 'expr', g: 'expr',
-                u: { prefix: true },
-            },
-            // TODO: counter for paren level
-            { s: [OP], p: 'expr', n: { bp: 0 }, g: 'expr' },
+        // {
+        //   s: [PREFIX_UNARIES], b: 1, p: 'expr', g: 'expr',
+        //   u: { prefix: true },
+        // },
+        // // TODO: counter for paren level
+        // { s: [OP], p: 'expr', n: { bp: 0, ed: 1 }, g: 'expr' },
         ])
             .close([
-            {
-                s: [SUFFIX_UNARIES], b: 1, g: 'expr', p: 'expr',
-                u: { suffix: true },
-            },
+            // {
+            //   s: [SUFFIX_UNARIES], b: 1, g: 'expr', p: 'expr',
+            //   u: { suffix: true },
+            // },
             {
                 s: [BINARIES], b: 1, g: 'expr',
                 u: { binary: true },
+                // r: 'expr',
                 h: (r, _, a) => {
-                    a.p = !r.n.ed ? 'expr' : '';
+                    var _a;
+                    // Only open an expression if not already in an expression.
+                    a.r = !r.n.ed ? 'expr' : '';
+                    if ('expr' === a.r) {
+                        r.use.root = r;
+                    }
+                    console.log('VAL CLOSE BIN', a.r, r.n.ed, (_a = r.use.root) === null || _a === void 0 ? void 0 : _a.id);
                     return a;
                 }
             },
-            { s: [CP], b: 1, g: 'expr' },
+            // { s: [CP], b: 1, g: 'expr' },
         ]);
     });
     jsonic
         .rule('expr', (rs) => {
         rs
             .bo(function box(r) {
+            var _a;
+            r.use.root = r.prev.use.root;
             r.n.bp = r.n.bp || Number.MAX_SAFE_INTEGER;
             r.n.ed = (r.n.ed || 0) + 1;
+            console.log('EXPR BO ed=', r.n.ed, (_a = r.use.root) === null || _a === void 0 ? void 0 : _a.id);
         })
             .open([
-            {
-                // TODO: handle overlap with SUFFIX_UNARIES
-                s: [PREFIX_UNARIES], p: 'val', g: 'expr',
-                c: (r) => r.parent.use.prefix,
-                a: (r) => {
-                    let od = put2od[r.o0.tin];
-                    r.n.bp = obp[od.name][1];
-                    r.node = [od.src];
-                    r.node.expr$ = 1;
-                }
-            },
-            {
-                s: [SUFFIX_UNARIES], g: 'expr',
-                c: (r) => r.parent.use.suffix,
-                a: (r) => {
-                    let od = sut2od[r.o0.tin];
-                    let val = r.parent.node;
-                    r.n.bp = obp[od.name][0];
-                    r.node = [od.src, val];
-                    r.node.expr$ = 1;
-                }
-            },
+            // {
+            //   // TODO: handle overlap with SUFFIX_UNARIES
+            //   s: [PREFIX_UNARIES], p: 'val', g: 'expr',
+            //   c: (r: Rule) => r.parent.use.prefix,
+            //   a: (r: Rule) => {
+            //     let od = put2od[r.o0.tin]
+            //     r.n.bp = obp[od.name][1]
+            //     r.node = [od.src]
+            //     r.node.expr$ = 1
+            //   }
+            // },
+            // {
+            //   s: [SUFFIX_UNARIES], g: 'expr',
+            //   c: (r: Rule) => r.parent.use.suffix,
+            //   a: (r: Rule) => {
+            //     let od = sut2od[r.o0.tin]
+            //     let val = r.parent.node
+            //     r.n.bp = obp[od.name][0]
+            //     r.node = [od.src, val]
+            //     r.node.expr$ = 1
+            //   }
+            // },
             {
                 s: [BINARIES], p: 'val', g: 'expr',
-                c: (r) => r.parent.use.binary,
+                // c: (r: Rule) => r.parent.use.binary,
                 a: (r) => {
                     let od = bt2od[r.o0.tin];
-                    let val = r.parent.node;
+                    // let val = r.parent.node
+                    let lhs = r.prev;
+                    // let lhs = r.use.root
+                    // let val = lhs.node
                     let lbp = od.bp[0];
                     let rbp = od.bp[1];
+                    console.log('EXP OPEN BIN A', lbp, r.n, 'r', JSON.parse(JSON.stringify(r.node)), 'lhs', JSON.parse(JSON.stringify(lhs.node)), 'root', JSON.parse(JSON.stringify(r.use.root.node)));
+                    let log = '';
                     if (lbp < r.n.bp) {
-                        r.node = [od.src, val];
+                        log += 'D';
+                        // Preserve existing array references.
+                        if (lhs.node.expr$) {
+                            lhs.node[1] = [...lhs.node];
+                            lhs.node[0] = od.src;
+                            lhs.node.length = 2;
+                        }
+                        else {
+                            lhs.node = [od.src, lhs.node];
+                        }
+                        r.node = lhs.node;
                     }
-                    else if (r.parent.node.expr$) {
-                        r.node = [od.src, r.parent.node[2]];
-                        r.parent.node[2] = r.node;
+                    else if (lhs.node.expr$) {
+                        log += 'U';
+                        r.node = [od.src, lhs.node[2]];
+                        lhs.node[2] = r.node;
                         r.node.child$ = true;
                     }
                     r.node.expr$ = 2;
                     r.n.bp = rbp;
+                    console.log('EXP OPEN BIN B', log, r.n, 'r', JSON.parse(JSON.stringify(r.node)), 'lhs', JSON.parse(JSON.stringify(lhs.node)), 'root', JSON.parse(JSON.stringify(r.use.root.node)));
                 }
             },
-            { p: 'val', g: 'expr' }
+            // { p: 'val', g: 'expr' }
         ])
             .bc(function bc(r) {
             // Last value.
             if (undefined != r.node && r.node.length - 1 < r.node.expr$) {
                 r.node.push(r.child.node);
+                console.log('EXPR BC PUSH', 'r', JSON.parse(JSON.stringify(r.node)), 'prev', JSON.parse(JSON.stringify(r.prev.node)), 'root', JSON.parse(JSON.stringify(r.use.root.node)));
             }
             else {
-                r.node = r.child.node;
+                // r.node = r.child.node
+                console.log('EXPR BC REP', r.node);
             }
         })
             .close([
             {
                 s: [BINARIES], b: 1, g: 'expr',
                 u: { binary: true },
-                h: (r, _, a) => {
-                    a.p =
-                        (1 === r.n.ed ||
-                            (!r.parent.use.prefix && !r.parent.use.suffix)) ? 'expr' : '';
-                    // console.log('WWW', r.n, r.parent.use, a.p)
-                    return a;
-                }
+                r: 'expr'
+                // h: (r: Rule, _, a: any) => {
+                //   a.p =
+                //     (// 1 === r.n.ed &&
+                //       !r.parent.use.prefix &&
+                //       !r.parent.use.suffix) ? 'expr' : ''
+                //   console.log('EXPR CLOSE BIN', r.n, r.parent.use, a.p)
+                //   return a
+                // }
             },
-            { s: [CP], g: 'expr' },
+            // { s: [CP], g: 'expr' },
             // {
             //   s: [CS], g: 'expr',
             //   // c: (r: Rule) => {
@@ -191,10 +222,11 @@ let Expr = function expr(jsonic, options) {
             // },
         ])
             .ac((r) => {
-            var _a;
-            if (!((_a = r.node) === null || _a === void 0 ? void 0 : _a.child$)) {
-                r.parent.node = r.node;
-            }
+            // if (!r.node?.child$) {
+            // r.parent.node = r.node
+            // r.prev.node = r.node
+            // console.log('EXPR AC', r.prev.id, r.node)
+            // }
         });
     });
 };
