@@ -169,7 +169,7 @@ let Expr = function expr(jsonic, options) {
             },
             {
                 s: [BINARIES], p: 'val', g: 'expr',
-                // c: (r: Rule) => r.parent.use.binary,
+                c: (r) => r.prev.use.binary,
                 a: (r) => {
                     r.n.ed++;
                     let od = bt2od[r.o0.tin];
@@ -212,7 +212,7 @@ let Expr = function expr(jsonic, options) {
                 // a: (r: Rule) => { r.use.pd = (r.n.pd || 0) + 1 },
                 a: (r) => { r.use.pd = r.n.pd; },
             },
-            { p: 'val', g: 'expr' }
+            { p: 'val', g: 'expr' },
         ])
             .bc(function bc(r) {
             // Last value.
@@ -241,7 +241,7 @@ let Expr = function expr(jsonic, options) {
             {
                 s: [CP], g: 'expr', b: 1,
                 h: (r, _, a) => {
-                    if (r.use.pd) {
+                    if (r.use.pd === r.n.pd) {
                         a.b = 0;
                     }
                     return a;

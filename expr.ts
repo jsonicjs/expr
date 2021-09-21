@@ -273,7 +273,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
           {
             s: [BINARIES], p: 'val', g: 'expr',
-            // c: (r: Rule) => r.parent.use.binary,
+            c: (r: Rule) => r.prev.use.binary,
             a: (r: Rule) => {
               r.n.ed++
 
@@ -339,7 +339,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           },
 
 
-          { p: 'val', g: 'expr' }
+          { p: 'val', g: 'expr' },
+
         ])
 
         .bc(function bc(r: Rule) {
@@ -372,7 +373,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           {
             s: [CP], g: 'expr', b: 1,
             h: (r: Rule, _, a: any) => {
-              if (r.use.pd) {
+              if (r.use.pd === r.n.pd) {
                 a.b = 0
               }
               return a
