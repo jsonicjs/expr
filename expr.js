@@ -84,32 +84,45 @@ let Expr = function expr(jsonic, options) {
         .rule('val', (rs) => {
         rs
             .open([
-        // {
-        //   s: [PREFIX_UNARIES], b: 1, p: 'expr', g: 'expr',
-        //   u: { prefix: true },
-        // },
-        // // TODO: counter for paren level
-        // { s: [OP], p: 'expr', n: { bp: 0, ed: 1 }, g: 'expr' },
+            {
+                s: [PREFIX_UNARIES], b: 1, p: 'expr', g: 'expr',
+                u: { prefix: true },
+            },
+            // // TODO: counter for paren level
+            // { s: [OP], p: 'expr', n: { bp: 0, ed: 1 }, g: 'expr' },
+            {
+                s: [OP],
+                p: 'expr',
+                b: 1,
+                // n: { ed: 0 },
+                // p: 'expr',
+                // n: { bp: Number.MAX_SAFE_INTEGER, ed: 0 }, g: 'expr'
+            },
         ])
             .close([
-            // {
-            //   s: [SUFFIX_UNARIES], b: 1, g: 'expr', p: 'expr',
-            //   u: { suffix: true },
-            // },
+            {
+                s: [SUFFIX_UNARIES], b: 1, g: 'expr', r: 'expr',
+                u: { suffix: true },
+            },
             {
                 s: [BINARIES], b: 1, g: 'expr',
                 u: { binary: true },
                 // r: 'expr',
                 h: (r, _, a) => {
-                    var _a;
                     // Only open an expression if not already in an expression.
                     a.r = !r.n.ed ? 'expr' : '';
-                    if ('expr' === a.r) {
-                        r.use.root = r;
-                    }
-                    console.log('VAL CLOSE BIN', a.r, r.n.ed, (_a = r.use.root) === null || _a === void 0 ? void 0 : _a.id);
+                    // if ('expr' === a.r) {
+                    //   r.use.root = r
+                    // }
+                    // console.log('VAL CLOSE BIN', a.r, r.n.ed, r.use.root?.id)
                     return a;
                 }
+            },
+            {
+                s: [CP], b: 1, g: 'expr',
+                // a: (r: Rule) => {
+                //   console.log('VAL CLOSE CP', r.node)
+                // }
             },
             // { s: [CP], b: 1, g: 'expr' },
         ]);
@@ -118,39 +131,47 @@ let Expr = function expr(jsonic, options) {
         .rule('expr', (rs) => {
         rs
             .bo(function box(r) {
-            var _a;
-            r.use.root = r.prev.use.root;
+            // r.use.root = r.prev.use.root
             r.n.bp = r.n.bp || Number.MAX_SAFE_INTEGER;
-            r.n.ed = (r.n.ed || 0) + 1;
-            console.log('EXPR BO ed=', r.n.ed, (_a = r.use.root) === null || _a === void 0 ? void 0 : _a.id);
+            // r.n.ed = (r.n.ed || 0) + 1
+            // TODO: change to et for term count
+            r.n.ed = (r.n.ed || 0);
+            // console.log('EXPR BO ed=', r.n.ed, r.use.root?.id)
         })
             .open([
-            // {
-            //   // TODO: handle overlap with SUFFIX_UNARIES
-            //   s: [PREFIX_UNARIES], p: 'val', g: 'expr',
-            //   c: (r: Rule) => r.parent.use.prefix,
-            //   a: (r: Rule) => {
-            //     let od = put2od[r.o0.tin]
-            //     r.n.bp = obp[od.name][1]
-            //     r.node = [od.src]
-            //     r.node.expr$ = 1
-            //   }
-            // },
-            // {
-            //   s: [SUFFIX_UNARIES], g: 'expr',
-            //   c: (r: Rule) => r.parent.use.suffix,
-            //   a: (r: Rule) => {
-            //     let od = sut2od[r.o0.tin]
-            //     let val = r.parent.node
-            //     r.n.bp = obp[od.name][0]
-            //     r.node = [od.src, val]
-            //     r.node.expr$ = 1
-            //   }
-            // },
+            {
+                // TODO: handle overlap with SUFFIX_UNARIES
+                s: [PREFIX_UNARIES], p: 'val', g: 'expr',
+                c: (r) => r.parent.use.prefix,
+                a: (r) => {
+                    r.n.ed++;
+                    r.parent.use.prefix = false;
+                    let od = put2od[r.o0.tin];
+                    r.n.bp = obp[od.name][1];
+                    r.node = [od.src];
+                    r.node.expr$ = 1;
+                    r.node.prefix$ = true;
+                }
+            },
+            {
+                s: [SUFFIX_UNARIES], g: 'expr',
+                c: (r) => r.prev.use.suffix,
+                a: (r) => {
+                    r.n.ed++;
+                    r.prev.use.suffix = false;
+                    let od = sut2od[r.o0.tin];
+                    let val = r.prev.node;
+                    r.n.bp = obp[od.name][0];
+                    r.prev.node = r.node = [od.src, val];
+                    r.node.expr$ = 1;
+                    r.node.suffix$ = true;
+                }
+            },
             {
                 s: [BINARIES], p: 'val', g: 'expr',
                 // c: (r: Rule) => r.parent.use.binary,
                 a: (r) => {
+                    r.n.ed++;
                     let od = bt2od[r.o0.tin];
                     // let val = r.parent.node
                     let lhs = r.prev;
@@ -158,7 +179,7 @@ let Expr = function expr(jsonic, options) {
                     // let val = lhs.node
                     let lbp = od.bp[0];
                     let rbp = od.bp[1];
-                    console.log('EXP OPEN BIN A', lbp, r.n, 'r', JSON.parse(JSON.stringify(r.node)), 'lhs', JSON.parse(JSON.stringify(lhs.node)), 'root', JSON.parse(JSON.stringify(r.use.root.node)));
+                    console.log('EXP OPEN BIN A', lbp, r.n, 'r', JSON.parse(JSON.stringify(r.node)), 'lhs', JSON.parse(JSON.stringify(lhs.node)));
                     let log = '';
                     if (lbp < r.n.bp) {
                         log += 'D';
@@ -181,20 +202,26 @@ let Expr = function expr(jsonic, options) {
                     }
                     r.node.expr$ = 2;
                     r.n.bp = rbp;
-                    console.log('EXP OPEN BIN B', log, r.n, 'r', JSON.parse(JSON.stringify(r.node)), 'lhs', JSON.parse(JSON.stringify(lhs.node)), 'root', JSON.parse(JSON.stringify(r.use.root.node)));
+                    console.log('EXP OPEN BIN B', log, r.n, 'r', JSON.parse(JSON.stringify(r.node)), 'lhs', JSON.parse(JSON.stringify(lhs.node)));
                 }
             },
-            // { p: 'val', g: 'expr' }
+            {
+                s: [OP], p: 'expr',
+                //n: { bp: Number.MAX_SAFE_INTEGER, ed: 0 }, g: 'expr'
+                n: { bp: 0, ed: 0, pd: 1 }, g: 'expr',
+                // a: (r: Rule) => { r.use.pd = (r.n.pd || 0) + 1 },
+                a: (r) => { r.use.pd = r.n.pd; },
+            },
+            { p: 'val', g: 'expr' }
         ])
             .bc(function bc(r) {
             // Last value.
             if (undefined != r.node && r.node.length - 1 < r.node.expr$) {
                 r.node.push(r.child.node);
-                console.log('EXPR BC PUSH', 'r', JSON.parse(JSON.stringify(r.node)), 'prev', JSON.parse(JSON.stringify(r.prev.node)), 'root', JSON.parse(JSON.stringify(r.use.root.node)));
             }
             else {
-                // r.node = r.child.node
-                console.log('EXPR BC REP', r.node);
+                r.node = r.child.node;
+                // console.log('EXPR BC REP', r.node)
             }
         })
             .close([
@@ -211,7 +238,16 @@ let Expr = function expr(jsonic, options) {
                 //   return a
                 // }
             },
-            // { s: [CP], g: 'expr' },
+            {
+                s: [CP], g: 'expr', b: 1,
+                h: (r, _, a) => {
+                    if (r.use.pd) {
+                        a.b = 0;
+                    }
+                    return a;
+                    // r.prev.prev.node = r.node
+                }
+            },
             // {
             //   s: [CS], g: 'expr',
             //   // c: (r: Rule) => {
