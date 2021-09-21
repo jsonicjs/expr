@@ -146,6 +146,7 @@ let Expr = function expr(jsonic, options) {
                 a: (r) => {
                     r.n.ed++;
                     r.parent.use.prefix = false;
+                    r.use.prefix = true;
                     let od = put2od[r.o0.tin];
                     r.n.bp = obp[od.name][1];
                     r.node = [od.src];
@@ -159,6 +160,7 @@ let Expr = function expr(jsonic, options) {
                 a: (r) => {
                     r.n.ed++;
                     r.prev.use.suffix = false;
+                    r.use.suffix = true;
                     let od = sut2od[r.o0.tin];
                     let val = r.prev.node;
                     r.n.bp = obp[od.name][0];
@@ -228,15 +230,12 @@ let Expr = function expr(jsonic, options) {
             {
                 s: [BINARIES], b: 1, g: 'expr',
                 u: { binary: true },
-                r: 'expr'
-                // h: (r: Rule, _, a: any) => {
-                //   a.p =
-                //     (// 1 === r.n.ed &&
-                //       !r.parent.use.prefix &&
-                //       !r.parent.use.suffix) ? 'expr' : ''
-                //   console.log('EXPR CLOSE BIN', r.n, r.parent.use, a.p)
-                //   return a
-                // }
+                //r: 'expr'
+                h: (r, _, a) => {
+                    a.r = (!r.use.prefix && !r.use.suffix) ? 'expr' : '';
+                    // console.log('EXPR CLOSE BIN', r.n, r.parent.use, a.p)
+                    return a;
+                }
             },
             {
                 s: [CP], g: 'expr', b: 1,
@@ -256,6 +255,7 @@ let Expr = function expr(jsonic, options) {
             //   //   return (0 < r.use[cn]) && (r.use[cn] === r.n[cn])
             //   // }
             // },
+            {}
         ])
             .ac((r) => {
             // if (!r.node?.child$) {

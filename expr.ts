@@ -5,28 +5,12 @@
 // https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
 
 
-// TODO: messes up implicit lists
-
 // TODO: paren binaries: a(b), a[c], a?b:c
 
 
-// BROKEN
-
-// ['+', 1, ['+', ['+', 2, 3], 4]]
-// 93261098b:expr richard$ node test / quick.js '1+(2+3)+4'
 
 
-// SHOULD BE
-// ['+', ['+' 1, ['+', 2, 3], 4]
-
-//   LIKE
-
-// ['+', ['+', 1, 5], 4]
-// 93261098b:expr richard$ node test / quick.js '1+5+4'
-
-
-
-import { Jsonic, Plugin, Rule, RuleSpec, Tin } from 'jsonic'
+import { Jsonic, Plugin, Rule, RuleSpec } from 'jsonic'
 
 
 const ops: any = {
@@ -248,6 +232,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             a: (r: Rule) => {
               r.n.ed++
               r.parent.use.prefix = false
+              r.use.prefix = true
               let od = put2od[r.o0.tin]
               r.n.bp = obp[od.name][1]
               r.node = [od.src]
@@ -262,6 +247,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             a: (r: Rule) => {
               r.n.ed++
               r.prev.use.suffix = false
+              r.use.suffix = true
               let od = sut2od[r.o0.tin]
               let val = r.prev.node
               r.n.bp = obp[od.name][0]
@@ -359,15 +345,12 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           {
             s: [BINARIES], b: 1, g: 'expr',
             u: { binary: true },
-            r: 'expr'
-            // h: (r: Rule, _, a: any) => {
-            //   a.p =
-            //     (// 1 === r.n.ed &&
-            //       !r.parent.use.prefix &&
-            //       !r.parent.use.suffix) ? 'expr' : ''
-            //   console.log('EXPR CLOSE BIN', r.n, r.parent.use, a.p)
-            //   return a
-            // }
+            //r: 'expr'
+            h: (r: Rule, _, a: any) => {
+              a.r = (!r.use.prefix && !r.use.suffix) ? 'expr' : ''
+              // console.log('EXPR CLOSE BIN', r.n, r.parent.use, a.p)
+              return a
+            }
           },
 
           {
@@ -389,6 +372,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           //   //   return (0 < r.use[cn]) && (r.use[cn] === r.n[cn])
           //   // }
           // },
+
+          {}
         ])
 
         .ac((r: Rule) => {
