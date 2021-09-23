@@ -115,7 +115,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
       },
     }])
 
-  console.log('pm', pm)
+  // console.log('pm', pm)
 
 
 
@@ -319,6 +319,18 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
         ])
     })
 
+  jsonic
+    .rule('pair', (rs: RuleSpec) => {
+      rs
+        .close([
+          {
+            s: [PAREN_CLOSES], b: 1, g: 'expr,paren',
+            c: (r: Rule) => !!r.n.pd
+          },
+        ])
+    })
+
+
 
 
   jsonic
@@ -447,7 +459,18 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             r.node.push(r.child.node)
           }
           else {
-            r.node = r.child.node
+            let pd = po2pd[r.o0.tin]
+            if (pd) {
+              r.node = r.child.node
+              if (!Array.isArray(r.node)) {
+                r.node = ['', r.node]
+              }
+              r.node.expr$ = 1
+              r.node.paren$ = pd.osrc
+            }
+            else {
+              r.node = r.child.node
+            }
           }
         })
 
@@ -592,7 +615,7 @@ Expr.defaults = {
     // },
     // ternary: { osrc: '?', csrc: ':', prefix: {}, suffix: {} },
     // ternary: { osrc: '<', csrc: '>', prefix: true, suffix: true },
-    quote: { osrc: '<<', csrc: '>>', prefix: {}, suffix: {} },
+    // quote: { osrc: '<<', csrc: '>>', prefix: {}, suffix: {} },
   }
 
 } as ExprOptions

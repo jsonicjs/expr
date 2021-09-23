@@ -49,7 +49,7 @@ let Expr = function expr(jsonic, options) {
                 },
             }];
     });
-    console.log('pm', pm);
+    // console.log('pm', pm)
     // Lookup for operator binding powers.
     const obp = jsonic.util.omap(opm, ([n, od]) => [n, od.bp]);
     // Operator src may be used for an existing token, in which case, use that.
@@ -190,6 +190,16 @@ let Expr = function expr(jsonic, options) {
         ]);
     });
     jsonic
+        .rule('pair', (rs) => {
+        rs
+            .close([
+            {
+                s: [PAREN_CLOSES], b: 1, g: 'expr,paren',
+                c: (r) => !!r.n.pd
+            },
+        ]);
+    });
+    jsonic
         .rule('expr', (rs) => {
         rs
             .bo(function box(r) {
@@ -298,7 +308,18 @@ let Expr = function expr(jsonic, options) {
                 r.node.push(r.child.node);
             }
             else {
-                r.node = r.child.node;
+                let pd = po2pd[r.o0.tin];
+                if (pd) {
+                    r.node = r.child.node;
+                    if (!Array.isArray(r.node)) {
+                        r.node = ['', r.node];
+                    }
+                    r.node.expr$ = 1;
+                    r.node.paren$ = pd.osrc;
+                }
+                else {
+                    r.node = r.child.node;
+                }
             }
         })
             .close([
@@ -421,7 +442,7 @@ Expr.defaults = {
         // },
         // ternary: { osrc: '?', csrc: ':', prefix: {}, suffix: {} },
         // ternary: { osrc: '<', csrc: '>', prefix: true, suffix: true },
-        quote: { osrc: '<<', csrc: '>>', prefix: {}, suffix: {} },
+        // quote: { osrc: '<<', csrc: '>>', prefix: {}, suffix: {} },
     }
 };
 //# sourceMappingURL=expr.js.map

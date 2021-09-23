@@ -92,11 +92,12 @@ describe('expr', () => {
     const je = Jsonic.make().use(Expr)
     const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
 
-    expect(j('-1')).toMatchObject(['-', 1])
+    // expect(j('-1')).toMatchObject(['-', 1])
+    expect(j('-1')).toMatchObject(['', ['-', 1]])
     expect(j('-1+2')).toMatchObject(['+', ['-', 1], 2])
     expect(j('-1+-2')).toMatchObject(['+', ['-', 1], ['-', 2]])
     expect(j('1+-2')).toMatchObject(['+', 1, ['-', 2]])
-    expect(j('-2')).toMatchObject(['-', 2])
+    expect(j('-2')).toMatchObject(['', ['-', 2]])
 
     expect(j('-1+3')).toMatchObject(['+', ['-', 1], 3])
     expect(j('-1+2+3')).toMatchObject(['+', ['+', ['-', 1], 2], 3])
@@ -111,7 +112,8 @@ describe('expr', () => {
     const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
 
     // expect(j('()')).toEqual(undefined)
-    expect(j('(1)')).toEqual(1)
+    // expect(j('(1)')).toEqual(1)
+    expect(j('(1)')).toMatchObject(['', 1])
     expect(j('(1+2)')).toMatchObject(['+', 1, 2])
     expect(j('(1+2+3)')).toMatchObject(['+', ['+', 1, 2], 3])
     expect(j('(1+2+3+4)')).toMatchObject(['+', ['+', ['+', 1, 2], 3], 4])
@@ -119,7 +121,7 @@ describe('expr', () => {
     expect(j('(1+2)+3')).toMatchObject(['+', ['+', 1, 2], 3])
     expect(j('1+(2+3)')).toMatchObject(['+', 1, ['+', 2, 3]])
 
-    expect(j('(1)+2+3')).toMatchObject(['+', ['+', 1, 2], 3])
+    expect(j('(1)+2+3')).toMatchObject(['+', ['+', ['', 1], 2], 3])
     expect(j('1+(2)+3')).toMatchObject(['+', ['+', 1, 2], 3])
     expect(j('1+2+(3)')).toMatchObject(['+', ['+', 1, 2], 3])
     expect(j('1+(2)+(3)')).toMatchObject(['+', ['+', 1, 2], 3])
