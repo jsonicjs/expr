@@ -431,15 +431,21 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
               let pd = po2pd[r.o0.tin]
 
               if (r.parent.use.paren_prefix) {
-                r.parent.node = [r.o0.src, r.parent.node]
-                r.parent.node.expr$ = 2
+                // r.parent.node = [r.o0.src, r.parent.node]
+                // r.parent.node.expr$ = 2
+
+                r.node = [r.o0.src, r.parent.node]
+                r.node.expr$ = 2
+                r.parent.node = undefined
+
+                console.log('EXPR OPEN paren_prefix', r.node)
 
                 // Ternary.
                 if (pd.suffix.active) {
-                  r.parent.node.expr$ = 3
+                  r.node.expr$ = 3
                 }
 
-                r.node = r.parent.node
+                //r.node = r.parent.node
                 console.log('EXPR PO', r.node)
               }
               else if (pd.prefix.required) {
@@ -485,7 +491,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           },
 
           {
-            s: [PAREN_CLOSES], g: 'expr,paren', b: 1,
+            s: [PAREN_CLOSES],
+            b: 1,
             c: (r: Rule) => !!r.n.pd,
             h: (r: Rule, _, a: any) => {
 
@@ -506,41 +513,29 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
                 }
               }
               return a
-            }
+            },
+            g: 'expr,paren',
           },
 
-          // {
-          //   s: [CS], g: 'expr',
-          //   c: (r: Rule) => {
-          //     console.log('CS', r.c0.tin, r.name, r.id, r.use, r.node)
-          //     // let cn = 'expr' + r.o0.name
-          //     // console.log('CLOSE cn', cn, r.use[cn], r.n[cn], (0 < r.use[cn]))
-          //     // return (0 < r.use[cn]) && (r.use[cn] === r.n[cn])
-          //     // return true
-
-          //     if (r.use.ctin === r.c0.tin) {
-          //       return true
-          //     }
-          //     else {
-          //       return false
-          //     }
-          //   }
-          // },
-
           {
-            c: (r: Rule) => r.prev.use.paren_suffix,
+            c: (r: Rule) => !!r.prev.use.paren_suffix,
             a: (r: Rule) => {
-              let pd = r.prev.use.paren_suffix
-              let val = r.prev.node
-              r.prev.node = [pd.osrc, val, r.child.node]
-            }
+              // let pd = r.prev.use.paren_suffix
+              // let prev = r.prev
+              let child = r.child
+
+              if (undefined != child.node) {
+                r.prev.node.push(child.node)
+              }
+            },
+            g: 'expr,paren,suffix'
           },
 
           {}
         ])
 
-        .ac((r: Rule) => {
-        })
+      // .ac((r: Rule) => {
+      // })
     })
 }
 
