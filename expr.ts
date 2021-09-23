@@ -47,8 +47,14 @@ type OpFullDef = OpDef & {
 type ParenDef = {
   osrc: string
   csrc: string
-  prefix?: boolean
-  suffix?: boolean
+  prefix?: {
+    active?: boolean
+    required?: boolean
+  }
+  suffix?: {
+    active?: boolean
+    required?: boolean
+  }
 }
 
 type ParenFullDef = ParenDef & {
@@ -57,8 +63,14 @@ type ParenFullDef = ParenDef & {
   otin: number
   ctkn: string
   ctin: number
-  prefix: boolean
-  suffix: boolean
+  prefix: {
+    active: boolean
+    required: boolean
+  }
+  suffix: {
+    active: boolean
+    required: boolean
+  }
 }
 
 
@@ -93,8 +105,14 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
       otin: -1,
       ctkn: '',
       ctin: -1,
-      prefix: true === pd.prefix,
-      suffix: true === pd.suffix,
+      prefix: {
+        active: null != pd.prefix && false !== pd.prefix?.active,
+        required: true === pd.prefix?.required,
+      },
+      suffix: {
+        active: null != pd.suffix && false !== pd.suffix?.active,
+        required: true === pd.suffix?.required,
+      },
     }])
 
   console.log('pm', pm)
@@ -131,7 +149,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
     a), tm)
 
 
-  console.log('tm', tm)
+  // console.log('tm', tm)
 
 
   // Fixed tokens for Jsonic options.
@@ -145,9 +163,9 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
       (tm[fixed[tn]].n.map(on => a[on] = tn), a), {})
 
 
-  console.log('fixed', fixed)
+  // console.log('fixed', fixed)
 
-  console.log('n2tn', n2tn)
+  // console.log('n2tn', n2tn)
 
 
 
@@ -172,7 +190,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
     od.tkn = n2tn[od.name]
     od.tin = jsonic.token(od.tkn)
   })
-  console.log('opm', opm)
+  // console.log('opm', opm)
 
   Object.values(pm).map((pd: ParenFullDef) => {
     pd.otkn = n2tn[pd.name + '-open']
@@ -180,11 +198,11 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
     pd.ctkn = n2tn[pd.name + '-close']
     pd.ctin = jsonic.token(pd.ctkn)
   })
-  console.log('pm', pm)
+  // console.log('pm', pm)
 
 
-  const OP = jsonic.token['#expr-open-paren']
-  const CP = jsonic.token['#expr-close-paren']
+  // const OP = jsonic.token['#expr-open-paren']
+  // const CP = jsonic.token['#expr-close-paren']
 
   // const CS = jsonic.token['#CS']
 
@@ -231,10 +249,10 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
     return pd.ctin
   })
 
-  console.log('PAREN_OPENS', PAREN_OPENS)
-  console.log('PAREN_CLOSES', PAREN_CLOSES)
-  console.log('po2pd', po2pd)
-  console.log('pc2pd', pc2pd)
+  // console.log('PAREN_OPENS', PAREN_OPENS)
+  // console.log('PAREN_CLOSES', PAREN_CLOSES)
+  // console.log('po2pd', po2pd)
+  // console.log('pc2pd', pc2pd)
 
 
   jsonic
@@ -246,7 +264,13 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             u: { prefix: true },
           },
 
-          { s: [PAREN_OPENS], b: 1, p: 'expr', g: 'expr,paren' },
+          {
+            s: [PAREN_OPENS], b: 1, p: 'expr', g: 'expr,paren',
+            c: (r: Rule) => {
+              let pd = po2pd[r.o0.tin]
+              return !pd.prefix.required
+            }
+          },
         ])
         .close([
           {
@@ -265,16 +289,33 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
           {
             s: [PAREN_CLOSES], b: 1, g: 'expr,paren',
+            c: (r: Rule) => !!r.n.pd
           },
 
 
-          // PAREN PREFIX
-          // {
-          //   s: [OP],
-          //   p: 'expr',
-          //   b: 1,
-          //   u: { paren_prefix: true },
-          // },
+          {
+            s: [PAREN_OPENS],
+            p: 'expr',
+            b: 1,
+            c: (r: Rule) => {
+              let pd = po2pd[r.c0.tin]
+              return pd.prefix.active
+            },
+            u: { paren_prefix: true },
+            g: 'expr,paren,prefix'
+          },
+        ])
+    })
+
+
+  jsonic
+    .rule('elem', (rs: RuleSpec) => {
+      rs
+        .close([
+          {
+            s: [PAREN_CLOSES], b: 1, g: 'expr,paren',
+            c: (r: Rule) => !!r.n.pd
+          },
         ])
     })
 
@@ -297,7 +338,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
         .open([
           {
             // TODO: handle overlap with SUFFIX_UNARIES
-            s: [PREFIX_UNARIES], p: 'val', g: 'expr',
+            s: [PREFIX_UNARIES], p: 'val', g: 'expr,unary,prefix',
             c: (r: Rule) => r.parent.use.prefix,
             a: (r: Rule) => {
               r.n.ed++
@@ -312,7 +353,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           },
 
           {
-            s: [SUFFIX_UNARIES], g: 'expr',
+            s: [SUFFIX_UNARIES], g: 'expr,unary,suffix',
             c: (r: Rule) => r.prev.use.suffix,
             a: (r: Rule) => {
               r.n.ed++
@@ -328,7 +369,9 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           },
 
           {
-            s: [BINARIES], p: 'val', g: 'expr',
+            s: [BINARIES],
+            p: 'val',
+            g: 'expr,binary',
             c: (r: Rule) => r.prev.use.binary,
             a: (r: Rule) => {
               r.use.op = r.o0.name
@@ -370,28 +413,31 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             n: {
               bp: 0, ed: 0, pd: 1,
             },
-            g: 'expr',
+            g: 'expr,paren',
             a: (r: Rule) => {
               r.use.pd = r.n.pd
+              let pd = po2pd[r.o0.tin]
 
-              // console.log('EXPR OP',
-              //   r.prev.id, r.prev.node, r.parent.id, r.parent.node)
+              if (r.parent.use.paren_prefix) {
+                r.parent.node = [r.o0.src, r.parent.node]
+                r.parent.node.expr$ = 2
 
-              // PAREN_PREFIX/SUFFIX
-              // if ('val' === r.parent.name && r.parent.use.paren_prefix) {
-              //   console.log('OP paren prefix', r.parent.node)
-              //   r.parent.node = [r.o0.src, r.parent.node]
+                // Ternary.
+                if (pd.suffix.active) {
+                  r.parent.node.expr$ = 3
+                }
 
-              //   // r.parent.node.expr$ = 2
-
-              //   // TERNARY
-              //   r.parent.node.expr$ = 3
-              //   r.node = r.parent.node
-              // }
+                r.node = r.parent.node
+                console.log('EXPR PO', r.node)
+              }
+              else if (pd.prefix.required) {
+                r.o0.err = 'prefix_required'
+                return r.o0
+              }
             },
           },
 
-          { p: 'val', g: 'expr' },
+          { p: 'val', g: 'expr,val' },
         ])
 
         .bc(function bc(r: Rule) {
@@ -407,7 +453,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
         .close([
           {
-            s: [BINARIES], b: 1, g: 'expr',
+            s: [BINARIES], b: 1, g: 'expr,binary',
             u: { binary: true },
             h: (r: Rule, _, a: any) => {
               a.r = (!r.use.prefix && !r.use.suffix) ? 'expr' : ''
@@ -416,15 +462,25 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           },
 
           {
-            s: [PAREN_CLOSES], g: 'expr', b: 1,
+            s: [PAREN_CLOSES], g: 'expr,paren', b: 1,
+            c: (r: Rule) => !!r.n.pd,
             h: (r: Rule, _, a: any) => {
+
+              // Only act on matching close paren
               if (r.use.pd === r.n.pd) {
                 a.b = 0
 
-                // // TERNARY
-                // a.n = a.n || {}
-                // a.n.il = 1
-                // a.r = 'expr'
+                // Suffix
+                let pd = pc2pd[r.c0.tin]
+                if (pd.suffix.active) {
+                  a.n = a.n || {}
+                  a.n.il = 1
+                  a.r = 'expr'
+                  a.u = a.u || {}
+
+                  // TODO: also paren_prefix = pd
+                  a.u.paren_suffix = pd
+                }
               }
               return a
             }
@@ -448,6 +504,15 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           //   }
           // },
 
+          {
+            c: (r: Rule) => r.prev.use.paren_suffix,
+            a: (r: Rule) => {
+              let pd = r.prev.use.paren_suffix
+              let val = r.prev.node
+              r.prev.node = [pd.osrc, val, r.child.node]
+            }
+          },
+
           {}
         ])
 
@@ -469,9 +534,9 @@ Expr.defaults = {
     },
 
     // TODO: move to test
-    factorial: {
-      order: 1, bp: [10400, -1], src: '!'
-    },
+    // factorial: {
+    //   order: 1, bp: [10400, -1], src: '!'
+    // },
 
     // // TODO: move to test
     // indexation: {
@@ -506,18 +571,28 @@ Expr.defaults = {
     },
   },
 
-  // paren: {
-  //   open: '(',
-  //   close: ')',
-  // }
-
   paren: {
-    pure: { osrc: '(', csrc: ')' },
+    pure: {
+      osrc: '(', csrc: ')',
+      prefix: {}
+    },
+
+    // func: {
+    //   osrc: '<', csrc: '>',
+    //   prefix: {
+    //     // required: false
+    //   }
+    // },
 
     // TODO: move to test
-    // index: { osrc: '[', csrc: ']', prefix: true },
-    // ternary: { osrc: '?', csrc: ':', prefix: true, suffix: true },
-    // quote: { osrc: '<<', csrc: '>>', suffix: true },
+    // index: {
+    //   osrc: '[', csrc: ']', prefix: {
+    //     required: true
+    //   }
+    // },
+    // ternary: { osrc: '?', csrc: ':', prefix: {}, suffix: {} },
+    // ternary: { osrc: '<', csrc: '>', prefix: true, suffix: true },
+    quote: { osrc: '<<', csrc: '>>', prefix: {}, suffix: {} },
   }
 
 } as ExprOptions
