@@ -119,6 +119,33 @@ let Expr = function expr(jsonic, options) {
                 g: 'expr,paren',
                 c: (r) => !!r.n.pd
             },
+            {
+                s: [OP],
+                b: 1,
+                r: 'expr',
+                u: { paren_prefix: true },
+                g: 'expr,paren',
+            },
+        ]);
+    });
+    jsonic
+        .rule('elem', (rs) => {
+        rs
+            .close([
+            {
+                s: [CP], b: 1, g: 'expr,paren',
+                c: (r) => !!r.n.pd
+            },
+        ]);
+    });
+    jsonic
+        .rule('pair', (rs) => {
+        rs
+            .close([
+            {
+                s: [CP], b: 1, g: 'expr,paren',
+                c: (r) => !!r.n.pd
+            },
         ]);
     });
     jsonic
@@ -222,6 +249,11 @@ let Expr = function expr(jsonic, options) {
                 g: 'expr,paren',
                 a: (r) => {
                     r.use.pd = r.n.pd;
+                    if (r.prev.use.paren_prefix) {
+                        r.node = ['((', r.prev.node];
+                        r.node.expr$ = 2;
+                        console.log('EXPR OP PREFIX', r.node);
+                    }
                 },
             },
             { p: 'val', g: 'expr,val' },
@@ -251,16 +283,23 @@ let Expr = function expr(jsonic, options) {
                     if ((_a = r.child.node) === null || _a === void 0 ? void 0 : _a.expr$) {
                         r.node = r.child.node;
                     }
+                    else if (undefined === r.node) {
+                        r.node = r.child.node;
+                    }
                     if (r.use.pd === r.n.pd) {
                         a.b = 0;
                         r.node = ['(', r.node];
                         r.node.paren$ = true;
+                        console.log('EXPR CP', r.prev.use);
+                        if (r.prev.use.paren_prefix) {
+                            r.prev.node = r.node;
+                        }
                     }
                     return a;
                 },
                 g: 'expr,paren',
             },
-            // { g: 'expr,expr-end' }
+            { g: 'expr,expr-end' }
         ]);
     });
 };

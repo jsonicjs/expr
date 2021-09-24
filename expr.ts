@@ -161,8 +161,40 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             g: 'expr,paren',
             c: (r: Rule) => !!r.n.pd
           },
+
+          {
+            s: [OP],
+            b: 1,
+            r: 'expr',
+            u: { paren_prefix: true },
+            g: 'expr,paren',
+          },
+
         ])
     })
+
+  jsonic
+    .rule('elem', (rs: RuleSpec) => {
+      rs
+        .close([
+          {
+            s: [CP], b: 1, g: 'expr,paren',
+            c: (r: Rule) => !!r.n.pd
+          },
+        ])
+    })
+
+  jsonic
+    .rule('pair', (rs: RuleSpec) => {
+      rs
+        .close([
+          {
+            s: [CP], b: 1, g: 'expr,paren',
+            c: (r: Rule) => !!r.n.pd
+          },
+        ])
+    })
+
 
 
   jsonic
@@ -292,6 +324,12 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             g: 'expr,paren',
             a: (r: Rule) => {
               r.use.pd = r.n.pd
+
+              if (r.prev.use.paren_prefix) {
+                r.node = ['((', r.prev.node]
+                r.node.expr$ = 2
+                console.log('EXPR OP PREFIX', r.node)
+              }
             },
           },
 
@@ -324,19 +362,29 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
               if (r.child.node?.expr$) {
                 r.node = r.child.node
               }
+              else if (undefined === r.node) {
+                r.node = r.child.node
+              }
 
               if (r.use.pd === r.n.pd) {
                 a.b = 0
                 r.node = ['(', r.node]
                 r.node.paren$ = true
+
+                console.log('EXPR CP', r.prev.use)
+                if (r.prev.use.paren_prefix) {
+                  r.prev.node = r.node
+                }
               }
+
+
               return a
             },
             g: 'expr,paren',
           },
 
 
-          // { g: 'expr,expr-end' }
+          { g: 'expr,expr-end' }
         ])
     })
 }
