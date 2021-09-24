@@ -41,14 +41,24 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
     '#E!': '!',
   }
 
+
   jsonic.options({
     fixed: {
       token: operators
     }
   })
 
+  jsonic.options({
+    fixed: {
+      token: {
+        '#E(': '(',
+        '#E)': ')',
+      }
+    }
+  })
+
   const OPERATORS: Tin[] = Object.keys(operators).map(tn => jsonic.token(tn))
-  console.log(OPERATORS)
+  // console.log(OPERATORS)
 
   const novalopm: { [tin: number]: OpFullDef } = {
     [jsonic.token('#E-')]: {
@@ -109,6 +119,11 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
   }
 
+  const OP = jsonic.token['#E(']
+  const CP = jsonic.token['#E)']
+
+  console.log('fixed', jsonic.fixed)
+
   // console.log('novalopm', novalopm)
   // console.log('valopm', valopm)
 
@@ -124,6 +139,13 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             u: { expr_val: false },
             g: 'expr',
           },
+
+          {
+            s: [OP],
+            b: 1,
+            p: 'expr',
+            g: 'expr,paren',
+          },
         ])
         .close([
           {
@@ -132,6 +154,12 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             r: 'expr',
             u: { expr_val: true },
             g: 'expr',
+          },
+          {
+            s: [CP],
+            b: 1,
+            g: 'expr,paren',
+            c: (r: Rule) => !!r.n.pd
           },
         ])
     })
@@ -254,6 +282,20 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
               return a
             }
           },
+
+          {
+            s: [OP],
+            p: 'expr',
+            n: {
+              expr_bind: 0, expr_term: 0, pd: 1,
+            },
+            g: 'expr,paren',
+            a: (r: Rule) => {
+              r.use.pd = r.n.pd
+            },
+          },
+
+          { p: 'val', g: 'expr,val' },
         ])
 
         .bc(function bc(r: Rule) {
@@ -261,7 +303,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           if (r.node?.length - 1 < r.node?.expr$) {
             r.node.push(r.child.node)
           }
-          console.log('EXPR BC Z', r.node, r.node.expr$)
+          console.log('EXPR BC Z', r.node, r.node?.expr$)
         })
 
         .close([
@@ -272,6 +314,27 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             g: 'expr',
             u: { expr_val: true },
           },
+
+          {
+            s: [CP],
+            b: 1,
+            c: (r: Rule) => !!r.n.pd,
+            h: (r: Rule, _, a: any) => {
+
+              if (r.child.node?.expr$) {
+                r.node = r.child.node
+              }
+
+              if (r.use.pd === r.n.pd) {
+                a.b = 0
+                r.node = ['(', r.node]
+                r.node.paren$ = true
+              }
+              return a
+            },
+            g: 'expr,paren',
+          },
+
 
           // { g: 'expr,expr-end' }
         ])

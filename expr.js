@@ -16,8 +16,16 @@ let Expr = function expr(jsonic, options) {
             token: operators
         }
     });
+    jsonic.options({
+        fixed: {
+            token: {
+                '#E(': '(',
+                '#E)': ')',
+            }
+        }
+    });
     const OPERATORS = Object.keys(operators).map(tn => jsonic.token(tn));
-    console.log(OPERATORS);
+    // console.log(OPERATORS)
     const novalopm = {
         [jsonic.token('#E-')]: {
             order: 1,
@@ -74,6 +82,9 @@ let Expr = function expr(jsonic, options) {
             suffix: true,
         },
     };
+    const OP = jsonic.token['#E('];
+    const CP = jsonic.token['#E)'];
+    console.log('fixed', jsonic.fixed);
     // console.log('novalopm', novalopm)
     // console.log('valopm', valopm)
     jsonic
@@ -87,6 +98,12 @@ let Expr = function expr(jsonic, options) {
                 u: { expr_val: false },
                 g: 'expr',
             },
+            {
+                s: [OP],
+                b: 1,
+                p: 'expr',
+                g: 'expr,paren',
+            },
         ])
             .close([
             {
@@ -95,6 +112,12 @@ let Expr = function expr(jsonic, options) {
                 r: 'expr',
                 u: { expr_val: true },
                 g: 'expr',
+            },
+            {
+                s: [CP],
+                b: 1,
+                g: 'expr,paren',
+                c: (r) => !!r.n.pd
             },
         ]);
     });
@@ -190,14 +213,26 @@ let Expr = function expr(jsonic, options) {
                     return a;
                 }
             },
+            {
+                s: [OP],
+                p: 'expr',
+                n: {
+                    expr_bind: 0, expr_term: 0, pd: 1,
+                },
+                g: 'expr,paren',
+                a: (r) => {
+                    r.use.pd = r.n.pd;
+                },
+            },
+            { p: 'val', g: 'expr,val' },
         ])
             .bc(function bc(r) {
-            var _a, _b;
+            var _a, _b, _c;
             console.log('EXPR BC A', r.node, r.child.node);
             if (((_a = r.node) === null || _a === void 0 ? void 0 : _a.length) - 1 < ((_b = r.node) === null || _b === void 0 ? void 0 : _b.expr$)) {
                 r.node.push(r.child.node);
             }
-            console.log('EXPR BC Z', r.node, r.node.expr$);
+            console.log('EXPR BC Z', r.node, (_c = r.node) === null || _c === void 0 ? void 0 : _c.expr$);
         })
             .close([
             {
@@ -206,6 +241,24 @@ let Expr = function expr(jsonic, options) {
                 r: 'expr',
                 g: 'expr',
                 u: { expr_val: true },
+            },
+            {
+                s: [CP],
+                b: 1,
+                c: (r) => !!r.n.pd,
+                h: (r, _, a) => {
+                    var _a;
+                    if ((_a = r.child.node) === null || _a === void 0 ? void 0 : _a.expr$) {
+                        r.node = r.child.node;
+                    }
+                    if (r.use.pd === r.n.pd) {
+                        a.b = 0;
+                        r.node = ['(', r.node];
+                        r.node.paren$ = true;
+                    }
+                    return a;
+                },
+                g: 'expr,paren',
             },
             // { g: 'expr,expr-end' }
         ]);
