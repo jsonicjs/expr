@@ -213,6 +213,7 @@ let Expr = function expr(jsonic, options) {
                             root.node[0] = opsrc;
                             // root.node.length = root.node.length - 1
                             root.node.length = 2;
+                            root.node.expr$ = opdef.order;
                             r.node = root.node;
                         }
                         console.log('EXPR OPEN parent Z', r.node, parent.node, prev.node);
