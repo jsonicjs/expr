@@ -306,25 +306,29 @@ let Expr = function expr(jsonic, options) {
             { p: 'val', g: 'expr,val' },
         ])
             .bc(function bc(r) {
+            let log = '';
+            let pd = po2pd[r.o0.tin];
+            if (pd) {
+                r.node = r.child.node;
+                //if (!Array.isArray(r.node)) {
+                //if() {
+                r.node = ['', r.node];
+                //}
+                r.node.expr$ = r.node.length - 1;
+                r.node.paren$ = pd.osrc;
+                log += 'B';
+            }
             // Last value.
-            if (undefined != r.node && r.node.length - 1 < r.node.expr$
+            else if (undefined != r.node && r.node.length - 1 < r.node.expr$
                 && r.node !== r.child.node) {
                 r.node.push(r.child.node);
+                log += 'A';
             }
             else {
-                let pd = po2pd[r.o0.tin];
-                if (pd) {
-                    r.node = r.child.node;
-                    if (!Array.isArray(r.node)) {
-                        r.node = ['', r.node];
-                    }
-                    r.node.expr$ = 1;
-                    r.node.paren$ = pd.osrc;
-                }
-                else {
-                    r.node = r.child.node;
-                }
+                r.node = r.child.node;
+                log += 'C';
             }
+            console.log('EXPR BC', log, r.node);
         })
             .close([
             {
@@ -340,6 +344,7 @@ let Expr = function expr(jsonic, options) {
                 b: 1,
                 c: (r) => !!r.n.pd,
                 h: (r, _, a) => {
+                    console.log('EXPR PC', r.use, r.n, r.c0.src);
                     // Only act on matching close paren
                     if (r.use.pd === r.n.pd) {
                         a.b = 0;
@@ -361,19 +366,16 @@ let Expr = function expr(jsonic, options) {
             {
                 c: (r) => !!r.prev.use.paren_suffix,
                 a: (r) => {
-                    // let pd = r.prev.use.paren_suffix
-                    // let prev = r.prev
                     let child = r.child;
                     if (undefined != child.node) {
                         r.prev.node.push(child.node);
+                        r.prev.node.expr$++;
                     }
                 },
                 g: 'expr,paren,suffix'
             },
             {}
         ]);
-        // .ac((r: Rule) => {
-        // })
     });
 };
 exports.Expr = Expr;
@@ -387,9 +389,9 @@ Expr.defaults = {
             order: 1, bp: [-1, 10400], src: '-'
         },
         // TODO: move to test
-        // factorial: {
-        //   order: 1, bp: [10400, -1], src: '!'
-        // },
+        factorial: {
+            order: 1, bp: [10300, -1], src: '!'
+        },
         // // TODO: move to test
         // indexation: {
         //   order: 2, bp: [2700, 2600], src: '[', csrc: ']'
@@ -436,7 +438,7 @@ Expr.defaults = {
         // },
         // ternary: { osrc: '?', csrc: ':', prefix: {}, suffix: {} },
         // ternary: { osrc: '<', csrc: '>', prefix: true, suffix: true },
-        // quote: { osrc: '<<', csrc: '>>', prefix: {}, suffix: {} },
+        quote: { osrc: '<<', csrc: '>>', prefix: {}, suffix: {} },
     }
 };
 //# sourceMappingURL=expr.js.map
