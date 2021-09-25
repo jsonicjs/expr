@@ -21,6 +21,7 @@ type OpFullDef = OpDef & {
   name: string
   tkn: string
   tin: number
+  prefix: boolean
   suffix: boolean
 }
 
@@ -71,6 +72,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
       right: 14000,
       tin: jsonic.token('#E-'),
       tkn: '#E-',
+      prefix: true,
       suffix: false,
     },
   }
@@ -84,6 +86,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
       right: 150,
       tin: jsonic.token('#E+'),
       tkn: '#E+',
+      prefix: false,
       suffix: false,
     },
     [jsonic.token('#E*')]: {
@@ -94,6 +97,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
       right: 170,
       tin: jsonic.token('#E*'),
       tkn: '#E*',
+      prefix: false,
       suffix: false,
     },
     [jsonic.token('#E**')]: {
@@ -104,6 +108,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
       right: 1600,
       tin: jsonic.token('#E**'),
       tkn: '#E**',
+      prefix: false,
       suffix: false,
     },
     [jsonic.token('#E!')]: {
@@ -112,10 +117,11 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
       name: 'factorial-suffix',
       left: 15000,
       right: 15000,
-      // left: 15000,
+      // left: 13000,
       // right: 13000,
       tin: jsonic.token('#E!'),
       tkn: '#E!',
+      prefix: false,
       suffix: true,
     },
 
@@ -139,6 +145,12 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             b: 1,
             p: 'expr',
             u: { expr_val: false },
+            a: (r: Rule) => {
+              let opdef = novalopm[r.o0.tin]
+              if (opdef && opdef.prefix) {
+                r.n.expr_prefix = (r.n.expr_prefix || 0) + 1
+              }
+            },
             g: 'expr,expr-op,expr-open',
           },
 
@@ -146,6 +158,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             s: [OP],
             b: 1,
             p: 'expr',
+            // n: { expr_prefix: 0 },
             g: 'expr,expr-paren,expr-open',
           },
         ])
@@ -153,7 +166,21 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           {
             s: [OPERATORS],
             b: 1,
-            r: 'expr',
+            // r: 'expr',
+            h: (r: Rule, _, a: any) => {
+              let opdef = valopm[r.c0.tin]
+              // let pass = (!r.n.expr_prefix || r.n.expr_prefix < 2) // || opdef?.left > r.use.expr_bind
+              let pass = !r.n.expr_prefix ||
+                1 === r.n.expr_prefix ||
+                opdef?.left > r.n.expr_bind
+              if (pass) {
+                r.n.expr_prefix = 0
+              }
+              console.log('VAL CLOSE', pass, r.n, r.use, opdef?.left, r.node)
+              a.r = pass ? 'expr' : ''
+              return a
+            },
+            // n: { expr_prefix: 0 },
             u: { expr_val: true },
             g: 'expr,expr-op,expr-open',
           },
@@ -169,6 +196,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             s: [OP],
             b: 1,
             r: 'expr',
+            // n: { expr_prefix: 0 },
             u: { paren_prefix: true },
             g: 'expr,expr-paren,expr-open',
           },
@@ -206,6 +234,9 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
         .bo(function box(r: Rule) {
           r.n.expr_bind = r.n.expr_bind || 0
           r.n.expr_term = r.n.expr_term || 0
+          if (r.n.expr_prefix) {
+            r.n.expr_prefix++
+          }
         })
 
         .open([
@@ -252,47 +283,60 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
                 }
                 else {
                   console.log('EXPR OPEN DOWN A', parent.node, expr_val, prev.node)
+
+                  // let unary = parent, binary = parent
+                  // if (expr_val) {
+                  //   // binary.node.push(prev.node)
+
+                  //   let prevnode = prev.node
+                  //   while (undefined != unary.node && 1 === unary.node?.expr$) {
+                  //     unary.node.push(prevnode)
+                  //     console.log('EXPR DOWN UNARY', unary.id, unary.node, unary.parent?.id, unary.parent?.node)
+                  //     prevnode = unary.node
+                  //     unary = unary.parent
+                  //   }
+
+                  //   binary = unary
+
+                  //   binary.node.push(prevnode)
+                  // }
+                  // console.log('EXPR OPEN DOWN B', unary.id, unary.node, binary.id, binary.node, expr_val, prev.node)
+
+                  // console.log('EXPR OPEN DOWN X', r.n.expr_term,
+                  //   parent.node,
+                  //   parent.parent.node,
+                  //   parent.parent.parent.node,
+                  // )
+
+                  //if (2 === parent.node.expr$) {
+
+                  let binary = parent
+
                   if (expr_val) {
-                    parent.node.push(prev.node)
+                    binary.node.push(prev.node)
                   }
-                  console.log('EXPR OPEN DOWN B', parent.node, expr_val, prev.node)
 
-                  console.log('EXPR OPEN DOWN X', r.n.expr_term,
-                    parent.node,
-                    parent.parent.node,
-                    parent.parent.parent.node,
-                  )
 
-                  if (2 === parent.node.expr$) {
+                  let root = binary
 
-                    let root = parent
-
-                    // TODO: make this more robust using node.op$ marker
-                    //if (2 === root.node.expr$ && root.node[0] !== opsrc) {
-                    if (root.node[0] !== opsrc) {
-                      for (let pI = 0; pI < r.n.expr_term - 2; pI++) {
-                        console.log('EXPR OPEN DOWN C', r.n.expr_term, pI, root.node)
-                        root = root.parent
-                        if ('expr' !== root.name) {
-                          root = root.parent
-                        }
-                      }
+                  // TODO: make this more robust using node.op$ marker
+                  for (let pI = 0;
+                    pI < r.n.expr_term - 2 && root.node[0] !== opsrc;
+                    pI++) {
+                    console.log('EXPR OPEN DOWN C', r.n.expr_term, pI, root.node)
+                    root = root.parent
+                    if ('expr' !== root.name) {
+                      root = root.parent
                     }
-                    console.log('EXPR OPEN DOWN D', root.node)
-
-
-                    // parent.node[1] = [...parent.node]
-                    // parent.node[0] = opsrc
-                    // parent.node.length = parent.node.length - 1
-                    // r.node = parent.node
-
-                    root.node[1] = [...root.node]
-                    root.node[0] = opsrc
-                    // root.node.length = root.node.length - 1
-                    root.node.length = 2
-                    root.node.expr$ = opdef.order
-                    r.node = root.node
                   }
+                  console.log('EXPR OPEN DOWN D', root.node)
+
+                  root.node[1] = [...root.node]
+                  root.node[0] = opsrc
+
+                  root.node.length = 2
+                  root.node.expr$ = opdef.order
+                  r.node = root.node
                 }
 
                 console.log('EXPR OPEN parent Z', r.node, parent.node, prev.node)
@@ -352,6 +396,9 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           if (r.node?.length - 1 < r.node?.expr$) {
             r.node.push(r.child.node)
           }
+          if (r.n.expr_prefix) {
+            r.n.expr_prefix--
+          }
           console.log('EXPR BC Z', r.node, r.node?.expr$)
         })
 
@@ -359,9 +406,18 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           {
             s: [OPERATORS],
             b: 1,
-            r: 'expr',
+            // r: 'expr',
             g: 'expr',
             u: { expr_val: true },
+            h: (r: Rule, _, a: any) => {
+              let opdef = valopm[r.c0.tin]
+              // let pass = (!r.n.expr_prefix || r.n.expr_prefix < 1) // || opdef?.left > r.use.expr_bind
+              let pass = !r.n.expr_prefix
+              console.log('EXPR CLOSE', pass, r.n, r.use, opdef?.left, r.node)
+              a.r = pass ? 'expr' : ''
+              return a
+            },
+
           },
 
           {
@@ -397,6 +453,15 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
           { g: 'expr,expr-end' }
         ])
+
+        .ac(function bc(r: Rule) {
+          // console.log('EXPR AC', r)
+          // if ('val' === r.parent.name && 1 === r.parent.n.expr_prefix) {
+          //   r.parent.node = r.node
+          // }
+          // console.log('EXPR AC', r)
+        })
+
     })
 }
 
