@@ -65,6 +65,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
       order: 1,
       src: '-',
       name: 'negative-prefix',
+      // left: 14000,
+      // right: 14000,
       left: 14000,
       right: 14000,
       tin: jsonic.token('#E-'),
@@ -108,10 +110,10 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
       order: 1,
       src: '!',
       name: 'factorial-suffix',
+      left: 15000,
+      right: 15000,
       // left: 15000,
-      // right: 15000,
-      left: 13000,
-      right: 13000,
+      // right: 13000,
       tin: jsonic.token('#E!'),
       tkn: '#E!',
       suffix: true,
@@ -122,7 +124,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   const OP = jsonic.token['#E(']
   const CP = jsonic.token['#E)']
 
-  console.log('fixed', jsonic.fixed)
+  // console.log('fixed', jsonic.fixed)
 
   // console.log('novalopm', novalopm)
   // console.log('valopm', valopm)
@@ -137,14 +139,14 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             b: 1,
             p: 'expr',
             u: { expr_val: false },
-            g: 'expr',
+            g: 'expr,expr-op,expr-open',
           },
 
           {
             s: [OP],
             b: 1,
             p: 'expr',
-            g: 'expr,paren',
+            g: 'expr,expr-paren,expr-open',
           },
         ])
         .close([
@@ -153,21 +155,22 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             b: 1,
             r: 'expr',
             u: { expr_val: true },
-            g: 'expr',
+            g: 'expr,expr-op,expr-open',
           },
           {
             s: [CP],
             b: 1,
-            g: 'expr,paren',
-            c: (r: Rule) => !!r.n.pd
+            c: (r: Rule) => !!r.n.pd,
+            g: 'expr,expr-paren,expr-close',
           },
 
+          // TODO: make configurable
           {
             s: [OP],
             b: 1,
             r: 'expr',
             u: { paren_prefix: true },
-            g: 'expr,paren',
+            g: 'expr,expr-paren,expr-open',
           },
 
         ])
@@ -254,35 +257,42 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
                   }
                   console.log('EXPR OPEN DOWN B', parent.node, expr_val, prev.node)
 
-                  // console.log('EXPR OPEN DOWN C', r.n.expr_term,
-                  //   parent.parent.node,
-                  //   parent.parent.parent.node,
-                  // )
+                  console.log('EXPR OPEN DOWN X', r.n.expr_term,
+                    parent.node,
+                    parent.parent.node,
+                    parent.parent.parent.node,
+                  )
 
-                  let root = parent
+                  if (2 === parent.node.expr$) {
 
-                  // TODO: make this more robust using node.op$ marker
-                  if (root.node[0] !== opsrc) {
-                    for (let pI = 0; pI < r.n.expr_term - 2; pI++) {
-                      console.log('EXPR OPEN DOWN C', r.n.expr_term, pI, root.node)
-                      root = root.parent
+                    let root = parent
+
+                    // TODO: make this more robust using node.op$ marker
+                    //if (2 === root.node.expr$ && root.node[0] !== opsrc) {
+                    if (root.node[0] !== opsrc) {
+                      for (let pI = 0; pI < r.n.expr_term - 2; pI++) {
+                        console.log('EXPR OPEN DOWN C', r.n.expr_term, pI, root.node)
+                        root = root.parent
+                        if ('expr' !== root.name) {
+                          root = root.parent
+                        }
+                      }
                     }
+                    console.log('EXPR OPEN DOWN D', root.node)
+
+
+                    // parent.node[1] = [...parent.node]
+                    // parent.node[0] = opsrc
+                    // parent.node.length = parent.node.length - 1
+                    // r.node = parent.node
+
+                    root.node[1] = [...root.node]
+                    root.node[0] = opsrc
+                    // root.node.length = root.node.length - 1
+                    root.node.length = 2
+                    root.node.expr$ = opdef.order
+                    r.node = root.node
                   }
-                  console.log('EXPR OPEN DOWN D', root.node)
-
-
-                  // parent.node[1] = [...parent.node]
-                  // parent.node[0] = opsrc
-                  // parent.node.length = parent.node.length - 1
-                  // r.node = parent.node
-
-                  root.node[1] = [...root.node]
-                  root.node[0] = opsrc
-                  // root.node.length = root.node.length - 1
-                  root.node.length = 2
-                  root.node.expr$ = opdef.order
-                  r.node = root.node
-
                 }
 
                 console.log('EXPR OPEN parent Z', r.node, parent.node, prev.node)
