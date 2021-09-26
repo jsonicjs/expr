@@ -88,23 +88,27 @@ describe('expr', () => {
   })
 
 
-  // test('unary-prefix', () => {
-  //   const je = Jsonic.make().use(Expr)
-  //   const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+  test('unary-prefix', () => {
+    const je = Jsonic.make().use(Expr)
+    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
 
 
-  //   expect(j('-1')).toMatchObject(['-', 1])
-  //   expect(j('-1+2')).toMatchObject(['+', ['-', 1], 2])
-  //   expect(j('-1+-2')).toMatchObject(['+', ['-', 1], ['-', 2]])
-  //   expect(j('1+-2')).toMatchObject(['+', 1, ['-', 2]])
-  //   expect(j('-2')).toMatchObject(['-', 2])
+    expect(j('1')).toEqual(1)
+    expect(j('-1')).toMatchObject(['-', 1])
+    expect(j('1+2')).toMatchObject(['+', 1, 2])
+    expect(j('-1+2')).toMatchObject(['+', ['-', 1], 2])
+    expect(j('-1+-2')).toMatchObject(['+', ['-', 1], ['-', 2]])
+    expect(j('1+-2')).toMatchObject(['+', 1, ['-', 2]])
+    expect(j('-1+2+3')).toMatchObject(['+', ['+', ['-', 1], 2], 3])
+    expect(j('-1+-2+3')).toMatchObject(['+', ['+', ['-', 1], ['-', 2]], 3])
+    expect(j('-1+-2+-3')).toMatchObject(['+', ['+', ['-', 1], ['-', 2]], ['-', 3]])
+    expect(j('-1+2+-3')).toMatchObject(['+', ['+', ['-', 1], 2], ['-', 3]])
+    expect(j('1+2+3')).toMatchObject(['+', ['+', 1, 2], 3])
+    expect(j('1+-2+3')).toMatchObject(['+', ['+', 1, ['-', 2]], 3])
+    expect(j('1+-2+-3')).toMatchObject(['+', ['+', 1, ['-', 2]], ['-', 3]])
+    expect(j('1+2+-3')).toMatchObject(['+', ['+', 1, 2], ['-', 3]])
 
-  //   expect(j('-1+3')).toMatchObject(['+', ['-', 1], 3])
-  //   expect(j('-1+2+3')).toMatchObject(['+', ['+', ['-', 1], 2], 3])
-  //   // expect(j('-1+-2+3')).toMatchObject(['+', ['+', ['-', 1], ['-', 2]], 3])
-  //   // expect(j('1+-2+3')).toMatchObject(['+', ['+', 1, ['-', 2]], 3])
-  //   // expect(j('-2+3')).toMatchObject(['+', ['-', 2], 3])
-  // })
+  })
 
 
   test('paren', () => {
@@ -160,6 +164,7 @@ describe('expr', () => {
     expect(j('({a:1,b:2,c:3})')).toMatchObject(['(', { a: 1, b: 2, c: 3 }])
     expect(j('({a:1 b:2 c:3})')).toMatchObject(['(', { a: 1, b: 2, c: 3 }])
     expect(j('(a:1)')).toMatchObject(['(', { a: 1 }])
+
     // TODO: fix jsonic grammar
     // expect(j('(a:1,b:2)')).toMatchObject(['(', { a: 1, b: 2 }])
     // expect(j('(a:1 b:2)')).toMatchObject(['(', { a: 1, b: 2 }])
