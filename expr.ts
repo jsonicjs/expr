@@ -13,15 +13,16 @@ import { Jsonic, Plugin, Rule, RuleSpec, Tin, util } from 'jsonic'
 
 
 type OpDef = {
-  order: number
   left: number
   right: number
   src: string
   prefix?: boolean
   suffix?: boolean
+  binary?: boolean
 }
 
 type OpFullDef = OpDef & {
+  terms: number
   name: string
   tkn: string
   tin: number
@@ -70,81 +71,16 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
     }
   })
 
-  const OPERATORS: Tin[] = Object.keys(operatorFixed).map(tn => jsonic.token(tn))
+  let tokenize = jsonic.token.bind(jsonic)
+  const prefixOp: OpDefMap = makeOpMap(tokenize, options.op || {}, 'prefix')
+  const suffixOp: OpDefMap = makeOpMap(tokenize, options.op || {}, 'suffix')
+  const binaryOp: OpDefMap = makeOpMap(tokenize, options.op || {}, 'binary')
 
-  const prefixOp: OpDefMap = {}
-  const suffixOp: OpDefMap = {}
-  const binaryOp: OpDefMap = {}
-
-
-  if (null != options.op) {
-
-    // Prefix operations
-    Object.entries(options.op)
-      .filter(([_, opdef]: [string, OpDef]) => 1 === opdef.order && opdef.prefix)
-      .reduce(
-        (prefixOp: OpDefMap, [name, opdef]: [string, OpDef]) => {
-          let tkn = '#E' + opdef.src
-          let tin = jsonic.token(tkn)
-          prefixOp[tin] = {
-            src: opdef.src,
-            order: opdef.order,
-            left: opdef.left,
-            right: opdef.right,
-            name: name + '-prefix',
-            prefix: true,
-            suffix: false,
-            tkn,
-            tin,
-          }
-          return prefixOp
-        },
-        prefixOp)
-
-    // Suffix operations
-    Object.entries(options.op)
-      .filter(([_, opdef]: [string, OpDef]) => 1 === opdef.order && opdef.suffix)
-      .reduce(
-        (suffixOp: OpDefMap, [name, opdef]: [string, OpDef]) => {
-          let tkn = '#E' + opdef.src
-          let tin = jsonic.token(tkn)
-          suffixOp[tin] = {
-            src: opdef.src,
-            order: opdef.order,
-            left: opdef.left,
-            right: opdef.right,
-            name: name + '-suffix',
-            prefix: false,
-            suffix: true,
-            tkn,
-            tin,
-          }
-          return suffixOp
-        },
-        suffixOp)
-
-    // Binary operations
-    Object.entries(options.op)
-      .filter(([_, opdef]: [string, OpDef]) => 2 === opdef.order)
-      .reduce(
-        (binaryOp: OpDefMap, [name, opdef]: [string, OpDef]) => {
-          let tkn = '#E' + opdef.src
-          let tin = jsonic.token(tkn)
-          binaryOp[tin] = {
-            src: opdef.src,
-            order: opdef.order,
-            left: opdef.left,
-            right: opdef.right,
-            name: name + '-binary',
-            prefix: false,
-            suffix: false,
-            tkn,
-            tin,
-          }
-          return binaryOp
-        },
-        binaryOp)
-  }
+  const PREFIX = Object.values(prefixOp).map(opdef => opdef.tin)
+  const BINARY_SUFFIX = [...new Set([
+    ...Object.values(binaryOp).map(opdef => opdef.tin),
+    ...Object.values(suffixOp).map(opdef => opdef.tin),
+  ])]
 
 
   const OP = jsonic.token['#E(']
@@ -156,7 +92,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
       rs
         .open([
           {
-            s: [OPERATORS],
+            // Prefix operators occur before a value.
+            s: [PREFIX],
             b: 1,
             p: 'expr',
             u: { expr_val: false },
@@ -173,13 +110,13 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             s: [OP],
             b: 1,
             p: 'expr',
-            // n: { expr_prefix: 0 },
             g: 'expr,expr-paren,expr-open',
           },
         ])
         .close([
           {
-            s: [OPERATORS],
+            // Binary and suffix operators occur after a value.
+            s: [BINARY_SUFFIX],
             b: 1,
             h: (r: Rule, _, a: any) => {
               let opdef = binaryOp[r.c0.tin] || suffixOp[r.c0.tin]
@@ -189,10 +126,11 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
               if (pass) {
                 r.n.expr_prefix = 0
               }
+
+              // The value node will be replaced by an expression node.
               a.r = pass ? 'expr' : ''
               return a
             },
-            // n: { expr_prefix: 0 },
             u: { expr_val: true },
             g: 'expr,expr-op,expr-open',
           },
@@ -208,7 +146,6 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             s: [OP],
             b: 1,
             r: 'expr',
-            // n: { expr_prefix: 0 },
             u: { paren_prefix: true },
             g: 'expr,expr-paren,expr-open',
           },
@@ -253,7 +190,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
         .open([
           {
-            s: [OPERATORS],
+            // A binary expression, with the left value already parsed.
+            s: [BINARY_SUFFIX],
             g: 'expr',
             h: (r: Rule, _, a: any) => {
               r.n.expr_term++
@@ -279,7 +217,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
               let p: string | undefined = 'val'
 
 
-              if (parent.node?.expr$) {
+              if (parent.node?.terms$) {
                 if (r.n.expr_bind < left) {
                   r.node = [opsrc]
 
@@ -288,7 +226,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
                   }
 
                   parent.node.push(r.node)
-                  r.node.expr$ = 2
+                  r.node.terms$ = 2
                 }
                 else {
                   let binary = parent
@@ -313,25 +251,35 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
                   root.node[0] = opsrc
 
                   root.node.length = 2
-                  root.node.expr$ = opdef.order
+                  root.node.terms$ = opdef.terms
                   r.node = root.node
                 }
               }
+
+              // Left value was plain, so replace with an incomplete expression.
+              // Then get the right value with a child node (p=val).
               else if (expr_val) {
                 prev.node = [opsrc, prev.node]
                 r.node = prev.node
-                r.node.expr$ = 2
-              }
-              else {
-                r.node = [opsrc]
-                r.node.expr$ = 1
+                r.node.terms$ = 2
               }
 
-              if (opdef.suffix) {
-                r.node.expr$ = 1
+              // No left value, so this is a prefix operator.
+              // Get the right value with a child node (p=val).
+              else if (r.n.expr_prefix) {
+                r.node = [opsrc]
+                r.node.terms$ = 1
+              }
+
+              // TODO: does this need to set up expression node?
+              // r.node = [opsrc, prev.node]
+              else if (opdef.suffix) {
+                r.node.terms$ = 1
                 p = ''
               }
 
+              // Pratt: track the right binding power to overcome with
+              // following left binding power.
               r.n.expr_bind = right
 
               a.p = p
@@ -356,7 +304,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
         ])
 
         .bc(function bc(r: Rule) {
-          if (r.node?.length - 1 < r.node?.expr$) {
+          if (r.node?.length - 1 < r.node?.terms$) {
             r.node.push(r.child.node)
           }
           if (r.n.expr_prefix) {
@@ -366,12 +314,12 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
         .close([
           {
-            s: [OPERATORS],
+            s: [BINARY_SUFFIX],
             b: 1,
             g: 'expr',
             u: { expr_val: true },
             h: (r: Rule, _, a: any) => {
-              // let opdef = binaryOp[r.c0.tin] || suffixOp[r.c0.tin]
+              // Proceed to next term, unless this is an incomplete prefix expression.
               let pass = !r.n.expr_prefix
               a.r = pass ? 'expr' : ''
               return a
@@ -384,7 +332,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             b: 1,
             c: (r: Rule) => !!r.n.pd,
             h: (r: Rule, _, a: any) => {
-              if (r.child.node?.expr$) {
+              if (r.child.node?.terms$) {
                 r.node = r.child.node
               }
               else if (undefined === r.node) {
@@ -397,14 +345,12 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
                 r.node.paren$ = true
 
                 if (r.prev.use.paren_prefix) {
-                  //   r.prev.node = r.node
                   r.node[0] = '(('
                   r.node[2] = r.node[1]
                   r.node[1] = r.prev.node
                   r.prev.node = r.node
                 }
               }
-
 
               return a
             },
@@ -418,27 +364,51 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 }
 
 
+function makeOpMap(
+  tokenize: (tkn: string) => Tin,
+  op: { [name: string]: OpDef },
+  anyfix: 'prefix' | 'suffix' | 'binary',
+) {
+  return Object.entries(op)
+    .filter(([_, opdef]: [string, OpDef]) => opdef[anyfix])
+    .reduce(
+      (binaryOp: OpDefMap, [name, opdef]: [string, OpDef]) => {
+        let tkn = '#E' + opdef.src
+        let tin = tokenize(tkn)
+        binaryOp[tin] = {
+          src: opdef.src,
+          terms: 'binary' === anyfix ? 2 : 1,
+          left: opdef.left,
+          right: opdef.right,
+          name: name + '-' + anyfix,
+          prefix: 'prefix' === anyfix,
+          suffix: 'suffix' === anyfix,
+          tkn,
+          tin,
+        }
+        return binaryOp
+      },
+      {})
+}
+
+
 Expr.defaults = {
 
   // TODO: this should not be a list, use a map for easier overrides
   op: {
-    // positive: {
-    //   order: 1, left: 14000, right: 14000, src: '+'
-    // },
+    positive: {
+      prefix: true, left: 14000, right: 14000, src: '+'
+    },
 
     negative: {
-      order: 1, prefix: true, left: 14000, right: 14000, src: '-'
+      prefix: true, left: 14000, right: 14000, src: '-'
     },
 
     // TODO: move to test
     // factorial: {
-    //   order: 1, suffix: true, left:15000, right:15000, src: '!'
+    //   suffix: true, left:15000, right:15000, src: '!'
     // },
 
-    // // TODO: move to test
-    // indexation: {
-    //   order: 2, left:2700, 2600], src: '[', csrc: ']'
-    // },
 
 
 
@@ -446,25 +416,25 @@ Expr.defaults = {
     // NOTE: right-associative as lbp > rbp
     // Example: 2**3**4 === 2**(3**4)
     exponentiation: {
-      order: 2, left: 1700, right: 1600, src: '**'
+      binary: true, left: 1700, right: 1600, src: '**'
     },
 
     // NOTE: all these are left-associative as lbp < rbp
     // Example: 2+3+4 === (2+3)+4
     addition: {
-      order: 2, left: 140, right: 150, src: '+'
+      binary: true, left: 140, right: 150, src: '+'
     },
     subtraction: {
-      order: 2, left: 140, right: 150, src: '-'
+      binary: true, left: 140, right: 150, src: '-'
     },
     multiplication: {
-      order: 2, left: 160, right: 170, src: '*'
+      binary: true, left: 160, right: 170, src: '*'
     },
     division: {
-      order: 2, left: 160, right: 170, src: '/'
+      binary: true, left: 160, right: 170, src: '/'
     },
     remainder: {
-      order: 2, left: 160, right: 170, src: '%'
+      binary: true, left: 160, right: 170, src: '%'
     },
   },
 

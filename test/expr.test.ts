@@ -92,13 +92,104 @@ describe('expr', () => {
     const je = Jsonic.make().use(Expr)
     const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
 
-
     expect(j('1')).toEqual(1)
+    expect(j('z')).toEqual('z')
+
     expect(j('-1')).toMatchObject(['-', 1])
+    expect(j('- 1')).toMatchObject(['-', 1])
+    expect(j('+1')).toMatchObject(['+', 1])
+    expect(j('+ 1')).toMatchObject(['+', 1])
+
+    expect(j('--1')).toMatchObject(['-', ['-', 1]])
+    expect(j('---1')).toMatchObject(['-', ['-', ['-', 1]]])
+    expect(j('++1')).toMatchObject(['+', ['+', 1]])
+    expect(j('+++1')).toMatchObject(['+', ['+', ['+', 1]]])
+
+    expect(j('-+1')).toMatchObject(['-', ['+', 1]])
+    expect(j('+-1')).toMatchObject(['+', ['-', 1]])
+
+    expect(j('--+1')).toMatchObject(['-', ['-', ['+', 1]]])
+    expect(j('-+-1')).toMatchObject(['-', ['+', ['-', 1]]])
+    expect(j('+--1')).toMatchObject(['+', ['-', ['-', 1]]])
+
+    expect(j('-++1')).toMatchObject(['-', ['+', ['+', 1]]])
+    expect(j('++-1')).toMatchObject(['+', ['+', ['-', 1]]])
+
+
+    expect(j('-z')).toMatchObject(['-', 'z'])
+    expect(j('- z')).toMatchObject(['-', 'z'])
+    expect(j('+z')).toMatchObject(['+', 'z'])
+    expect(j('+ z')).toMatchObject(['+', 'z'])
+
+    expect(j('--z')).toMatchObject(['-', ['-', 'z']])
+    expect(j('---z')).toMatchObject(['-', ['-', ['-', 'z']]])
+    expect(j('++z')).toMatchObject(['+', ['+', 'z']])
+    expect(j('+++z')).toMatchObject(['+', ['+', ['+', 'z']]])
+
+    expect(j('-+z')).toMatchObject(['-', ['+', 'z']])
+    expect(j('+-z')).toMatchObject(['+', ['-', 'z']])
+
+    expect(j('--+z')).toMatchObject(['-', ['-', ['+', 'z']]])
+    expect(j('-+-z')).toMatchObject(['-', ['+', ['-', 'z']]])
+    expect(j('+--z')).toMatchObject(['+', ['-', ['-', 'z']]])
+
+    expect(j('-++z')).toMatchObject(['-', ['+', ['+', 'z']]])
+    expect(j('++-z')).toMatchObject(['+', ['+', ['-', 'z']]])
+
+
+    expect(j('-{z:1}')).toMatchObject(['-', { z: 1 }])
+    expect(j('- {z:1}')).toMatchObject(['-', { z: 1 }])
+    expect(j('+{z:1}')).toMatchObject(['+', { z: 1 }])
+    expect(j('+ {z:1}')).toMatchObject(['+', { z: 1 }])
+
+    expect(j('--{z:1}')).toMatchObject(['-', ['-', { z: 1 }]])
+    expect(j('---{z:1}')).toMatchObject(['-', ['-', ['-', { z: 1 }]]])
+    expect(j('++{z:1}')).toMatchObject(['+', ['+', { z: 1 }]])
+    expect(j('+++{z:1}')).toMatchObject(['+', ['+', ['+', { z: 1 }]]])
+
+    expect(j('-+{z:1}')).toMatchObject(['-', ['+', { z: 1 }]])
+    expect(j('+-{z:1}')).toMatchObject(['+', ['-', { z: 1 }]])
+
+    expect(j('--+{z:1}')).toMatchObject(['-', ['-', ['+', { z: 1 }]]])
+    expect(j('-+-{z:1}')).toMatchObject(['-', ['+', ['-', { z: 1 }]]])
+    expect(j('+--{z:1}')).toMatchObject(['+', ['-', ['-', { z: 1 }]]])
+
+    expect(j('-++{z:1}')).toMatchObject(['-', ['+', ['+', { z: 1 }]]])
+    expect(j('++-{z:1}')).toMatchObject(['+', ['+', ['-', { z: 1 }]]])
+
+
+    expect(j('-[11,22]')).toMatchObject(['-', [11, 22]])
+    expect(j('- [11,22]')).toMatchObject(['-', [11, 22]])
+    expect(j('+[11,22]')).toMatchObject(['+', [11, 22]])
+    expect(j('+ [11,22]')).toMatchObject(['+', [11, 22]])
+
+    expect(j('--[11,22]')).toMatchObject(['-', ['-', [11, 22]]])
+    expect(j('---[11,22]')).toMatchObject(['-', ['-', ['-', [11, 22]]]])
+    expect(j('++[11,22]')).toMatchObject(['+', ['+', [11, 22]]])
+    expect(j('+++[11,22]')).toMatchObject(['+', ['+', ['+', [11, 22]]]])
+
+    expect(j('-+[11,22]')).toMatchObject(['-', ['+', [11, 22]]])
+    expect(j('+-[11,22]')).toMatchObject(['+', ['-', [11, 22]]])
+
+    expect(j('--+[11,22]')).toMatchObject(['-', ['-', ['+', [11, 22]]]])
+    expect(j('-+-[11,22]')).toMatchObject(['-', ['+', ['-', [11, 22]]]])
+    expect(j('+--[11,22]')).toMatchObject(['+', ['-', ['-', [11, 22]]]])
+
+    expect(j('-++[11,22]')).toMatchObject(['-', ['+', ['+', [11, 22]]]])
+    expect(j('++-[11,22]')).toMatchObject(['+', ['+', ['-', [11, 22]]]])
+
+
+
     expect(j('1+2')).toMatchObject(['+', 1, 2])
     expect(j('-1+2')).toMatchObject(['+', ['-', 1], 2])
+    expect(j('--1+2')).toMatchObject(['+', ['-', ['-', 1]], 2])
+
     expect(j('-1+-2')).toMatchObject(['+', ['-', 1], ['-', 2]])
     expect(j('1+-2')).toMatchObject(['+', 1, ['-', 2]])
+    expect(j('1++2')).toMatchObject(['+', 1, ['+', 2]])
+    expect(j('-1++2')).toMatchObject(['+', ['-', 1], ['+', 2]])
+
+
     expect(j('-1+2+3')).toMatchObject(['+', ['+', ['-', 1], 2], 3])
     expect(j('-1+-2+3')).toMatchObject(['+', ['+', ['-', 1], ['-', 2]], 3])
     expect(j('-1+-2+-3')).toMatchObject(['+', ['+', ['-', 1], ['-', 2]], ['-', 3]])
