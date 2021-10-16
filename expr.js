@@ -26,7 +26,10 @@ let Expr = function expr(jsonic, options) {
     });
     const OPERATORS = Object.keys(operatorFixed).map(tn => jsonic.token(tn));
     const prefixOp = {};
+    const suffixOp = {};
+    const binaryOp = {};
     if (null != options.op) {
+        // Prefix operations
         Object.entries(options.op)
             .filter(([_, opdef]) => 1 === opdef.order && opdef.prefix)
             .reduce((prefixOp, [name, opdef]) => {
@@ -45,70 +48,45 @@ let Expr = function expr(jsonic, options) {
             };
             return prefixOp;
         }, prefixOp);
+        // Suffix operations
+        Object.entries(options.op)
+            .filter(([_, opdef]) => 1 === opdef.order && opdef.suffix)
+            .reduce((suffixOp, [name, opdef]) => {
+            let tkn = '#E' + opdef.src;
+            let tin = jsonic.token(tkn);
+            suffixOp[tin] = {
+                src: opdef.src,
+                order: opdef.order,
+                left: opdef.left,
+                right: opdef.right,
+                name: name + '-suffix',
+                prefix: false,
+                suffix: true,
+                tkn,
+                tin,
+            };
+            return suffixOp;
+        }, suffixOp);
+        // Binary operations
+        Object.entries(options.op)
+            .filter(([_, opdef]) => 2 === opdef.order)
+            .reduce((binaryOp, [name, opdef]) => {
+            let tkn = '#E' + opdef.src;
+            let tin = jsonic.token(tkn);
+            binaryOp[tin] = {
+                src: opdef.src,
+                order: opdef.order,
+                left: opdef.left,
+                right: opdef.right,
+                name: name + '-binary',
+                prefix: false,
+                suffix: false,
+                tkn,
+                tin,
+            };
+            return binaryOp;
+        }, binaryOp);
     }
-    //   {
-    //   [jsonic.token('#E-')]: {
-    //     order: 1,
-    //     src: '-',
-    //     name: 'negative-prefix',
-    //     // left: 14000,
-    //     // right: 14000,
-    //     left: 14000,
-    //     right: 14000,
-    //     tin: jsonic.token('#E-'),
-    //     tkn: '#E-',
-    //     prefix: true,
-    //     suffix: false,
-    //   },
-    // }
-    const valopm = {
-        [jsonic.token('#E+')]: {
-            order: 2,
-            src: '+',
-            name: 'addition',
-            left: 140,
-            right: 150,
-            tin: jsonic.token('#E+'),
-            tkn: '#E+',
-            prefix: false,
-            suffix: false,
-        },
-        [jsonic.token('#E*')]: {
-            order: 2,
-            src: '*',
-            name: 'multiplication',
-            left: 160,
-            right: 170,
-            tin: jsonic.token('#E*'),
-            tkn: '#E*',
-            prefix: false,
-            suffix: false,
-        },
-        [jsonic.token('#E**')]: {
-            order: 2,
-            src: '**',
-            name: 'exponentiation',
-            left: 1700,
-            right: 1600,
-            tin: jsonic.token('#E**'),
-            tkn: '#E**',
-            prefix: false,
-            suffix: false,
-        },
-        [jsonic.token('#E!')]: {
-            order: 1,
-            src: '!',
-            name: 'factorial-suffix',
-            left: 15000,
-            right: 15000,
-            // left: 13000,
-            // right: 13000,
-            tin: jsonic.token('#E!'),
-            tkn: '#E!',
-            prefix: false,
-            suffix: true,
-        },
-    };
     const OP = jsonic.token['#E('];
     const CP = jsonic.token['#E)'];
     jsonic
@@ -141,7 +119,7 @@ let Expr = function expr(jsonic, options) {
                 s: [OPERATORS],
                 b: 1,
                 h: (r, _, a) => {
-                    let opdef = valopm[r.c0.tin];
+                    let opdef = binaryOp[r.c0.tin] || suffixOp[r.c0.tin];
                     let pass = !r.n.expr_prefix ||
                         1 === r.n.expr_prefix ||
                         (opdef === null || opdef === void 0 ? void 0 : opdef.left) > r.n.expr_bind;
@@ -213,7 +191,7 @@ let Expr = function expr(jsonic, options) {
                     const prev = r.prev;
                     const parent = r.parent;
                     const tin = r.o0.tin;
-                    const opdef = expr_val ? valopm[tin] : prefixOp[tin];
+                    const opdef = expr_val ? (binaryOp[tin] || suffixOp[tin]) : prefixOp[tin];
                     if (!opdef) {
                         a.e = r.o0;
                         return a;
@@ -299,7 +277,7 @@ let Expr = function expr(jsonic, options) {
                 g: 'expr',
                 u: { expr_val: true },
                 h: (r, _, a) => {
-                    let opdef = valopm[r.c0.tin];
+                    // let opdef = binaryOp[r.c0.tin] || suffixOp[r.c0.tin]
                     let pass = !r.n.expr_prefix;
                     a.r = pass ? 'expr' : '';
                     return a;
@@ -349,7 +327,7 @@ Expr.defaults = {
         },
         // TODO: move to test
         // factorial: {
-        //   order: 1, left:15000, right:15000, src: '!'
+        //   order: 1, suffix: true, left:15000, right:15000, src: '!'
         // },
         // // TODO: move to test
         // indexation: {
