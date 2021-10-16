@@ -1,6 +1,6 @@
 module.exports = {
   transform: {
-    "^.+\\.tsx?$": "esbuild-jest"
+    "^.+\\.tsx?$": ["esbuild-jest",{sourcemap:true}],
   },
   testEnvironment: 'node',
   testMatch: ['**/test/**/*.test.ts'],

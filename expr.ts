@@ -8,7 +8,7 @@
 // TODO: fix a(-b,c) - prefix unary should not apply to implicits
 
 
-import { Jsonic, Plugin, Rule, RuleSpec, Tin } from 'jsonic'
+import { Jsonic, Plugin, Rule, RuleSpec, Tin, util } from 'jsonic'
 
 
 
@@ -29,39 +29,56 @@ type OpFullDef = OpDef & {
 }
 
 
+type ParenDef = {
+  osrc: string
+  csrc: string
+}
+
+
 type ExprOptions = {
   op?: { [name: string]: OpDef },
+  paren?: { [name: string]: ParenDef },
 }
 
 
 let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
-  const operators = {
-    '#E+': '+',
-    '#E-': '-',
-    '#E*': '*',
-    // '#E%': '%',
-    '#E**': '**',
-    '#E!': '!',
-  }
+  // NOTE: operators with same src will generate same token - this is correct.
+  const operatorFixed =
+    util.omap(options.op, ([_, od]: [string, OpDef]) => ['#E' + od.src, od.src])
 
+  // NOTE: parens with same src will generate same token - this is correct.
+  const parenFixed =
+    util.omap(options.paren, ([_, od]: [string, ParenDef]) =>
+      ['#E' + od.osrc, od.osrc, '#E' + od.csrc, od.csrc])
 
+  // console.log(parenFixed)
+
+  // Add the operator tokens to the set of fixed tokens.
   jsonic.options({
     fixed: {
-      token: operators
+      token: operatorFixed
     }
   })
 
+  // Add the paren tokens to the set of fixed tokens.
   jsonic.options({
     fixed: {
-      token: {
-        '#E(': '(',
-        '#E)': ')',
-      }
+      token: parenFixed
     }
   })
 
-  const OPERATORS: Tin[] = Object.keys(operators).map(tn => jsonic.token(tn))
+
+  // jsonic.options({
+  //   fixed: {
+  //     token: {
+  //       '#E(': '(',
+  //       '#E)': ')',
+  //     }
+  //   }
+  // })
+
+  const OPERATORS: Tin[] = Object.keys(operatorFixed).map(tn => jsonic.token(tn))
 
 
   const novalopm: { [tin: number]: OpFullDef } = {

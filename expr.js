@@ -2,29 +2,38 @@
 /* Copyright (c) 2021 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Expr = void 0;
+// This algorithm is based on Pratt parsing, and draws heavily from
+// the explanation written by Aleksey Kladov here:
+// https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
+// TODO: fix a(-b,c) - prefix unary should not apply to implicits
+const jsonic_1 = require("jsonic");
 let Expr = function expr(jsonic, options) {
-    const operators = {
-        '#E+': '+',
-        '#E-': '-',
-        '#E*': '*',
-        // '#E%': '%',
-        '#E**': '**',
-        '#E!': '!',
-    };
+    // NOTE: operators with same src will generate same token - this is correct.
+    const operatorFixed = jsonic_1.util.omap(options.op, ([_, od]) => ['#E' + od.src, od.src]);
+    // NOTE: parens with same src will generate same token - this is correct.
+    const parenFixed = jsonic_1.util.omap(options.paren, ([_, od]) => ['#E' + od.osrc, od.osrc, '#E' + od.csrc, od.csrc]);
+    // console.log(parenFixed)
+    // Add the operator tokens to the set of fixed tokens.
     jsonic.options({
         fixed: {
-            token: operators
+            token: operatorFixed
         }
     });
+    // Add the paren tokens to the set of fixed tokens.
     jsonic.options({
         fixed: {
-            token: {
-                '#E(': '(',
-                '#E)': ')',
-            }
+            token: parenFixed
         }
     });
-    const OPERATORS = Object.keys(operators).map(tn => jsonic.token(tn));
+    // jsonic.options({
+    //   fixed: {
+    //     token: {
+    //       '#E(': '(',
+    //       '#E)': ')',
+    //     }
+    //   }
+    // })
+    const OPERATORS = Object.keys(operatorFixed).map(tn => jsonic.token(tn));
     const novalopm = {
         [jsonic.token('#E-')]: {
             order: 1,
