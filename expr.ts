@@ -17,6 +17,7 @@ type OpDef = {
   left: number
   right: number
   src: string
+  prefix?: boolean
   suffix?: boolean
 }
 
@@ -33,6 +34,9 @@ type ParenDef = {
   osrc: string
   csrc: string
 }
+
+
+type OpDefMap = { [tin: number]: OpFullDef }
 
 
 type ExprOptions = {
@@ -52,8 +56,6 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
     util.omap(options.paren, ([_, od]: [string, ParenDef]) =>
       ['#E' + od.osrc, od.osrc, '#E' + od.csrc, od.csrc])
 
-  // console.log(parenFixed)
-
   // Add the operator tokens to the set of fixed tokens.
   jsonic.options({
     fixed: {
@@ -68,34 +70,48 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
     }
   })
 
-
-  // jsonic.options({
-  //   fixed: {
-  //     token: {
-  //       '#E(': '(',
-  //       '#E)': ')',
-  //     }
-  //   }
-  // })
-
   const OPERATORS: Tin[] = Object.keys(operatorFixed).map(tn => jsonic.token(tn))
 
+  const prefixOp: OpDefMap = {}
 
-  const novalopm: { [tin: number]: OpFullDef } = {
-    [jsonic.token('#E-')]: {
-      order: 1,
-      src: '-',
-      name: 'negative-prefix',
-      // left: 14000,
-      // right: 14000,
-      left: 14000,
-      right: 14000,
-      tin: jsonic.token('#E-'),
-      tkn: '#E-',
-      prefix: true,
-      suffix: false,
-    },
+  if (null != options.op) {
+    Object.entries(options.op)
+      .filter(([_, opdef]: [string, OpDef]) => 1 === opdef.order && opdef.prefix)
+      .reduce(
+        (prefixOp: OpDefMap, [name, opdef]: [string, OpDef]) => {
+          let tkn = '#E' + opdef.src
+          let tin = jsonic.token(tkn)
+          prefixOp[tin] = {
+            src: opdef.src,
+            order: opdef.order,
+            left: opdef.left,
+            right: opdef.right,
+            name: name + '-prefix',
+            prefix: true,
+            suffix: false,
+            tkn,
+            tin,
+          }
+          return prefixOp
+        },
+        prefixOp)
   }
+
+  //   {
+  //   [jsonic.token('#E-')]: {
+  //     order: 1,
+  //     src: '-',
+  //     name: 'negative-prefix',
+  //     // left: 14000,
+  //     // right: 14000,
+  //     left: 14000,
+  //     right: 14000,
+  //     tin: jsonic.token('#E-'),
+  //     tkn: '#E-',
+  //     prefix: true,
+  //     suffix: false,
+  //   },
+  // }
 
   const valopm: { [tin: number]: OpFullDef } = {
     [jsonic.token('#E+')]: {
@@ -161,7 +177,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             p: 'expr',
             u: { expr_val: false },
             a: (r: Rule) => {
-              let opdef = novalopm[r.o0.tin]
+              let opdef = prefixOp[r.o0.tin]
               if (opdef && opdef.prefix) {
                 r.n.expr_prefix = (r.n.expr_prefix || 0) + 1
               }
@@ -181,10 +197,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           {
             s: [OPERATORS],
             b: 1,
-            // r: 'expr',
             h: (r: Rule, _, a: any) => {
               let opdef = valopm[r.c0.tin]
-              // let pass = (!r.n.expr_prefix || r.n.expr_prefix < 2) // || opdef?.left > r.use.expr_bind
               let pass = !r.n.expr_prefix ||
                 1 === r.n.expr_prefix ||
                 opdef?.left > r.n.expr_bind
@@ -266,7 +280,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
               const tin = r.o0.tin
 
-              const opdef = expr_val ? valopm[tin] : novalopm[tin]
+              const opdef = expr_val ? valopm[tin] : prefixOp[tin]
               if (!opdef) {
                 a.e = r.o0
                 return a
@@ -423,11 +437,12 @@ Expr.defaults = {
 
   // TODO: this should not be a list, use a map for easier overrides
   op: {
-    positive: {
-      order: 1, left: 14000, right: 14000, src: '+'
-    },
+    // positive: {
+    //   order: 1, left: 14000, right: 14000, src: '+'
+    // },
+
     negative: {
-      order: 1, left: 14000, right: 14000, src: '-'
+      order: 1, prefix: true, left: 14000, right: 14000, src: '-'
     },
 
     // TODO: move to test

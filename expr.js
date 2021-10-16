@@ -12,7 +12,6 @@ let Expr = function expr(jsonic, options) {
     const operatorFixed = jsonic_1.util.omap(options.op, ([_, od]) => ['#E' + od.src, od.src]);
     // NOTE: parens with same src will generate same token - this is correct.
     const parenFixed = jsonic_1.util.omap(options.paren, ([_, od]) => ['#E' + od.osrc, od.osrc, '#E' + od.csrc, od.csrc]);
-    // console.log(parenFixed)
     // Add the operator tokens to the set of fixed tokens.
     jsonic.options({
         fixed: {
@@ -25,30 +24,43 @@ let Expr = function expr(jsonic, options) {
             token: parenFixed
         }
     });
-    // jsonic.options({
-    //   fixed: {
-    //     token: {
-    //       '#E(': '(',
-    //       '#E)': ')',
-    //     }
-    //   }
-    // })
     const OPERATORS = Object.keys(operatorFixed).map(tn => jsonic.token(tn));
-    const novalopm = {
-        [jsonic.token('#E-')]: {
-            order: 1,
-            src: '-',
-            name: 'negative-prefix',
-            // left: 14000,
-            // right: 14000,
-            left: 14000,
-            right: 14000,
-            tin: jsonic.token('#E-'),
-            tkn: '#E-',
-            prefix: true,
-            suffix: false,
-        },
-    };
+    const prefixOp = {};
+    if (null != options.op) {
+        Object.entries(options.op)
+            .filter(([_, opdef]) => 1 === opdef.order && opdef.prefix)
+            .reduce((prefixOp, [name, opdef]) => {
+            let tkn = '#E' + opdef.src;
+            let tin = jsonic.token(tkn);
+            prefixOp[tin] = {
+                src: opdef.src,
+                order: opdef.order,
+                left: opdef.left,
+                right: opdef.right,
+                name: name + '-prefix',
+                prefix: true,
+                suffix: false,
+                tkn,
+                tin,
+            };
+            return prefixOp;
+        }, prefixOp);
+    }
+    //   {
+    //   [jsonic.token('#E-')]: {
+    //     order: 1,
+    //     src: '-',
+    //     name: 'negative-prefix',
+    //     // left: 14000,
+    //     // right: 14000,
+    //     left: 14000,
+    //     right: 14000,
+    //     tin: jsonic.token('#E-'),
+    //     tkn: '#E-',
+    //     prefix: true,
+    //     suffix: false,
+    //   },
+    // }
     const valopm = {
         [jsonic.token('#E+')]: {
             order: 2,
@@ -109,7 +121,7 @@ let Expr = function expr(jsonic, options) {
                 p: 'expr',
                 u: { expr_val: false },
                 a: (r) => {
-                    let opdef = novalopm[r.o0.tin];
+                    let opdef = prefixOp[r.o0.tin];
                     if (opdef && opdef.prefix) {
                         r.n.expr_prefix = (r.n.expr_prefix || 0) + 1;
                     }
@@ -128,10 +140,8 @@ let Expr = function expr(jsonic, options) {
             {
                 s: [OPERATORS],
                 b: 1,
-                // r: 'expr',
                 h: (r, _, a) => {
                     let opdef = valopm[r.c0.tin];
-                    // let pass = (!r.n.expr_prefix || r.n.expr_prefix < 2) // || opdef?.left > r.use.expr_bind
                     let pass = !r.n.expr_prefix ||
                         1 === r.n.expr_prefix ||
                         (opdef === null || opdef === void 0 ? void 0 : opdef.left) > r.n.expr_bind;
@@ -203,7 +213,7 @@ let Expr = function expr(jsonic, options) {
                     const prev = r.prev;
                     const parent = r.parent;
                     const tin = r.o0.tin;
-                    const opdef = expr_val ? valopm[tin] : novalopm[tin];
+                    const opdef = expr_val ? valopm[tin] : prefixOp[tin];
                     if (!opdef) {
                         a.e = r.o0;
                         return a;
@@ -331,11 +341,11 @@ exports.Expr = Expr;
 Expr.defaults = {
     // TODO: this should not be a list, use a map for easier overrides
     op: {
-        positive: {
-            order: 1, left: 14000, right: 14000, src: '+'
-        },
+        // positive: {
+        //   order: 1, left: 14000, right: 14000, src: '+'
+        // },
         negative: {
-            order: 1, left: 14000, right: 14000, src: '-'
+            order: 1, prefix: true, left: 14000, right: 14000, src: '-'
         },
         // TODO: move to test
         // factorial: {
