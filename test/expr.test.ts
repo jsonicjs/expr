@@ -261,11 +261,44 @@ describe('expr', () => {
     expect(j('foo,(1,a)')).toMatchObject(['foo', ['(', [1, 'a']]])
     expect(j('foo (1,a)')).toMatchObject(['foo', ['(', [1, 'a']]])
 
-    // TODO: fix jsonic grammar
-    // expect(j('(a:1,b:2)')).toMatchObject(['(', { a: 1, b: 2 }])
-    // expect(j('(a:1 b:2)')).toMatchObject(['(', { a: 1, b: 2 }])
-    // expect(j('(a:1,b:2,c:3)')).toMatchObject(['(', { a: 1, b: 2, c: 3 }])
-    // expect(j('(a:1 b:2 c:3)')).toMatchObject(['(', { a: 1, b: 2, c: 3 }])
+    expect(j('(a:1,b:2)')).toMatchObject(['(', { a: 1, b: 2 }])
+    expect(j('(a:1 b:2)')).toMatchObject(['(', { a: 1, b: 2 }])
+    expect(j('(a:1,b:2,c:3)')).toMatchObject(['(', { a: 1, b: 2, c: 3 }])
+    expect(j('(a:1 b:2 c:3)')).toMatchObject(['(', { a: 1, b: 2, c: 3 }])
+
+
+    // Implict lists inside parens
+    expect(j('(1+2,3)')).toMatchObject(['(', [['+', 1, 2], 3]])
+    expect(j('(1+2,3,4)')).toMatchObject(['(', [['+', 1, 2], 3, 4]])
+    expect(j('(1+2,3+4,5)')).toMatchObject(['(', [['+', 1, 2], ['+', 3, 4], 5]])
+    expect(j('(1+2,3+4,5+6)'))
+      .toMatchObject(['(', [['+', 1, 2], ['+', 3, 4], ['+', 5, 6]]])
+
+    expect(j('(1+2 3)')).toMatchObject(['(', [['+', 1, 2], 3]])
+    expect(j('(1+2 3 4)')).toMatchObject(['(', [['+', 1, 2], 3, 4]])
+    expect(j('(1+2 3+4 5)')).toMatchObject(['(', [['+', 1, 2], ['+', 3, 4], 5]])
+    expect(j('(1+2 3+4 5+6)'))
+      .toMatchObject(['(', [['+', 1, 2], ['+', 3, 4], ['+', 5, 6]]])
+
+
+    // Implict maps inside parens
+    expect(j('(a:1+2,b:3)')).toMatchObject(['(', { a: ['+', 1, 2], b: 3 }])
+    expect(j('(a:1+2,b:3,c:4)')).toMatchObject(['(', { a: ['+', 1, 2], b: 3, c: 4 }])
+    expect(j('(a:1+2,b:3+4,c:5)'))
+      .toMatchObject(['(', { a: ['+', 1, 2], b: ['+', 3, 4], c: 5 }])
+    expect(j('(a:1+2,b:3+4,c:5+6)'))
+      .toMatchObject(['(', { a: ['+', 1, 2], b: ['+', 3, 4], c: ['+', 5, 6] }])
+
+    expect(j('(a:1+2 b:3)')).toMatchObject(['(', { a: ['+', 1, 2], b: 3 }])
+    expect(j('(a:1+2 b:3 c:4)')).toMatchObject(['(', { a: ['+', 1, 2], b: 3, c: 4 }])
+    expect(j('(a:1+2 b:3+4 c:5)'))
+      .toMatchObject(['(', { a: ['+', 1, 2], b: ['+', 3, 4], c: 5 }])
+    expect(j('(a:1+2 b:3+4 c:5+6)'))
+      .toMatchObject(['(', { a: ['+', 1, 2], b: ['+', 3, 4], c: ['+', 5, 6] }])
+
+
+
+
   })
 
 
@@ -307,8 +340,13 @@ describe('expr', () => {
 
     // But this is an implicit list.
     expect(j('foo,(1,a)')).toMatchObject(['foo', ['(', [1, 'a']]])
-  })
+    expect(j('foo,(1+2,a)')).toMatchObject(['foo', ['(', [['+', 1, 2], 'a']]])
+    expect(j('foo,(1+2+3,a)'))
+      .toMatchObject(['foo', ['(', [['+', ['+', 1, 2], 3], 'a']]])
 
+    expect(j('foo(a:1,b:2)')).toMatchObject(['(', 'foo', { a: 1, b: 2 }])
+    expect(j('foo(a:b:1,c:2)')).toMatchObject(['(', 'foo', { a: { b: 1 }, c: 2 }])
+  })
 
 
   test('add-infix', () => {

@@ -7,6 +7,8 @@
 
 // TODO: fix a(-b,c) - prefix unary should not apply to implicits
 // TODO: fix 1+2,3+4 - implicit should be [1+2, 3+4] not 1+[2,3+4]
+// TODO: fix top level: 1+2,3 === (1+2,3)
+// TODO: separate paren rule?
 
 
 import { Jsonic, Plugin, Rule, RuleSpec, Tin, util } from 'jsonic'
@@ -93,7 +95,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   const infixTM: OpDefMap = makeOpMap(tokenize, options.op || {}, 'infix')
 
   const parenOTM: ParenDefMap = makeParenMap(tokenize, options.paren || {})
-  const parenCTM = omap(parenOTM, ([_, pdef]: [Tin, ParenFullDef]) =>
+  const parenCTM: ParenDefMap = omap(parenOTM, ([_, pdef]: [Tin, ParenFullDef]) =>
     [undefined, undefined, pdef.ctin, pdef])
 
 
@@ -104,7 +106,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   ])]
 
   const OP = Object.values(parenOTM).map(pdef => pdef.otin)
-  const CP = Object.values(parenOTM).map(pdef => pdef.ctin)
+  const CP = Object.values(parenCTM).map(pdef => pdef.ctin)
 
 
   jsonic
@@ -128,6 +130,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
           {
             s: [OP],
+            n: { il: 0, im: 0, pk: 0 },
             b: 1,
             p: 'expr',
             g: 'expr,expr-paren,expr-open',
@@ -186,14 +189,9 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
       rs
         .close([
           {
-            s: [CP], b: 1, g: 'expr,paren',
-            // c: (r: Rule) => !!r.n.pd
-            c: (r: Rule) => {
-              const pdef = parenCTM[r.c0.tin]
-              let pd = 'expr_paren_depth_' + pdef.name
-              return !!r.n[pd]
-              // !!r.n.pd,
-            },
+            s: [CP],
+            b: 1,
+            g: 'expr,paren',
           },
         ])
     })
@@ -203,12 +201,9 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
       rs
         .close([
           {
-            s: [CP], b: 1, g: 'expr,paren',
-            c: (r: Rule) => {
-              const pdef = parenCTM[r.c0.tin]
-              let pd = 'expr_paren_depth_' + pdef.name
-              return !!r.n[pd]
-            },
+            s: [CP],
+            b: 1,
+            g: 'expr,paren',
           },
         ])
     })
@@ -224,9 +219,6 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           if (r.n.expr_prefix) {
             r.n.expr_prefix++
           }
-
-          // Allow implicit lists as terms
-          r.n.il = 0
         })
 
         .open([
@@ -234,6 +226,10 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             // A infix expression, with the left value already parsed.
             s: [INFIX_SUFFIX],
             g: 'expr',
+
+            // No implicit lists or maps inside expressions.
+            n: { il: 1, im: 1 },
+
             h: (r: Rule, _, a: any) => {
               r.n.expr_term++
 
@@ -409,6 +405,26 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             g: 'expr,paren',
           },
 
+          // Implicit list indicated by comma.
+          {
+            s: [jsonic.token.CA],
+            c: { n: { il: 0, pk: 0 } }, n: { il: 1 },
+            r: 'elem',
+            a: (rule: Rule) => {
+              rule.node = [rule.child.node]
+            },
+            g: 'expr,list,val,imp,comma',
+          },
+
+          // Implicit list indicated by space separated value.
+          {
+            c: { n: { il: 0, pk: 0 } }, n: { il: 1 },
+            r: 'elem',
+            a: (rule: Rule) => {
+              rule.node = [rule.child.node]
+            },
+            g: 'expr,list,val,imp,space',
+          },
 
           { g: 'expr,expr-end' }
         ])

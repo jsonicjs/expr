@@ -15,6 +15,9 @@ const j = Jsonic.make().use(Expr)
 //   }
 // })
 
+
+// console.dir(j.rule('elem').def, {depth:null})
+
 const v = j(process.argv[2], { log: -1 })
 // console.log(v)
 //console.log(clean(v), '###', v)

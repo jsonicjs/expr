@@ -7,6 +7,8 @@ exports.Expr = void 0;
 // https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
 // TODO: fix a(-b,c) - prefix unary should not apply to implicits
 // TODO: fix 1+2,3+4 - implicit should be [1+2, 3+4] not 1+[2,3+4]
+// TODO: fix top level: 1+2,3 === (1+2,3)
+// TODO: separate paren rule?
 const jsonic_1 = require("jsonic");
 const { omap, entries } = jsonic_1.util;
 let Expr = function expr(jsonic, options) {
@@ -38,7 +40,7 @@ let Expr = function expr(jsonic, options) {
             ...Object.values(suffixTM).map(opdef => opdef.tin),
         ])];
     const OP = Object.values(parenOTM).map(pdef => pdef.otin);
-    const CP = Object.values(parenOTM).map(pdef => pdef.ctin);
+    const CP = Object.values(parenCTM).map(pdef => pdef.ctin);
     jsonic
         .rule('val', (rs) => {
         rs
@@ -59,6 +61,7 @@ let Expr = function expr(jsonic, options) {
             },
             {
                 s: [OP],
+                n: { il: 0, im: 0, pk: 0 },
                 b: 1,
                 p: 'expr',
                 g: 'expr,expr-paren,expr-open',
@@ -113,14 +116,9 @@ let Expr = function expr(jsonic, options) {
         rs
             .close([
             {
-                s: [CP], b: 1, g: 'expr,paren',
-                // c: (r: Rule) => !!r.n.pd
-                c: (r) => {
-                    const pdef = parenCTM[r.c0.tin];
-                    let pd = 'expr_paren_depth_' + pdef.name;
-                    return !!r.n[pd];
-                    // !!r.n.pd,
-                },
+                s: [CP],
+                b: 1,
+                g: 'expr,paren',
             },
         ]);
     });
@@ -129,12 +127,9 @@ let Expr = function expr(jsonic, options) {
         rs
             .close([
             {
-                s: [CP], b: 1, g: 'expr,paren',
-                c: (r) => {
-                    const pdef = parenCTM[r.c0.tin];
-                    let pd = 'expr_paren_depth_' + pdef.name;
-                    return !!r.n[pd];
-                },
+                s: [CP],
+                b: 1,
+                g: 'expr,paren',
             },
         ]);
     });
@@ -147,14 +142,14 @@ let Expr = function expr(jsonic, options) {
             if (r.n.expr_prefix) {
                 r.n.expr_prefix++;
             }
-            // Allow implicit lists as terms
-            r.n.il = 0;
         })
             .open([
             {
                 // A infix expression, with the left value already parsed.
                 s: [INFIX_SUFFIX],
                 g: 'expr',
+                // No implicit lists or maps inside expressions.
+                n: { il: 1, im: 1 },
                 h: (r, _, a) => {
                     var _a;
                     r.n.expr_term++;
@@ -298,6 +293,25 @@ let Expr = function expr(jsonic, options) {
                     return a;
                 },
                 g: 'expr,paren',
+            },
+            // Implicit list indicated by comma.
+            {
+                s: [jsonic.token.CA],
+                c: { n: { il: 0, pk: 0 } }, n: { il: 1 },
+                r: 'elem',
+                a: (rule) => {
+                    rule.node = [rule.child.node];
+                },
+                g: 'expr,list,val,imp,comma',
+            },
+            // Implicit list indicated by space separated value.
+            {
+                c: { n: { il: 0, pk: 0 } }, n: { il: 1 },
+                r: 'elem',
+                a: (rule) => {
+                    rule.node = [rule.child.node];
+                },
+                g: 'expr,list,val,imp,space',
             },
             { g: 'expr,expr-end' }
         ]);
