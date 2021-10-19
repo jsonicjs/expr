@@ -6,12 +6,14 @@ exports.Expr = void 0;
 // the explanation written by Aleksey Kladov here:
 // https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
 // TODO: fix a(-b,c) - prefix unary should not apply to implicits
+// TODO: fix 1+2,3+4 - implicit should be [1+2, 3+4] not 1+[2,3+4]
 const jsonic_1 = require("jsonic");
+const { omap, entries } = jsonic_1.util;
 let Expr = function expr(jsonic, options) {
     // NOTE: operators with same src will generate same token - this is correct.
-    const operatorFixed = jsonic_1.util.omap(options.op, ([_, od]) => ['#E' + od.src, od.src]);
+    const operatorFixed = omap(options.op, ([_, od]) => ['#E' + od.src, od.src]);
     // NOTE: parens with same src will generate same token - this is correct.
-    const parenFixed = jsonic_1.util.omap(options.paren, ([_, od]) => ['#E' + od.osrc, od.osrc, '#E' + od.csrc, od.csrc]);
+    const parenFixed = omap(options.paren, ([_, od]) => ['#E' + od.osrc, od.osrc, '#E' + od.csrc, od.csrc]);
     // Add the operator tokens to the set of fixed tokens.
     jsonic.options({
         fixed: {
@@ -25,16 +27,18 @@ let Expr = function expr(jsonic, options) {
         }
     });
     let tokenize = jsonic.token.bind(jsonic);
-    const prefixOp = makeOpMap(tokenize, options.op || {}, 'prefix');
-    const suffixOp = makeOpMap(tokenize, options.op || {}, 'suffix');
-    const binaryOp = makeOpMap(tokenize, options.op || {}, 'binary');
-    const PREFIX = Object.values(prefixOp).map(opdef => opdef.tin);
-    const BINARY_SUFFIX = [...new Set([
-            ...Object.values(binaryOp).map(opdef => opdef.tin),
-            ...Object.values(suffixOp).map(opdef => opdef.tin),
+    const prefixTM = makeOpMap(tokenize, options.op || {}, 'prefix');
+    const suffixTM = makeOpMap(tokenize, options.op || {}, 'suffix');
+    const infixTM = makeOpMap(tokenize, options.op || {}, 'infix');
+    const parenOTM = makeParenMap(tokenize, options.paren || {});
+    const parenCTM = omap(parenOTM, ([_, pdef]) => [undefined, undefined, pdef.ctin, pdef]);
+    const PREFIX = Object.values(prefixTM).map(opdef => opdef.tin);
+    const INFIX_SUFFIX = [...new Set([
+            ...Object.values(infixTM).map(opdef => opdef.tin),
+            ...Object.values(suffixTM).map(opdef => opdef.tin),
         ])];
-    const OP = jsonic.token['#E('];
-    const CP = jsonic.token['#E)'];
+    const OP = Object.values(parenOTM).map(pdef => pdef.otin);
+    const CP = Object.values(parenOTM).map(pdef => pdef.ctin);
     jsonic
         .rule('val', (rs) => {
         rs
@@ -46,7 +50,7 @@ let Expr = function expr(jsonic, options) {
                 p: 'expr',
                 u: { expr_val: false },
                 a: (r) => {
-                    let opdef = prefixOp[r.o0.tin];
+                    let opdef = prefixTM[r.o0.tin];
                     if (opdef && opdef.prefix) {
                         r.n.expr_prefix = (r.n.expr_prefix || 0) + 1;
                     }
@@ -62,11 +66,11 @@ let Expr = function expr(jsonic, options) {
         ])
             .close([
             {
-                // Binary and suffix operators occur after a value.
-                s: [BINARY_SUFFIX],
+                // Infix and suffix operators occur after a value.
+                s: [INFIX_SUFFIX],
                 b: 1,
                 h: (r, _, a) => {
-                    let opdef = binaryOp[r.c0.tin] || suffixOp[r.c0.tin];
+                    let opdef = infixTM[r.c0.tin] || suffixTM[r.c0.tin];
                     let pass = !r.n.expr_prefix ||
                         1 === r.n.expr_prefix ||
                         (opdef === null || opdef === void 0 ? void 0 : opdef.left) > r.n.expr_bind;
@@ -83,14 +87,22 @@ let Expr = function expr(jsonic, options) {
             {
                 s: [CP],
                 b: 1,
-                c: (r) => !!r.n.pd,
+                c: (r) => {
+                    const pdef = parenCTM[r.c0.tin];
+                    let pd = 'expr_paren_depth_' + pdef.name;
+                    return !!r.n[pd];
+                    // !!r.n.pd,
+                },
                 g: 'expr,expr-paren,expr-close',
             },
-            // TODO: make configurable
             {
                 s: [OP],
                 b: 1,
                 r: 'expr',
+                c: (r) => {
+                    const pdef = parenOTM[r.c0.tin];
+                    return pdef.prefix;
+                },
                 u: { paren_prefix: true },
                 g: 'expr,expr-paren,expr-open',
             },
@@ -102,7 +114,13 @@ let Expr = function expr(jsonic, options) {
             .close([
             {
                 s: [CP], b: 1, g: 'expr,paren',
-                c: (r) => !!r.n.pd
+                // c: (r: Rule) => !!r.n.pd
+                c: (r) => {
+                    const pdef = parenCTM[r.c0.tin];
+                    let pd = 'expr_paren_depth_' + pdef.name;
+                    return !!r.n[pd];
+                    // !!r.n.pd,
+                },
             },
         ]);
     });
@@ -112,7 +130,11 @@ let Expr = function expr(jsonic, options) {
             .close([
             {
                 s: [CP], b: 1, g: 'expr,paren',
-                c: (r) => !!r.n.pd
+                c: (r) => {
+                    const pdef = parenCTM[r.c0.tin];
+                    let pd = 'expr_paren_depth_' + pdef.name;
+                    return !!r.n[pd];
+                },
             },
         ]);
     });
@@ -125,11 +147,13 @@ let Expr = function expr(jsonic, options) {
             if (r.n.expr_prefix) {
                 r.n.expr_prefix++;
             }
+            // Allow implicit lists as terms
+            r.n.il = 0;
         })
             .open([
             {
-                // A binary expression, with the left value already parsed.
-                s: [BINARY_SUFFIX],
+                // A infix expression, with the left value already parsed.
+                s: [INFIX_SUFFIX],
                 g: 'expr',
                 h: (r, _, a) => {
                     var _a;
@@ -138,7 +162,7 @@ let Expr = function expr(jsonic, options) {
                     const prev = r.prev;
                     const parent = r.parent;
                     const tin = r.o0.tin;
-                    const opdef = expr_val ? (binaryOp[tin] || suffixOp[tin]) : prefixOp[tin];
+                    const opdef = expr_val ? (infixTM[tin] || suffixTM[tin]) : prefixTM[tin];
                     if (!opdef) {
                         a.e = r.o0;
                         return a;
@@ -157,11 +181,11 @@ let Expr = function expr(jsonic, options) {
                             r.node.terms$ = 2;
                         }
                         else {
-                            let binary = parent;
+                            let infix = parent;
                             if (expr_val) {
-                                binary.node.push(prev.node);
+                                infix.node.push(prev.node);
                             }
-                            let root = binary;
+                            let root = infix;
                             // TODO: make this more robust using node.op$ marker
                             for (let pI = 0; pI < r.n.expr_term - 2 && root.node[0] !== opsrc; pI++) {
                                 root = root.parent;
@@ -206,11 +230,13 @@ let Expr = function expr(jsonic, options) {
                 s: [OP],
                 p: 'expr',
                 n: {
-                    expr_bind: 0, expr_term: 0, pd: 1,
+                    expr_bind: 0, expr_term: 0, // pd: 1,
                 },
                 g: 'expr,paren',
                 a: (r) => {
-                    r.use.pd = r.n.pd;
+                    const pdef = parenOTM[r.o0.tin];
+                    let pd = 'expr_paren_depth_' + pdef.name;
+                    r.use[pd] = r.n[pd] = 1;
                     r.node = undefined;
                 },
             },
@@ -227,7 +253,7 @@ let Expr = function expr(jsonic, options) {
         })
             .close([
             {
-                s: [BINARY_SUFFIX],
+                s: [INFIX_SUFFIX],
                 b: 1,
                 g: 'expr',
                 u: { expr_val: true },
@@ -241,7 +267,12 @@ let Expr = function expr(jsonic, options) {
             {
                 s: [CP],
                 b: 1,
-                c: (r) => !!r.n.pd,
+                c: (r) => {
+                    const pdef = parenCTM[r.c0.tin];
+                    let pd = 'expr_paren_depth_' + pdef.name;
+                    // !!r.n.pd
+                    return !!r.n[pd];
+                },
                 h: (r, _, a) => {
                     var _a;
                     if ((_a = r.child.node) === null || _a === void 0 ? void 0 : _a.terms$) {
@@ -250,12 +281,15 @@ let Expr = function expr(jsonic, options) {
                     else if (undefined === r.node) {
                         r.node = r.child.node;
                     }
-                    if (r.use.pd === r.n.pd) {
+                    const pdef = parenCTM[r.c0.tin];
+                    let pd = 'expr_paren_depth_' + pdef.name;
+                    if (r.use[pd] === r.n[pd]) {
+                        const pdef = parenCTM[r.c0.tin];
                         a.b = 0;
-                        r.node = ['(', r.node];
+                        r.node = [pdef.osrc, r.node];
                         r.node.paren$ = true;
                         if (r.prev.use.paren_prefix) {
-                            r.node[0] = '((';
+                            r.node.prefix$ = true;
                             r.node[2] = r.node[1];
                             r.node[1] = r.prev.node;
                             r.prev.node = r.node;
@@ -273,12 +307,12 @@ exports.Expr = Expr;
 function makeOpMap(tokenize, op, anyfix) {
     return Object.entries(op)
         .filter(([_, opdef]) => opdef[anyfix])
-        .reduce((binaryOp, [name, opdef]) => {
+        .reduce((odm, [name, opdef]) => {
         let tkn = '#E' + opdef.src;
         let tin = tokenize(tkn);
-        binaryOp[tin] = {
+        odm[tin] = {
             src: opdef.src,
-            terms: 'binary' === anyfix ? 2 : 1,
+            terms: 'infix' === anyfix ? 2 : 1,
             left: opdef.left,
             right: opdef.right,
             name: name + '-' + anyfix,
@@ -287,7 +321,27 @@ function makeOpMap(tokenize, op, anyfix) {
             tkn,
             tin,
         };
-        return binaryOp;
+        return odm;
+    }, {});
+}
+function makeParenMap(tokenize, paren) {
+    return entries(paren)
+        .reduce((a, [name, pdef]) => {
+        let otkn = '#E' + pdef.osrc;
+        let ctkn = '#E' + pdef.csrc;
+        let otin = tokenize(otkn);
+        let ctin = tokenize(ctkn);
+        a[otin] = {
+            name,
+            osrc: pdef.osrc,
+            csrc: pdef.csrc,
+            otkn,
+            otin,
+            ctkn,
+            ctin,
+            prefix: !!pdef.prefix
+        };
+        return a;
     }, {});
 }
 Expr.defaults = {
@@ -306,24 +360,24 @@ Expr.defaults = {
         // NOTE: right-associative as lbp > rbp
         // Example: 2**3**4 === 2**(3**4)
         exponentiation: {
-            binary: true, left: 1700, right: 1600, src: '**'
+            infix: true, left: 1700, right: 1600, src: '**'
         },
         // NOTE: all these are left-associative as lbp < rbp
         // Example: 2+3+4 === (2+3)+4
         addition: {
-            binary: true, left: 140, right: 150, src: '+'
+            infix: true, left: 140, right: 150, src: '+'
         },
         subtraction: {
-            binary: true, left: 140, right: 150, src: '-'
+            infix: true, left: 140, right: 150, src: '-'
         },
         multiplication: {
-            binary: true, left: 160, right: 170, src: '*'
+            infix: true, left: 160, right: 170, src: '*'
         },
         division: {
-            binary: true, left: 160, right: 170, src: '/'
+            infix: true, left: 160, right: 170, src: '/'
         },
         remainder: {
-            binary: true, left: 160, right: 170, src: '%'
+            infix: true, left: 160, right: 170, src: '%'
         },
     },
     paren: {

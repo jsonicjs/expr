@@ -177,23 +177,59 @@ describe('expr', () => {
         expect(j('({a:1,b:2,c:3})')).toMatchObject(['(', { a: 1, b: 2, c: 3 }]);
         expect(j('({a:1 b:2 c:3})')).toMatchObject(['(', { a: 1, b: 2, c: 3 }]);
         expect(j('(a:1)')).toMatchObject(['(', { a: 1 }]);
+        // Default pure paren does not have a prefix, so this is an implicit list.
+        expect(j('foo(1,a)')).toMatchObject(['foo', ['(', [1, 'a']]]);
+        expect(j('foo,(1,a)')).toMatchObject(['foo', ['(', [1, 'a']]]);
+        expect(j('foo (1,a)')).toMatchObject(['foo', ['(', [1, 'a']]]);
         // TODO: fix jsonic grammar
         // expect(j('(a:1,b:2)')).toMatchObject(['(', { a: 1, b: 2 }])
         // expect(j('(a:1 b:2)')).toMatchObject(['(', { a: 1, b: 2 }])
         // expect(j('(a:1,b:2,c:3)')).toMatchObject(['(', { a: 1, b: 2, c: 3 }])
         // expect(j('(a:1 b:2 c:3)')).toMatchObject(['(', { a: 1, b: 2, c: 3 }])
     });
-    // test('new-binary', () => {
-    //   const je = Jsonic.make().use(Expr, {
-    //     op: {
-    //       foo: {
-    //         order: 2, bp: [160, 170], src: 'foo'
-    //       }
-    //     }
-    //   })
-    //   const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
-    //   expect(j('1 foo 2')).toMatchObject(['foo', 1, 2])
-    // })
+    test('add-paren', () => {
+        const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+            paren: {
+                angle: {
+                    osrc: '<', csrc: '>'
+                }
+            }
+        });
+        const j = (s, m) => JSON.parse(JSON.stringify(je(s, m)));
+        expect(j('<1>')).toMatchObject(['<', 1]);
+        expect(j('<<1>>')).toMatchObject(['<', ['<', 1]]);
+        expect(j('(<1>)')).toMatchObject(['(', ['<', 1]]);
+        expect(j('<(1)>')).toMatchObject(['<', ['(', 1]]);
+        expect(() => j('<1)')).toThrow('unexpected');
+        expect(j('1*(2+3)')).toMatchObject(['*', 1, ['(', ['+', 2, 3]]]);
+        expect(j('1*<2+3>')).toMatchObject(['*', 1, ['<', ['+', 2, 3]]]);
+    });
+    test('paren-prefix', () => {
+        const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+            paren: {
+                pure: {
+                    prefix: true
+                }
+            }
+        });
+        const j = (s, m) => JSON.parse(JSON.stringify(je(s, m)));
+        // This has a paren prefix.
+        expect(j('foo(1,a)')).toMatchObject(['(', 'foo', [1, 'a']]);
+        expect(j('foo (1,a)')).toMatchObject(['(', 'foo', [1, 'a']]);
+        // But this is an implicit list.
+        expect(j('foo,(1,a)')).toMatchObject(['foo', ['(', [1, 'a']]]);
+    });
+    test('add-infix', () => {
+        const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+            op: {
+                foo: {
+                    infix: true, left: 180, right: 190, src: 'foo'
+                }
+            }
+        });
+        const j = (s, m) => JSON.parse(JSON.stringify(je(s, m)));
+        expect(j('1 foo 2')).toMatchObject(['foo', 1, 2]);
+    });
     // test('new-existing-token-cs', () => {
     //   const je = Jsonic.make().use(Expr, {
     //     op: {
