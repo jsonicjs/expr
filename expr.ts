@@ -108,6 +108,12 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   const OP = Object.values(parenOTM).map(pdef => pdef.otin)
   const CP = Object.values(parenCTM).map(pdef => pdef.ctin)
 
+  const CA = jsonic.token.CA
+  const TX = jsonic.token.TX
+  const NR = jsonic.token.NR
+  const ST = jsonic.token.ST
+  const VL = jsonic.token.VL
+  const VAL = [TX, NR, ST, VL]
 
   jsonic
     .rule('val', (rs: RuleSpec) => {
@@ -181,6 +187,19 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             g: 'expr,expr-paren,expr-open',
           },
 
+          {
+            s: [CA],
+            c: (r: Rule) => 1 === r.d && 1 <= r.n.expr_term,
+            b: 1,
+            g: 'list,val,imp,comma,top',
+          },
+
+          {
+            s: [VAL],
+            c: (r: Rule) => 1 === r.d && 1 <= r.n.expr_term,
+            b: 1,
+            g: 'list,val,imp,space,top',
+          },
         ])
     })
 
@@ -407,7 +426,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
           // Implicit list indicated by comma.
           {
-            s: [jsonic.token.CA],
+            s: [CA],
             c: { n: { il: 0, pk: 0 } }, n: { il: 1 },
             r: 'elem',
             a: (rule: Rule) => {
@@ -425,6 +444,26 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             },
             g: 'expr,list,val,imp,space',
           },
+
+          // Implicit list at the top level. 
+          {
+            s: [CA],
+            c: { d: 0 },
+            r: 'elem',
+            a: (rule: Rule) => rule.prev.node = rule.node = [rule.node],
+            g: 'expr,close,comma,top',
+          },
+
+          {
+            s: [VAL],
+            c: { d: 0 },
+            b: 1,
+            r: 'elem',
+            a: (rule: Rule) => rule.prev.node = rule.node = [rule.node],
+            g: 'expr,close,space,top',
+          },
+
+
 
           { g: 'expr,expr-end' }
         ])

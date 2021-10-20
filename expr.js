@@ -41,6 +41,12 @@ let Expr = function expr(jsonic, options) {
         ])];
     const OP = Object.values(parenOTM).map(pdef => pdef.otin);
     const CP = Object.values(parenCTM).map(pdef => pdef.ctin);
+    const CA = jsonic.token.CA;
+    const TX = jsonic.token.TX;
+    const NR = jsonic.token.NR;
+    const ST = jsonic.token.ST;
+    const VL = jsonic.token.VL;
+    const VAL = [TX, NR, ST, VL];
     jsonic
         .rule('val', (rs) => {
         rs
@@ -108,6 +114,18 @@ let Expr = function expr(jsonic, options) {
                 },
                 u: { paren_prefix: true },
                 g: 'expr,expr-paren,expr-open',
+            },
+            {
+                s: [CA],
+                c: (r) => 1 === r.d && 1 <= r.n.expr_term,
+                b: 1,
+                g: 'list,val,imp,comma,top',
+            },
+            {
+                s: [VAL],
+                c: (r) => 1 === r.d && 1 <= r.n.expr_term,
+                b: 1,
+                g: 'list,val,imp,space,top',
             },
         ]);
     });
@@ -296,7 +314,7 @@ let Expr = function expr(jsonic, options) {
             },
             // Implicit list indicated by comma.
             {
-                s: [jsonic.token.CA],
+                s: [CA],
                 c: { n: { il: 0, pk: 0 } }, n: { il: 1 },
                 r: 'elem',
                 a: (rule) => {
@@ -312,6 +330,22 @@ let Expr = function expr(jsonic, options) {
                     rule.node = [rule.child.node];
                 },
                 g: 'expr,list,val,imp,space',
+            },
+            // Implicit list at the top level. 
+            {
+                s: [CA],
+                c: { d: 0 },
+                r: 'elem',
+                a: (rule) => rule.prev.node = rule.node = [rule.node],
+                g: 'expr,close,comma,top',
+            },
+            {
+                s: [VAL],
+                c: { d: 0 },
+                b: 1,
+                r: 'elem',
+                a: (rule) => rule.prev.node = rule.node = [rule.node],
+                g: 'expr,close,space,top',
             },
             { g: 'expr,expr-end' }
         ]);
