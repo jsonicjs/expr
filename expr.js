@@ -67,7 +67,12 @@ let Expr = function expr(jsonic, options) {
             },
             {
                 s: [OP],
-                n: { il: 0, im: 0, pk: 0 },
+                // TODO: move into paren?
+                n: {
+                // il: 0,
+                // im: 0,
+                // pk: 0
+                },
                 b: 1,
                 //  p: 'expr',
                 p: 'paren',
@@ -138,6 +143,11 @@ let Expr = function expr(jsonic, options) {
     jsonic
         .rule('elem', (rs) => {
         rs
+            // .open({
+            //   s: [OP],
+            //   b: 1,
+            //   p: 'val',
+            // })
             .close([
             // Close implicit list within parens.
             {
@@ -162,7 +172,7 @@ let Expr = function expr(jsonic, options) {
     jsonic
         .rule('expr', (rs) => {
         rs
-            .bo(function box(r) {
+            .bo((r) => {
             r.n.expr_bind = r.n.expr_bind || 0;
             r.n.expr_term = r.n.expr_term || 0;
             if (r.n.expr_prefix) {
@@ -263,7 +273,7 @@ let Expr = function expr(jsonic, options) {
             // },
             { p: 'val', g: 'expr,val' },
         ])
-            .bc(function bc(r) {
+            .bc((r) => {
             var _a, _b;
             if (((_a = r.node) === null || _a === void 0 ? void 0 : _a.length) - 1 < ((_b = r.node) === null || _b === void 0 ? void 0 : _b.terms$)) {
                 r.node.push(r.child.node);
@@ -326,11 +336,13 @@ let Expr = function expr(jsonic, options) {
             // Implicit list indicated by comma.
             {
                 s: [CA],
-                r: 'elem',
-                a: (rule, ctx) => {
-                    console.log('EXPR CA', rule.node, rule.child.node, rule.parent.node, rule.prev.node);
-                    console.log('EXPR CA RS', ctx.rs.map(r => r.name));
+                c: { n: { pk: 0 } },
+                b: 1,
+                h: (rule, ctx, a) => {
+                    // console.log('EXPR CA', rule.node, rule.child.node, rule.parent.node, rule.prev.node)
+                    // console.log('EXPR CA RS', ctx.rs.map(r => r.name))
                     let paren = null;
+                    // Find the paren rule that contains this implicit list.
                     for (let rI = ctx.rs.length - 1; -1 < rI; rI--) {
                         if ('paren' === ctx.rs[rI].name) {
                             paren = ctx.rs[rI];
@@ -338,21 +350,22 @@ let Expr = function expr(jsonic, options) {
                         }
                     }
                     if (paren) {
-                        console.log('EXPR CA P', paren.child.node);
+                        // console.log('EXPR CA P', paren.child.node)
+                        // Create a list value for the paren rule.
                         if (null == paren.child.node) {
                             paren.child.node = [rule.node];
+                            a.r = 'elem';
+                            a.b = 0;
                         }
+                        // Convert paren value into a list value.
                         else if (paren.child.node.terms$) {
                             paren.child.node = [paren.child.node];
-                        }
-                        else {
-                            paren.child.node.push(rule.node);
+                            a.r = 'elem';
+                            a.b = 0;
                         }
                         rule.node = paren.child.node;
                     }
-                    // rule.node = [rule.child.node]
-                    // rule.parent.node = rule.prev.node = rule.node = [rule.node]
-                    // rule.parent.prev.node = rule.node = [rule.node]
+                    return a;
                 },
                 g: 'expr,list,val,imp,comma',
             },
@@ -390,6 +403,12 @@ let Expr = function expr(jsonic, options) {
     jsonic
         .rule('paren', (rs) => {
         rs
+            .bo((r) => {
+            // Allow implicits inside parens
+            r.n.im = 0;
+            r.n.il = 0;
+            r.n.pk = 0;
+        })
             .open([
             {
                 s: [OP],

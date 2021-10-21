@@ -1,13 +1,13 @@
 
 
 const { Jsonic } = require('jsonic')
-const { debug } = require('jsonic/debug')
+const { Debug } = require('jsonic/debug')
 
 const { Expr }  = require('..')
 
 const clean = (v)=>JSON.parse(JSON.stringify(v))
 
-const j = Jsonic.make().use(debug).use(Expr)
+const j = Jsonic.make().use(Debug).use(Expr)
 
 console.log(j.describe())
 // , {

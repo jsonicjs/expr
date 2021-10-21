@@ -97,58 +97,58 @@ describe('expr', () => {
     //   expect(j('1+2,3+4'))[_mo_]([['+', 1, 2], ['+', 3, 4]])
     //   expect(j('1+2,3+4,5+6'))[_mo_]([['+', 1, 2], ['+', 3, 4], ['+', 5, 6]])
     // })
-    // test('implicit-list-top-paren', () => {
-    //   const j = mj(Jsonic.make().use(Expr))
-    //   expect(j('(1,2)'))[_mo_](['(', [1, 2]])
-    //   expect(j('(1+2,3)'))[_mo_](['(', [['+', 1, 2], 3]])
-    //   expect(j('(1+2+3,4)'))[_mo_](['(', [['+', ['+', 1, 2], 3], 4]])
-    //   expect(j('(1+2+3+4,5)'))[_mo_](['(', [['+', ['+', ['+', 1, 2], 3], 4], 5]])
-    //   expect(j('(1 2)'))[_mo_](['(', [1, 2]])
-    //   expect(j('(1+2 3)'))[_mo_](['(', [['+', 1, 2], 3]])
-    //   expect(j('(1+2+3 4)'))[_mo_](['(', [['+', ['+', 1, 2], 3], 4]])
-    //   expect(j('(1+2+3+4 5)'))[_mo_](['(', [['+', ['+', ['+', 1, 2], 3], 4], 5]])
-    //   expect(j('(1,2,11)'))[_mo_](['(', [1, 2, 11]])
-    //   expect(j('(1+2,3,11)'))[_mo_](['(', [['+', 1, 2], 3, 11]])
-    //   expect(j('(1+2+3,4,11)'))[_mo_](['(', [['+', ['+', 1, 2], 3], 4, 11]])
-    //   expect(j('(1+2+3+4,5,11)'))[_mo_](['(', [['+', ['+', ['+', 1, 2], 3], 4], 5, 11]])
-    //   expect(j('(1 2 11)'))[_mo_](['(', [1, 2, 11]])
-    //   expect(j('(1+2 3 11)'))[_mo_](['(', [['+', 1, 2], 3, 11]])
-    //   expect(j('(1+2+3 4 11)'))[_mo_](['(', [['+', ['+', 1, 2], 3], 4, 11]])
-    //   expect(j('(1+2+3+4 5 11)'))[_mo_](['(', [['+', ['+', ['+', 1, 2], 3], 4], 5, 11]])
-    //   expect(j('(22,1,2,11)'))[_mo_](['(', [22, 1, 2, 11]])
-    //   expect(j('(22,1+2,3,11)'))[_mo_](['(', [22, ['+', 1, 2], 3, 11]])
-    //   expect(j('(22,1+2+3,4,11)'))[_mo_](['(', [22, ['+', ['+', 1, 2], 3], 4, 11]])
-    //   expect(j('(22,1+2+3+4,5,11)'))[_mo_](['(', [22, ['+', ['+', ['+', 1, 2], 3], 4], 5, 11]])
-    //   expect(j('(22 1 2 11)'))[_mo_](['(', [22, 1, 2, 11]])
-    //   expect(j('(22 1+2 3 11)'))[_mo_](['(', [22, ['+', 1, 2], 3, 11]])
-    //   expect(j('(22 1+2+3 4 11)'))[_mo_](['(', [22, ['+', ['+', 1, 2], 3], 4, 11]])
-    //   expect(j('(22 1+2+3+4 5 11)'))[_mo_](['(', [22, ['+', ['+', ['+', 1, 2], 3], 4], 5, 11]])
-    //   expect(j('([true,false],1,2,11)'))[_mo_](['(', [[true, false], 1, 2, 11]])
-    //   expect(j('([true,false],1+2,3,11)'))[_mo_](['(', [[true, false], ['+', 1, 2], 3, 11]])
-    //   expect(j('([true,false],1+2+3,4,11)'))[_mo_](['(', [[true, false], ['+', ['+', 1, 2], 3], 4, 11]])
-    //   expect(j('([true,false],1+2+3+4,5,11)'))[_mo_](['(', [[true, false], ['+', ['+', ['+', 1, 2], 3], 4], 5, 11]])
-    //   expect(j('([true,false] 1 2 11)'))[_mo_](['(', [[true, false], 1, 2, 11]])
-    //   expect(j('([true,false] 1+2 3 11)'))[_mo_](['(', [[true, false], ['+', 1, 2], 3, 11]])
-    //   expect(j('([true,false] 1+2+3 4 11)'))[_mo_](['(', [[true, false], ['+', ['+', 1, 2], 3], 4, 11]])
-    //   expect(j('([true,false] 1+2+3+4 5 11)'))[_mo_](['(', [[true, false], ['+', ['+', ['+', 1, 2], 3], 4], 5, 11]])
-    //   expect(j('([true,false],1,2,{x:11,y:22})'))[_mo_](['(', [[true, false], 1, 2, { x: 11, y: 22 }]])
-    //   expect(j('([true,false],1+2,3,{x:11,y:22})'))[_mo_](['(', [[true, false], ['+', 1, 2], 3, { x: 11, y: 22 }]])
-    //   expect(j('([true,false],1+2+3,4,{x:11,y:22})'))[_mo_](['(', [[true, false], ['+', ['+', 1, 2], 3], 4, { x: 11, y: 22 }]])
-    //   expect(j('([true,false],1+2+3+4,5,{x:11,y:22})'))[_mo_](['(', [[true, false], ['+', ['+', ['+', 1, 2], 3], 4], 5, { x: 11, y: 22 }]])
-    //   expect(j('([true,false] 1 2 {x:11,y:22})'))[_mo_](['(', [[true, false], 1, 2, { x: 11, y: 22 }]])
-    //   expect(j('([true,false] 1+2 3 {x:11,y:22})'))[_mo_](['(', [[true, false], ['+', 1, 2], 3, { x: 11, y: 22 }]])
-    //   expect(j('([true,false] 1+2+3 4 {x:11,y:22})'))[_mo_](['(', [[true, false], ['+', ['+', 1, 2], 3], 4, { x: 11, y: 22 }]])
-    //   expect(j('([true,false] 1+2+3+4 5 {x:11,y:22})'))[_mo_](['(', [[true, false], ['+', ['+', ['+', 1, 2], 3], 4], 5, { x: 11, y: 22 }]])
-    //   expect(j('(1+2,3+4)'))[_mo_](['(', [['+', 1, 2], ['+', 3, 4]]])
-    //   expect(j('(1+2,3+4,5+6)'))[_mo_](['(', [['+', 1, 2], ['+', 3, 4], ['+', 5, 6]]])
-    // })
-    // // TODO: fix
-    // // test('map-implicit-list-paren', () => {
-    // //   const j = mj(Jsonic.make().use(Expr))
-    // //   expect(j('a:(1,2),b:0'))[_mo_]({ a: ['(', [1, 2]], b: 0 })
-    // //   expect(j('a:(1+2,3),b:0'))[_mo_]({ a: ['(', [['+', 1, 2], 3]], b: 0 })
-    // //   expect(j('a:(1+2+3,4),b:0'))[_mo_]({ a: ['(', [['+', ['+', 1, 2], 3], 4]], b: 0 })
-    // //   expect(j('a:(1+2+3+4,5),b:0'))[_mo_]({ a: ['(', [['+', ['+', ['+', 1, 2], 3], 4], 5]], b: 0 })
+    test('implicit-list-top-paren', () => {
+        const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
+        expect(j('(1,2)'))[_mo_](['(', [1, 2]]);
+        expect(j('(1+2,3)'))[_mo_](['(', [['+', 1, 2], 3]]);
+        expect(j('(1+2+3,4)'))[_mo_](['(', [['+', ['+', 1, 2], 3], 4]]);
+        expect(j('(1+2+3+4,5)'))[_mo_](['(', [['+', ['+', ['+', 1, 2], 3], 4], 5]]);
+        // expect(j('(1 2)'))[_mo_](['(', [1, 2]])
+        // expect(j('(1+2 3)'))[_mo_](['(', [['+', 1, 2], 3]])
+        // expect(j('(1+2+3 4)'))[_mo_](['(', [['+', ['+', 1, 2], 3], 4]])
+        // expect(j('(1+2+3+4 5)'))[_mo_](['(', [['+', ['+', ['+', 1, 2], 3], 4], 5]])
+        expect(j('(1,2,11)'))[_mo_](['(', [1, 2, 11]]);
+        expect(j('(1+2,3,11)'))[_mo_](['(', [['+', 1, 2], 3, 11]]);
+        expect(j('(1+2+3,4,11)'))[_mo_](['(', [['+', ['+', 1, 2], 3], 4, 11]]);
+        expect(j('(1+2+3+4,5,11)'))[_mo_](['(', [['+', ['+', ['+', 1, 2], 3], 4], 5, 11]]);
+        // expect(j('(1 2 11)'))[_mo_](['(', [1, 2, 11]])
+        // expect(j('(1+2 3 11)'))[_mo_](['(', [['+', 1, 2], 3, 11]])
+        // expect(j('(1+2+3 4 11)'))[_mo_](['(', [['+', ['+', 1, 2], 3], 4, 11]])
+        // expect(j('(1+2+3+4 5 11)'))[_mo_](['(', [['+', ['+', ['+', 1, 2], 3], 4], 5, 11]])
+        expect(j('(22,1,2,11)'))[_mo_](['(', [22, 1, 2, 11]]);
+        expect(j('(22,1+2,3,11)'))[_mo_](['(', [22, ['+', 1, 2], 3, 11]]);
+        expect(j('(22,1+2+3,4,11)'))[_mo_](['(', [22, ['+', ['+', 1, 2], 3], 4, 11]]);
+        expect(j('(22,1+2+3+4,5,11)'))[_mo_](['(', [22, ['+', ['+', ['+', 1, 2], 3], 4], 5, 11]]);
+        // expect(j('(22 1 2 11)'))[_mo_](['(', [22, 1, 2, 11]])
+        // expect(j('(22 1+2 3 11)'))[_mo_](['(', [22, ['+', 1, 2], 3, 11]])
+        // expect(j('(22 1+2+3 4 11)'))[_mo_](['(', [22, ['+', ['+', 1, 2], 3], 4, 11]])
+        // expect(j('(22 1+2+3+4 5 11)'))[_mo_](['(', [22, ['+', ['+', ['+', 1, 2], 3], 4], 5, 11]])
+        expect(j('([true,false],1,2,11)'))[_mo_](['(', [[true, false], 1, 2, 11]]);
+        expect(j('([true,false],1+2,3,11)'))[_mo_](['(', [[true, false], ['+', 1, 2], 3, 11]]);
+        expect(j('([true,false],1+2+3,4,11)'))[_mo_](['(', [[true, false], ['+', ['+', 1, 2], 3], 4, 11]]);
+        expect(j('([true,false],1+2+3+4,5,11)'))[_mo_](['(', [[true, false], ['+', ['+', ['+', 1, 2], 3], 4], 5, 11]]);
+        // expect(j('([true,false] 1 2 11)'))[_mo_](['(', [[true, false], 1, 2, 11]])
+        // expect(j('([true,false] 1+2 3 11)'))[_mo_](['(', [[true, false], ['+', 1, 2], 3, 11]])
+        // expect(j('([true,false] 1+2+3 4 11)'))[_mo_](['(', [[true, false], ['+', ['+', 1, 2], 3], 4, 11]])
+        // expect(j('([true,false] 1+2+3+4 5 11)'))[_mo_](['(', [[true, false], ['+', ['+', ['+', 1, 2], 3], 4], 5, 11]])
+        expect(j('([true,false],1,2,{x:11,y:22})'))[_mo_](['(', [[true, false], 1, 2, { x: 11, y: 22 }]]);
+        expect(j('([true,false],1+2,3,{x:11,y:22})'))[_mo_](['(', [[true, false], ['+', 1, 2], 3, { x: 11, y: 22 }]]);
+        expect(j('([true,false],1+2+3,4,{x:11,y:22})'))[_mo_](['(', [[true, false], ['+', ['+', 1, 2], 3], 4, { x: 11, y: 22 }]]);
+        expect(j('([true,false],1+2+3+4,5,{x:11,y:22})'))[_mo_](['(', [[true, false], ['+', ['+', ['+', 1, 2], 3], 4], 5, { x: 11, y: 22 }]]);
+        // expect(j('([true,false] 1 2 {x:11,y:22})'))[_mo_](['(', [[true, false], 1, 2, { x: 11, y: 22 }]])
+        // expect(j('([true,false] 1+2 3 {x:11,y:22})'))[_mo_](['(', [[true, false], ['+', 1, 2], 3, { x: 11, y: 22 }]])
+        // expect(j('([true,false] 1+2+3 4 {x:11,y:22})'))[_mo_](['(', [[true, false], ['+', ['+', 1, 2], 3], 4, { x: 11, y: 22 }]])
+        // expect(j('([true,false] 1+2+3+4 5 {x:11,y:22})'))[_mo_](['(', [[true, false], ['+', ['+', ['+', 1, 2], 3], 4], 5, { x: 11, y: 22 }]])
+        expect(j('(1+2,3+4)'))[_mo_](['(', [['+', 1, 2], ['+', 3, 4]]]);
+        expect(j('(1+2,3+4,5+6)'))[_mo_](['(', [['+', 1, 2], ['+', 3, 4], ['+', 5, 6]]]);
+    });
+    test('map-implicit-list-paren', () => {
+        const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
+        expect(j('a:(1,2),b:0'))[_mo_]({ a: ['(', [1, 2]], b: 0 });
+        expect(j('a:(1+2,3),b:0'))[_mo_]({ a: ['(', [['+', 1, 2], 3]], b: 0 });
+        expect(j('a:(1+2+3,4),b:0'))[_mo_]({ a: ['(', [['+', ['+', 1, 2], 3], 4]], b: 0 });
+        expect(j('a:(1+2+3+4,5),b:0'))[_mo_]({ a: ['(', [['+', ['+', ['+', 1, 2], 3], 4], 5]], b: 0 });
+    });
     // //   expect(j('a:(1 2),b:0'))[_mo_]({ a: ['(', [1, 2]], b: 0 })
     // //   expect(j('a:(1+2 3),b:0'))[_mo_]({ a: ['(', [['+', 1, 2], 3]], b: 0 })
     // //   expect(j('a:(1+2+3 4),b:0'))[_mo_]({ a: ['(', [['+', ['+', 1, 2], 3], 4]], b: 0 })
@@ -347,6 +347,182 @@ describe('expr', () => {
         expect(j('({a:1,b:2,c:3})')).toMatchObject(['(', { a: 1, b: 2, c: 3 }]);
         expect(j('({a:1 b:2 c:3})')).toMatchObject(['(', { a: 1, b: 2, c: 3 }]);
         expect(j('(a:1)')).toMatchObject(['(', { a: 1 }]);
+    });
+    test('paren-map-implicit-structure', () => {
+        const je = jsonic_1.Jsonic.make().use(expr_1.Expr);
+        const j = (s, m) => JSON.parse(JSON.stringify(je(s, m)));
+        expect(j('{a:(1)}')).toMatchObject({ a: ['(', 1] });
+        expect(j('{a:(1,2)}')).toMatchObject({ a: ['(', [1, 2]] });
+        expect(j('{a:(1,2,3)}')).toMatchObject({ a: ['(', [1, 2, 3]] });
+        expect(j('{a:(1),b:9}')).toMatchObject({ a: ['(', 1], b: 9 });
+        expect(j('{a:(1,2),b:9}')).toMatchObject({ a: ['(', [1, 2]], b: 9 });
+        expect(j('{a:(1,2,3),b:9}')).toMatchObject({ a: ['(', [1, 2, 3]], b: 9 });
+        expect(j('{a:(1),b:9,c:8}')).toMatchObject({ a: ['(', 1], b: 9, c: 8 });
+        expect(j('{a:(1,2),b:9,c:8}')).toMatchObject({ a: ['(', [1, 2]], b: 9, c: 8 });
+        expect(j('{a:(1,2,3),b:9,c:8}')).toMatchObject({ a: ['(', [1, 2, 3]], b: 9, c: 8 });
+        expect(j('{a:(1),b:(9)}')).toMatchObject({ a: ['(', 1], b: ['(', 9] });
+        expect(j('{a:(1,2),b:(9)}')).toMatchObject({ a: ['(', [1, 2]], b: ['(', 9] });
+        expect(j('{a:(1,2,3),b:(9)}')).toMatchObject({ a: ['(', [1, 2, 3]], b: ['(', 9] });
+        expect(j('{a:(1),b:(9),c:8}')).toMatchObject({ a: ['(', 1], b: ['(', 9], c: 8 });
+        expect(j('{a:(1,2),b:(9),c:8}')).toMatchObject({ a: ['(', [1, 2]], b: ['(', 9], c: 8 });
+        expect(j('{a:(1,2,3),b:(9),c:8}')).toMatchObject({ a: ['(', [1, 2, 3]], b: ['(', 9], c: 8 });
+        expect(j('{a:(1),b:(8,9)}')).toMatchObject({ a: ['(', 1], b: ['(', [8, 9]] });
+        expect(j('{a:(1,2),b:(8,9)}')).toMatchObject({ a: ['(', [1, 2]], b: ['(', [8, 9]] });
+        expect(j('{a:(1,2,3),b:(8,9)}')).toMatchObject({ a: ['(', [1, 2, 3]], b: ['(', [8, 9]] });
+        expect(j('{a:(1),b:(8,9),c:8}')).toMatchObject({ a: ['(', 1], b: ['(', [8, 9]], c: 8 });
+        expect(j('{a:(1,2),b:(8,9),c:8}')).toMatchObject({ a: ['(', [1, 2]], b: ['(', [8, 9]], c: 8 });
+        expect(j('{a:(1,2,3),b:(8,9),c:8}')).toMatchObject({ a: ['(', [1, 2, 3]], b: ['(', [8, 9]], c: 8 });
+        expect(j('{d:0,a:(1)}')).toMatchObject({ d: 0, a: ['(', 1] });
+        expect(j('{d:0,a:(1,2)}')).toMatchObject({ d: 0, a: ['(', [1, 2]] });
+        expect(j('{d:0,a:(1,2,3)}')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]] });
+        expect(j('{d:0,a:(1),b:9}')).toMatchObject({ d: 0, a: ['(', 1], b: 9 });
+        expect(j('{d:0,a:(1,2),b:9}')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: 9 });
+        expect(j('{d:0,a:(1,2,3),b:9}')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: 9 });
+        expect(j('{d:0,a:(1),b:9,c:8}')).toMatchObject({ d: 0, a: ['(', 1], b: 9, c: 8 });
+        expect(j('{d:0,a:(1,2),b:9,c:8}')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: 9, c: 8 });
+        expect(j('{d:0,a:(1,2,3),b:9,c:8}')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: 9, c: 8 });
+        expect(j('{d:0,a:(1),b:(9)}')).toMatchObject({ d: 0, a: ['(', 1], b: ['(', 9] });
+        expect(j('{d:0,a:(1,2),b:(9)}')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', 9] });
+        expect(j('{d:0,a:(1,2,3),b:(9)}')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', 9] });
+        expect(j('{d:0,a:(1),b:(9),c:8}')).toMatchObject({ d: 0, a: ['(', 1], b: ['(', 9], c: 8 });
+        expect(j('{d:0,a:(1,2),b:(9),c:8}')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', 9], c: 8 });
+        expect(j('{d:0,a:(1,2,3),b:(9),c:8}')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', 9], c: 8 });
+        expect(j('{d:0,a:(1),b:(8,9)}')).toMatchObject({ d: 0, a: ['(', 1], b: ['(', [8, 9]] });
+        expect(j('{d:0,a:(1,2),b:(8,9)}')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', [8, 9]] });
+        expect(j('{d:0,a:(1,2,3),b:(8,9)}')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', [8, 9]] });
+        expect(j('{d:0,a:(1),b:(8,9),c:8}')).toMatchObject({ d: 0, a: ['(', 1], b: ['(', [8, 9]], c: 8 });
+        expect(j('{d:0,a:(1,2),b:(8,9),c:8}')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', [8, 9]], c: 8 });
+        expect(j('{d:0,a:(1,2,3),b:(8,9),c:8}')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', [8, 9]], c: 8 });
+        expect(j('a:(1)')).toMatchObject({ a: ['(', 1] });
+        expect(j('a:(1,2)')).toMatchObject({ a: ['(', [1, 2]] });
+        expect(j('a:(1,2,3)')).toMatchObject({ a: ['(', [1, 2, 3]] });
+        expect(j('a:(1),b:9')).toMatchObject({ a: ['(', 1], b: 9 });
+        expect(j('a:(1,2),b:9')).toMatchObject({ a: ['(', [1, 2]], b: 9 });
+        expect(j('a:(1,2,3),b:9')).toMatchObject({ a: ['(', [1, 2, 3]], b: 9 });
+        expect(j('a:(1),b:9,c:8')).toMatchObject({ a: ['(', 1], b: 9, c: 8 });
+        expect(j('a:(1,2),b:9,c:8')).toMatchObject({ a: ['(', [1, 2]], b: 9, c: 8 });
+        expect(j('a:(1,2,3),b:9,c:8')).toMatchObject({ a: ['(', [1, 2, 3]], b: 9, c: 8 });
+        expect(j('a:(1),b:(9)')).toMatchObject({ a: ['(', 1], b: ['(', 9] });
+        expect(j('a:(1,2),b:(9)')).toMatchObject({ a: ['(', [1, 2]], b: ['(', 9] });
+        expect(j('a:(1,2,3),b:(9)')).toMatchObject({ a: ['(', [1, 2, 3]], b: ['(', 9] });
+        expect(j('a:(1),b:(9),c:8')).toMatchObject({ a: ['(', 1], b: ['(', 9], c: 8 });
+        expect(j('a:(1,2),b:(9),c:8')).toMatchObject({ a: ['(', [1, 2]], b: ['(', 9], c: 8 });
+        expect(j('a:(1,2,3),b:(9),c:8')).toMatchObject({ a: ['(', [1, 2, 3]], b: ['(', 9], c: 8 });
+        expect(j('a:(1),b:(8,9)')).toMatchObject({ a: ['(', 1], b: ['(', [8, 9]] });
+        expect(j('a:(1,2),b:(8,9)')).toMatchObject({ a: ['(', [1, 2]], b: ['(', [8, 9]] });
+        expect(j('a:(1,2,3),b:(8,9)')).toMatchObject({ a: ['(', [1, 2, 3]], b: ['(', [8, 9]] });
+        expect(j('a:(1),b:(8,9),c:8')).toMatchObject({ a: ['(', 1], b: ['(', [8, 9]], c: 8 });
+        expect(j('a:(1,2),b:(8,9),c:8')).toMatchObject({ a: ['(', [1, 2]], b: ['(', [8, 9]], c: 8 });
+        expect(j('a:(1,2,3),b:(8,9),c:8')).toMatchObject({ a: ['(', [1, 2, 3]], b: ['(', [8, 9]], c: 8 });
+        expect(j('d:0,a:(1)')).toMatchObject({ d: 0, a: ['(', 1] });
+        expect(j('d:0,a:(1,2)')).toMatchObject({ d: 0, a: ['(', [1, 2]] });
+        expect(j('d:0,a:(1,2,3)')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]] });
+        expect(j('d:0,a:(1),b:9')).toMatchObject({ d: 0, a: ['(', 1], b: 9 });
+        expect(j('d:0,a:(1,2),b:9')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: 9 });
+        expect(j('d:0,a:(1,2,3),b:9')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: 9 });
+        expect(j('d:0,a:(1),b:9,c:8')).toMatchObject({ d: 0, a: ['(', 1], b: 9, c: 8 });
+        expect(j('d:0,a:(1,2),b:9,c:8')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: 9, c: 8 });
+        expect(j('d:0,a:(1,2,3),b:9,c:8')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: 9, c: 8 });
+        expect(j('d:0,a:(1),b:(9)')).toMatchObject({ d: 0, a: ['(', 1], b: ['(', 9] });
+        expect(j('d:0,a:(1,2),b:(9)')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', 9] });
+        expect(j('d:0,a:(1,2,3),b:(9)')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', 9] });
+        expect(j('d:0,a:(1),b:(9),c:8')).toMatchObject({ d: 0, a: ['(', 1], b: ['(', 9], c: 8 });
+        expect(j('d:0,a:(1,2),b:(9),c:8')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', 9], c: 8 });
+        expect(j('d:0,a:(1,2,3),b:(9),c:8')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', 9], c: 8 });
+        expect(j('d:0,a:(1),b:(8,9)')).toMatchObject({ d: 0, a: ['(', 1], b: ['(', [8, 9]] });
+        expect(j('d:0,a:(1,2),b:(8,9)')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', [8, 9]] });
+        expect(j('d:0,a:(1,2,3),b:(8,9)')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', [8, 9]] });
+        expect(j('d:0,a:(1),b:(8,9),c:8')).toMatchObject({ d: 0, a: ['(', 1], b: ['(', [8, 9]], c: 8 });
+        expect(j('d:0,a:(1,2),b:(8,9),c:8')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', [8, 9]], c: 8 });
+        expect(j('d:0,a:(1,2,3),b:(8,9),c:8')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', [8, 9]], c: 8 });
+    });
+    test('paren-list-implicit-structure', () => {
+        const je = jsonic_1.Jsonic.make().use(expr_1.Expr);
+        const j = (s, m) => JSON.parse(JSON.stringify(je(s, m)));
+        expect(j('[(1)]')).toMatchObject([['(', 1]]);
+        expect(j('[(1,2)]')).toMatchObject([['(', [1, 2]]]);
+        expect(j('[(1,2,3)]')).toMatchObject([['(', [1, 2, 3]]]);
+        expect(j('[(1),9]')).toMatchObject([['(', 1], 9]);
+        expect(j('[(1,2),9]')).toMatchObject([['(', [1, 2]], 9]);
+        expect(j('[(1,2,3),9]')).toMatchObject([['(', [1, 2, 3]], 9]);
+        expect(j('[(1),9,8]')).toMatchObject([['(', 1], 9, 8]);
+        expect(j('[(1,2),9,8]')).toMatchObject([['(', [1, 2]], 9, 8]);
+        expect(j('[(1,2,3),9,8]')).toMatchObject([['(', [1, 2, 3]], 9, 8]);
+        expect(j('[(1),(9)]')).toMatchObject([['(', 1], ['(', 9]]);
+        expect(j('[(1,2),(9)]')).toMatchObject([['(', [1, 2]], ['(', 9]]);
+        expect(j('[(1,2,3),(9)]')).toMatchObject([['(', [1, 2, 3]], ['(', 9]]);
+        expect(j('[(1),(9),8]')).toMatchObject([['(', 1], ['(', 9], 8]);
+        expect(j('[(1,2),(9),8]')).toMatchObject([['(', [1, 2]], ['(', 9], 8]);
+        expect(j('[(1,2,3),(9),8]')).toMatchObject([['(', [1, 2, 3]], ['(', 9], 8]);
+        expect(j('[(1),(8,9)]')).toMatchObject([['(', 1], ['(', [8, 9]]]);
+        expect(j('[(1,2),(8,9)]')).toMatchObject([['(', [1, 2]], ['(', [8, 9]]]);
+        expect(j('[(1,2,3),(8,9)]')).toMatchObject([['(', [1, 2, 3]], ['(', [8, 9]]]);
+        expect(j('[(1),(8,9),8]')).toMatchObject([['(', 1], ['(', [8, 9]], 8]);
+        expect(j('[(1,2),(8,9),8]')).toMatchObject([['(', [1, 2]], ['(', [8, 9]], 8]);
+        expect(j('[(1,2,3),(8,9),8]')).toMatchObject([['(', [1, 2, 3]], ['(', [8, 9]], 8]);
+        expect(j('[0,(1)]')).toMatchObject([0, ['(', 1]]);
+        expect(j('[0,(1,2)]')).toMatchObject([0, ['(', [1, 2]]]);
+        expect(j('[0,(1,2,3)]')).toMatchObject([0, ['(', [1, 2, 3]]]);
+        expect(j('[0,(1),9]')).toMatchObject([0, ['(', 1], 9]);
+        expect(j('[0,(1,2),9]')).toMatchObject([0, ['(', [1, 2]], 9]);
+        expect(j('[0,(1,2,3),9]')).toMatchObject([0, ['(', [1, 2, 3]], 9]);
+        expect(j('[0,(1),9,8]')).toMatchObject([0, ['(', 1], 9, 8]);
+        expect(j('[0,(1,2),9,8]')).toMatchObject([0, ['(', [1, 2]], 9, 8]);
+        expect(j('[0,(1,2,3),9,8]')).toMatchObject([0, ['(', [1, 2, 3]], 9, 8]);
+        expect(j('[0,(1),(9)]')).toMatchObject([0, ['(', 1], ['(', 9]]);
+        expect(j('[0,(1,2),(9)]')).toMatchObject([0, ['(', [1, 2]], ['(', 9]]);
+        expect(j('[0,(1,2,3),(9)]')).toMatchObject([0, ['(', [1, 2, 3]], ['(', 9]]);
+        expect(j('[0,(1),(9),8]')).toMatchObject([0, ['(', 1], ['(', 9], 8]);
+        expect(j('[0,(1,2),(9),8]')).toMatchObject([0, ['(', [1, 2]], ['(', 9], 8]);
+        expect(j('[0,(1,2,3),(9),8]')).toMatchObject([0, ['(', [1, 2, 3]], ['(', 9], 8]);
+        expect(j('[0,(1),(8,9)]')).toMatchObject([0, ['(', 1], ['(', [8, 9]]]);
+        expect(j('[0,(1,2),(8,9)]')).toMatchObject([0, ['(', [1, 2]], ['(', [8, 9]]]);
+        expect(j('[0,(1,2,3),(8,9)]')).toMatchObject([0, ['(', [1, 2, 3]], ['(', [8, 9]]]);
+        expect(j('[0,(1),(8,9),8]')).toMatchObject([0, ['(', 1], ['(', [8, 9]], 8]);
+        expect(j('[0,(1,2),(8,9),8]')).toMatchObject([0, ['(', [1, 2]], ['(', [8, 9]], 8]);
+        expect(j('[0,(1,2,3),(8,9),8]')).toMatchObject([0, ['(', [1, 2, 3]], ['(', [8, 9]], 8]);
+        expect(j('(1)')).toMatchObject(['(', 1]);
+        expect(j('(1,2)')).toMatchObject(['(', [1, 2]]);
+        expect(j('(1,2,3)')).toMatchObject(['(', [1, 2, 3]]);
+        expect(j('(1),9')).toMatchObject([['(', 1], 9]);
+        expect(j('(1,2),9')).toMatchObject([['(', [1, 2]], 9]);
+        expect(j('(1,2,3),9')).toMatchObject([['(', [1, 2, 3]], 9]);
+        expect(j('(1),9,8')).toMatchObject([['(', 1], 9, 8]);
+        expect(j('(1,2),9,8')).toMatchObject([['(', [1, 2]], 9, 8]);
+        expect(j('(1,2,3),9,8')).toMatchObject([['(', [1, 2, 3]], 9, 8]);
+        expect(j('(1),(9)')).toMatchObject([['(', 1], ['(', 9]]);
+        expect(j('(1,2),(9)')).toMatchObject([['(', [1, 2]], ['(', 9]]);
+        expect(j('(1,2,3),(9)')).toMatchObject([['(', [1, 2, 3]], ['(', 9]]);
+        expect(j('(1),(9),8')).toMatchObject([['(', 1], ['(', 9], 8]);
+        expect(j('(1,2),(9),8')).toMatchObject([['(', [1, 2]], ['(', 9], 8]);
+        expect(j('(1,2,3),(9),8')).toMatchObject([['(', [1, 2, 3]], ['(', 9], 8]);
+        expect(j('(1),(8,9)')).toMatchObject([['(', 1], ['(', [8, 9]]]);
+        expect(j('(1,2),(8,9)')).toMatchObject([['(', [1, 2]], ['(', [8, 9]]]);
+        expect(j('(1,2,3),(8,9)')).toMatchObject([['(', [1, 2, 3]], ['(', [8, 9]]]);
+        expect(j('(1),(8,9),8')).toMatchObject([['(', 1], ['(', [8, 9]], 8]);
+        expect(j('(1,2),(8,9),8')).toMatchObject([['(', [1, 2]], ['(', [8, 9]], 8]);
+        expect(j('(1,2,3),(8,9),8')).toMatchObject([['(', [1, 2, 3]], ['(', [8, 9]], 8]);
+        expect(j('0,(1)')).toMatchObject([0, ['(', 1]]);
+        expect(j('0,(1,2)')).toMatchObject([0, ['(', [1, 2]]]);
+        expect(j('0,(1,2,3)')).toMatchObject([0, ['(', [1, 2, 3]]]);
+        expect(j('0,(1),9')).toMatchObject([0, ['(', 1], 9]);
+        expect(j('0,(1,2),9')).toMatchObject([0, ['(', [1, 2]], 9]);
+        expect(j('0,(1,2,3),9')).toMatchObject([0, ['(', [1, 2, 3]], 9]);
+        expect(j('0,(1),9,8')).toMatchObject([0, ['(', 1], 9, 8]);
+        expect(j('0,(1,2),9,8')).toMatchObject([0, ['(', [1, 2]], 9, 8]);
+        expect(j('0,(1,2,3),9,8')).toMatchObject([0, ['(', [1, 2, 3]], 9, 8]);
+        expect(j('0,(1),(9)')).toMatchObject([0, ['(', 1], ['(', 9]]);
+        expect(j('0,(1,2),(9)')).toMatchObject([0, ['(', [1, 2]], ['(', 9]]);
+        expect(j('0,(1,2,3),(9)')).toMatchObject([0, ['(', [1, 2, 3]], ['(', 9]]);
+        expect(j('0,(1),(9),8')).toMatchObject([0, ['(', 1], ['(', 9], 8]);
+        expect(j('0,(1,2),(9),8')).toMatchObject([0, ['(', [1, 2]], ['(', 9], 8]);
+        expect(j('0,(1,2,3),(9),8')).toMatchObject([0, ['(', [1, 2, 3]], ['(', 9], 8]);
+        expect(j('0,(1),(8,9)')).toMatchObject([0, ['(', 1], ['(', [8, 9]]]);
+        expect(j('0,(1,2),(8,9)')).toMatchObject([0, ['(', [1, 2]], ['(', [8, 9]]]);
+        expect(j('0,(1,2,3),(8,9)')).toMatchObject([0, ['(', [1, 2, 3]], ['(', [8, 9]]]);
+        expect(j('0,(1),(8,9),8')).toMatchObject([0, ['(', 1], ['(', [8, 9]], 8]);
+        expect(j('0,(1,2),(8,9),8')).toMatchObject([0, ['(', [1, 2]], ['(', [8, 9]], 8]);
+        expect(j('0,(1,2,3),(8,9),8')).toMatchObject([0, ['(', [1, 2, 3]], ['(', [8, 9]], 8]);
     });
     test('paren-implicit-list', () => {
         const je = jsonic_1.Jsonic.make().use(expr_1.Expr);
