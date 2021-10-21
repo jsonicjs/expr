@@ -69,8 +69,9 @@ let Expr = function expr(jsonic, options) {
                 s: [OP],
                 n: { il: 0, im: 0, pk: 0 },
                 b: 1,
-                p: 'expr',
-                g: 'expr,expr-paren,expr-open',
+                //  p: 'expr',
+                p: 'paren',
+                g: 'expr,paren,open',
             },
         ])
             .close([
@@ -96,18 +97,23 @@ let Expr = function expr(jsonic, options) {
             {
                 s: [CP],
                 b: 1,
-                c: (r) => {
-                    const pdef = parenCTM[r.c0.tin];
-                    let pd = 'expr_paren_depth_' + pdef.name;
-                    return !!r.n[pd];
-                    // !!r.n.pd,
-                },
-                g: 'expr,expr-paren,expr-close',
             },
+            // {
+            //   s: [CP],
+            //   b: 1,
+            //   c: (r: Rule) => {
+            //     const pdef = parenCTM[r.c0.tin]
+            //     let pd = 'expr_paren_depth_' + pdef.name
+            //     return !!r.n[pd]
+            //     // !!r.n.pd,
+            //   },
+            //   g: 'expr,expr-paren,expr-close',
+            // },
             {
                 s: [OP],
                 b: 1,
-                r: 'expr',
+                // r: 'expr',
+                r: 'paren',
                 c: (r) => {
                     const pdef = parenOTM[r.c0.tin];
                     return pdef.prefix;
@@ -133,10 +139,11 @@ let Expr = function expr(jsonic, options) {
         .rule('elem', (rs) => {
         rs
             .close([
+            // Close implicit list within parens.
             {
                 s: [CP],
                 b: 1,
-                g: 'expr,paren',
+                g: 'expr,paren,imp,list',
             },
         ]);
     });
@@ -144,10 +151,11 @@ let Expr = function expr(jsonic, options) {
         .rule('pair', (rs) => {
         rs
             .close([
+            // Close implicit map within parens.
             {
                 s: [CP],
                 b: 1,
-                g: 'expr,paren',
+                g: 'expr,paren,imp,map',
             },
         ]);
     });
@@ -239,20 +247,20 @@ let Expr = function expr(jsonic, options) {
                     return a;
                 }
             },
-            {
-                s: [OP],
-                p: 'expr',
-                n: {
-                    expr_bind: 0, expr_term: 0, // pd: 1,
-                },
-                g: 'expr,paren',
-                a: (r) => {
-                    const pdef = parenOTM[r.o0.tin];
-                    let pd = 'expr_paren_depth_' + pdef.name;
-                    r.use[pd] = r.n[pd] = 1;
-                    r.node = undefined;
-                },
-            },
+            // {
+            //   s: [OP],
+            //   p: 'expr',
+            //   n: {
+            //     expr_bind: 0, expr_term: 0,// pd: 1,
+            //   },
+            //   g: 'expr,paren',
+            //   a: (r: Rule) => {
+            //     const pdef = parenOTM[r.o0.tin]
+            //     let pd = 'expr_paren_depth_' + pdef.name
+            //     r.use[pd] = r.n[pd] = 1
+            //     r.node = undefined
+            //   },
+            // },
             { p: 'val', g: 'expr,val' },
         ])
             .bc(function bc(r) {
@@ -280,13 +288,134 @@ let Expr = function expr(jsonic, options) {
             {
                 s: [CP],
                 b: 1,
+            },
+            // {
+            //   s: [CP],
+            //   b: 1,
+            //   c: (r: Rule) => {
+            //     const pdef = parenCTM[r.c0.tin]
+            //     let pd = 'expr_paren_depth_' + pdef.name
+            //     // !!r.n.pd
+            //     return !!r.n[pd]
+            //   },
+            //   h: (r: Rule, _, a: any) => {
+            //     if (r.child.node?.terms$) {
+            //       r.node = r.child.node
+            //     }
+            //     else if (undefined === r.node) {
+            //       r.node = r.child.node
+            //     }
+            //     const pdef = parenCTM[r.c0.tin]
+            //     let pd = 'expr_paren_depth_' + pdef.name
+            //     if (r.use[pd] === r.n[pd]) {
+            //       const pdef = parenCTM[r.c0.tin]
+            //       a.b = 0
+            //       r.node = [pdef.osrc, r.node]
+            //       r.node.paren$ = true
+            //       if (r.prev.use.paren_prefix) {
+            //         r.node.prefix$ = true
+            //         r.node[2] = r.node[1]
+            //         r.node[1] = r.prev.node
+            //         r.prev.node = r.node
+            //       }
+            //     }
+            //     return a
+            //   },
+            //   g: 'expr,paren',
+            // },
+            // Implicit list indicated by comma.
+            {
+                s: [CA],
+                r: 'elem',
+                a: (rule, ctx) => {
+                    console.log('EXPR CA', rule.node, rule.child.node, rule.parent.node, rule.prev.node);
+                    console.log('EXPR CA RS', ctx.rs.map(r => r.name));
+                    let paren = null;
+                    for (let rI = ctx.rs.length - 1; -1 < rI; rI--) {
+                        if ('paren' === ctx.rs[rI].name) {
+                            paren = ctx.rs[rI];
+                            break;
+                        }
+                    }
+                    if (paren) {
+                        console.log('EXPR CA P', paren.child.node);
+                        if (null == paren.child.node) {
+                            paren.child.node = [rule.node];
+                        }
+                        else if (paren.child.node.terms$) {
+                            paren.child.node = [paren.child.node];
+                        }
+                        else {
+                            paren.child.node.push(rule.node);
+                        }
+                        rule.node = paren.child.node;
+                    }
+                    // rule.node = [rule.child.node]
+                    // rule.parent.node = rule.prev.node = rule.node = [rule.node]
+                    // rule.parent.prev.node = rule.node = [rule.node]
+                },
+                g: 'expr,list,val,imp,comma',
+            },
+            // // Implicit list indicated by space separated value.
+            // {
+            //   // c: { n: { il: 0, pk: 0 } },
+            //   // n: { il: 1 },
+            //   r: 'elem',
+            //   a: (rule: Rule) => {
+            //     // rule.node = [rule.child.node]
+            //     rule.prev.node = rule.node = [rule.node]
+            //   },
+            //   g: 'expr,list,val,imp,space',
+            // },
+            // // Implicit list at the top level. 
+            // {
+            //   s: [CA],
+            //   c: { d: 0 },
+            //   r: 'elem',
+            //   a: (rule: Rule) => rule.prev.node = rule.node = [rule.node],
+            //   g: 'expr,comma,top',
+            // },
+            // // Implicit list at the top level. 
+            // {
+            //   s: [VAL],
+            //   c: { d: 0 },
+            //   b: 1,
+            //   r: 'elem',
+            //   a: (rule: Rule) => rule.prev.node = rule.node = [rule.node],
+            //   g: 'expr,space,top',
+            // },
+            { g: 'expr,end' }
+        ]);
+    });
+    jsonic
+        .rule('paren', (rs) => {
+        rs
+            .open([
+            {
+                s: [OP],
+                // p: 'expr',
+                p: 'val',
+                n: {
+                    expr_bind: 0, expr_term: 0,
+                },
+                g: 'expr,paren',
+                a: (r) => {
+                    const pdef = parenOTM[r.o0.tin];
+                    let pd = 'expr_paren_depth_' + pdef.name;
+                    r.use[pd] = r.n[pd] = 1;
+                    r.node = undefined;
+                },
+            },
+        ])
+            .close([
+            {
+                s: [CP],
                 c: (r) => {
                     const pdef = parenCTM[r.c0.tin];
                     let pd = 'expr_paren_depth_' + pdef.name;
-                    // !!r.n.pd
                     return !!r.n[pd];
                 },
-                h: (r, _, a) => {
+                a: (r) => {
                     var _a;
                     if ((_a = r.child.node) === null || _a === void 0 ? void 0 : _a.terms$) {
                         r.node = r.child.node;
@@ -298,7 +427,6 @@ let Expr = function expr(jsonic, options) {
                     let pd = 'expr_paren_depth_' + pdef.name;
                     if (r.use[pd] === r.n[pd]) {
                         const pdef = parenCTM[r.c0.tin];
-                        a.b = 0;
                         r.node = [pdef.osrc, r.node];
                         r.node.paren$ = true;
                         if (r.prev.use.paren_prefix) {
@@ -308,46 +436,9 @@ let Expr = function expr(jsonic, options) {
                             r.prev.node = r.node;
                         }
                     }
-                    return a;
                 },
                 g: 'expr,paren',
             },
-            // Implicit list indicated by comma.
-            {
-                s: [CA],
-                c: { n: { il: 0, pk: 0 } }, n: { il: 1 },
-                r: 'elem',
-                a: (rule) => {
-                    rule.node = [rule.child.node];
-                },
-                g: 'expr,list,val,imp,comma',
-            },
-            // Implicit list indicated by space separated value.
-            {
-                c: { n: { il: 0, pk: 0 } }, n: { il: 1 },
-                r: 'elem',
-                a: (rule) => {
-                    rule.node = [rule.child.node];
-                },
-                g: 'expr,list,val,imp,space',
-            },
-            // Implicit list at the top level. 
-            {
-                s: [CA],
-                c: { d: 0 },
-                r: 'elem',
-                a: (rule) => rule.prev.node = rule.node = [rule.node],
-                g: 'expr,close,comma,top',
-            },
-            {
-                s: [VAL],
-                c: { d: 0 },
-                b: 1,
-                r: 'elem',
-                a: (rule) => rule.prev.node = rule.node = [rule.node],
-                g: 'expr,close,space,top',
-            },
-            { g: 'expr,expr-end' }
         ]);
     });
 };
