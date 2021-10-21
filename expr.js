@@ -67,12 +67,11 @@ let Expr = function expr(jsonic, options) {
             },
             {
                 s: [OP],
-                // TODO: move into paren?
-                n: {
-                // il: 0,
-                // im: 0,
-                // pk: 0
-                },
+                // n: {
+                //   // il: 0,
+                //   // im: 0,
+                //   // pk: 0
+                // },
                 b: 1,
                 //  p: 'expr',
                 p: 'paren',
@@ -143,17 +142,18 @@ let Expr = function expr(jsonic, options) {
     jsonic
         .rule('elem', (rs) => {
         rs
-            // .open({
-            //   s: [OP],
-            //   b: 1,
-            //   p: 'val',
-            // })
             .close([
             // Close implicit list within parens.
             {
                 s: [CP],
                 b: 1,
                 g: 'expr,paren,imp,list',
+            },
+            // Following elem is a paren expression.
+            {
+                s: [OP],
+                b: 1,
+                r: 'elem',
             },
         ]);
     });
