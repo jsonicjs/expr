@@ -5,6 +5,7 @@
 // https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
 
 
+// TODO: use op$=opdef (replaces terms$)
 // TODO: fix a(-b,c) - prefix unary should not apply to implicits
 // TODO: fix 1+2,3+4 - implicit should be [1+2, 3+4] not 1+[2,3+4]
 // TODO: fix top level: 1+2,3 === (1+2,3)
@@ -178,9 +179,9 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
                 1 === r.n.expr_prefix ||
                 opdef?.left > r.n.expr_bind
 
-              if (pass) {
-                r.n.expr_prefix = 0
-              }
+              // if (pass) {
+              //   r.n.expr_prefix = 0
+              // }
 
               r.n.expr_suffix = 1
 
@@ -295,6 +296,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
               const opsrc = opdef.src
               r.node = [opsrc]
               r.node.terms$ = 1
+              r.node.op$ = opdef
               r.n.expr_bind = opdef.right
             }
           },
@@ -309,7 +311,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             n: { il: 1, im: 1 },
 
 
-            h: (r: Rule, _, a: any) => {
+            h: (r: Rule, ctx: Context, a: any) => {
               r.n.expr_term++
 
               const expr_val = r.prev.use.expr_val
@@ -352,31 +354,53 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
                   // console.log('ROOT A', root.name, root.id, root.node, root.n)
 
-                  // TODO: make this more robust using node.op$ marker
-                  for (let pI = 0;
-                    pI < r.n.expr_term - 2 && root.node[0] !== opsrc;
+                  // // TODO: make this more robust using node.op$ marker
+                  // for (let pI = 0;
+                  //   pI < r.n.expr_term - 2 && root.node[0] !== opsrc;
 
-                    //    pI < (r.n.expr_term - 2) &&
-                    // root.node[0] !== opsrc &&
-                    // root.n.expr_root &&
-                    // 1 < root.n.expr_root;
+                  //   //    pI < (r.n.expr_term - 2) &&
+                  //   // root.node[0] !== opsrc &&
+                  //   // root.n.expr_root &&
+                  //   // 1 < root.n.expr_root;
 
-                    pI++) {
-                    root = root.parent
-                    // console.log('ROOT B', root.name, root.id, root.node, root.n)
+                  //   pI++) {
+                  //   root = root.parent
+                  //   // console.log('ROOT B', root.name, root.id, root.node, root.n)
 
-                    if ('expr' !== root.name) { //  && undefined !== root.parent.node) {
-                      root = root.parent
-                    }
+                  //   if ('expr' !== root.name) { //  && undefined !== root.parent.node) {
+                  //     root = root.parent
+                  //   }
 
-                    // console.log('ROOT C', root.name, root.node, root.n)
-                  }
-
-                  // if (undefined === root.node) {
-                  //   root = root.child
+                  //   // console.log('ROOT C', root.name, root.node, root.n)
                   // }
 
-                  // console.log('ROOT Z', root.name, root.id, root.node, root.n)
+                  // // if (undefined === root.node) {
+                  // //   root = root.child
+                  // // }
+
+                  // console.log('ROOT A', root.name, root.id, root.state, root.node, root.n)
+
+                  // TODO: use node.op$.name not node[0]
+                  for (let rI = ctx.rs.length - 1; -1 < rI; rI--) {
+                    let rn = ctx.rs[rI].name
+                    if ('expr' === rn) {
+                      let nn = ctx.rs[rI].node
+                      // console.log('ROOT B', rn, ctx.rs[rI].id, nn.op$?.right, opdef.right)
+
+                      if (ctx.rs[rI].node[0] === opsrc) {
+                        root = ctx.rs[rI]
+                        break
+                      }
+                      // else if (ctx.rs[rI].node?.op$.right >= opdef.right) {
+                      //   // root = ctx.rs[rI]
+                      // }
+                    }
+                    else if ('val' !== rn && 'paren' !== rn) {
+                      break
+                    }
+                  }
+
+                  // console.log('ROOT Z', root.name, root.id, root.state, root.node, root.n)
 
                   root.node[1] = [...root.node]
                   root.node[0] = opsrc
@@ -404,30 +428,9 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
                 r.node.terms$ = 2
               }
 
-              // No left value, so this is a prefix operator.
-              // Get the right value with a child node (p=val).
-              // else if (r.n.expr_prefix) {
-              //   // console.log('EXPR OPEN C')
-
-              //   r.node = [opsrc]
-              //   r.node.terms$ = 1
-              // }
-
-              // TODO: does this need to set up expression node?
-              // r.node = [opsrc, prev.node]
-              // else if (opdef.suffix) {
-              //   // console.log('EXPR OPEN D')
-              //   r.node.terms$ = 1
-              //   p = ''
-              // }
-
               // Pratt: track the right binding power to overcome with
               // following left binding power.
               r.n.expr_bind = right
-
-              // if (opdef.suffix) {
-              //   p = ''
-              // }
 
               // console.log('EXPR Z', r.node)
 
@@ -436,159 +439,88 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             }
           },
 
-          // {
-          //   // A infix or suffix expression, with the left value already parsed.
-          //   // NOTE: infix and suffix are handled together so that the Pratt
-          //   // precedence algorithm can be applied to both.
-          //   s: [SUFFIX],
-          //   g: 'expr',
+          {
+            // A infix or suffix expression, with the left value already parsed.
+            // NOTE: infix and suffix are handled together so that the Pratt
+            // precedence algorithm can be applied to both.
+            s: [SUFFIX],
+            c: (r: Rule) => r.prev.use.expr_val,
 
-          //   // No implicit lists or maps inside expressions.
-          //   n: { il: 1, im: 1 },
+            g: 'expr,suffix',
 
-          //   h: (r: Rule, _, a: any) => {
-          //     r.n.expr_term++
+            // No implicit lists or maps inside expressions.
+            n: { il: 1, im: 1 },
 
-          //     const expr_val = !!r.prev.use.expr_val
-          //     const prev = r.prev
-          //     const parent = r.parent
+            a: (r: Rule) => {
+              r.n.expr_term++
 
-          //     const tin = r.o0.tin
+              const prev = r.prev
+              const parent = r.parent
 
-          //     const opdef =
-          //       expr_val ? (infixTM[tin] || suffixTM[tin]) : prefixTM[tin]
-          //     if (!opdef) {
-          //       a.e = r.o0
-          //       return a
-          //     }
+              const tin = r.o0.tin
 
-          //     const opsrc = opdef.src
+              const opdef = suffixTM[tin]
 
-          //     const left = opdef.left
-          //     const right = opdef.right
+              const opsrc = opdef.src
 
-          //     let p: string | undefined = 'val'
+              const left = opdef.left
+              const right = opdef.right
 
-          //     // console.log('EXPR OPEN', opdef)
+              // console.log('EXPR SUFFIX OPEN', prev.node, parent.node)
 
-          //     if (parent.node?.terms$) {
-          //       if (r.n.expr_bind < left) {
-          //         // console.log('EXPR OPEN A1')
+              if (parent.node?.terms$) {
+                //if (prev.node?.terms$) {
+                if (r.n.expr_bind < left) {
+                  r.node = [opsrc, prev.node]
+                  // console.log('EXPR OPEN A1', r.n.expr_bind, left, r.node)
 
-          //         r.node = [opsrc]
+                  parent.node.push(r.node)
+                  // prev.node.push(r.node)
+                }
+                else {
+                  // console.log('EXPR SUFFIX A2')
 
-          //         if (expr_val) {
-          //           r.node.push(prev.node)
-          //         }
+                  // TODO: -1!? fails - use stack walk?
+                  let ancestor = prev
+                  do {
+                    // console.log('EXPR SUFFIX ANC', ancestor.node, r.n.expr_bind, ancestor.node?.op$.right)
+                    if (r.n.expr_bind <= prev.node?.op$.right) {
+                      break
+                    }
+                  } while (prev.prev.node?.terms$ && (ancestor = prev.prev))
 
-          //         parent.node.push(r.node)
-          //         r.node.terms$ = opdef.terms
-          //       }
-          //       else {
-          //         // console.log('EXPR OPEN A2', parent.node)
-          //         let infix = parent
+                  // console.log('EXPR SUFFIX ANC X', ancestor.node)
 
-          //         if (expr_val && infix.node.length - 1 < infix.node.terms$) {
-          //           infix.node.push(prev.node)
-          //         }
+                  ancestor.node[1] = [...ancestor.node]
+                  ancestor.node[0] = opsrc
+                  ancestor.node.length = 2
+                  r.node = ancestor.node
 
-          //         let root = infix
+                  // console.log('EXPR SUFFIX ANC Z', r.node)
+                }
+              }
+              else {
+                // console.log('EXPR SUFFIX B')
+                prev.node = [opsrc, prev.node]
+                r.node = prev.node
+              }
 
-          //         console.log('ROOT A', root.name, root.id, root.node, root.n)
+              let prevprev: Rule = prev
+              while ((prevprev = prevprev.prev) && prevprev.node?.terms$) {
+                prevprev.node = r.node
+              }
 
-          //         // TODO: make this more robust using node.op$ marker
-          //         for (let pI = 0;
-          //           pI < r.n.expr_term - 2 && root.node[0] !== opsrc;
+              // Pratt: track the right binding power to overcome with
+              // following left binding power.
+              r.n.expr_bind = right
 
-          //           //    pI < (r.n.expr_term - 2) &&
-          //           // root.node[0] !== opsrc &&
-          //           // root.n.expr_root &&
-          //           // 1 < root.n.expr_root;
+              // TODO: just op$
+              r.node.terms$ = opdef.terms
+              r.node.op$ = opdef
 
-          //           pI++) {
-          //           root = root.parent
-          //           console.log('ROOT B', root.name, root.id, root.node, root.n)
-
-          //           if ('expr' !== root.name) { //  && undefined !== root.parent.node) {
-          //             root = root.parent
-          //           }
-
-          //           console.log('ROOT C', root.name, root.node, root.n)
-          //         }
-
-          //         // if (undefined === root.node) {
-          //         //   root = root.child
-          //         // }
-
-          //         console.log('ROOT Z', root.name, root.id, root.node, root.n)
-
-          //         root.node[1] = [...root.node]
-          //         root.node[0] = opsrc
-
-          //         root.node.length = 2
-          //         root.node.terms$ = opdef.terms
-          //         r.node = root.node
-          //       }
-
-          //     }
-
-          //     // Left value was plain, so replace with an incomplete expression.
-          //     // Then get the right value with a child node (p=val).
-          //     else if (expr_val) {
-          //       // console.log('EXPR OPEN B', prev.node, prev.prev.node)
-
-          //       prev.node = [opsrc, prev.node]
-          //       r.node = prev.node
-
-          //       let prevprev: Rule = prev
-          //       while ((prevprev = prevprev.prev) && prevprev.node?.terms$) {
-          //         prevprev.node = r.node
-          //       }
-
-          //       // if (prev.prev?.node?.terms$) {
-          //       //   prev.prev.node = r.node
-          //       // }
-
-          //       if (opdef.suffix) {
-          //         r.node.terms$ = 1
-          //         // p = ''
-          //       }
-          //       else {
-          //         r.node.terms$ = 2
-          //       }
-          //     }
-
-          //     // No left value, so this is a prefix operator.
-          //     // Get the right value with a child node (p=val).
-          //     else if (r.n.expr_prefix) {
-          //       // console.log('EXPR OPEN C')
-
-          //       r.node = [opsrc]
-          //       r.node.terms$ = 1
-          //     }
-
-          //     // TODO: does this need to set up expression node?
-          //     // r.node = [opsrc, prev.node]
-          //     // else if (opdef.suffix) {
-          //     //   // console.log('EXPR OPEN D')
-          //     //   r.node.terms$ = 1
-          //     //   p = ''
-          //     // }
-
-          //     // Pratt: track the right binding power to overcome with
-          //     // following left binding power.
-          //     r.n.expr_bind = right
-
-          //     if (opdef.suffix) {
-          //       p = ''
-          //     }
-
-          //     // console.log('EXPR Z', r.node)
-
-          //     a.p = p
-          //     return a
-          //   }
-          // },
+              // console.log('EXPR SUFFIX Z', r.node)
+            }
+          },
 
 
           { p: 'val', g: 'expr,val' },
@@ -624,21 +556,39 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
           },
 
-          // {
-          //   s: [SUFFIX],
-          //   b: 1,
-          //   g: 'expr',
-          //   u: { expr_val: true },
-          //   h: (r: Rule, _, a: any) => {
-          //     // Proceed to next term, unless this is an incomplete
-          //     // prefix or suffix expression.
-          //     let pass = !r.n.expr_prefix && !r.n.expr_suffix
-          //     console.log('EXPR IFP', pass, r.n)
-          //     a.r = pass ? 'expr' : ''
-          //     return a
-          //   },
+          {
+            s: [SUFFIX],
+            b: 1,
+            g: 'expr,suffix',
+            u: { expr_val: true },
+            h: (r: Rule, ctx: Context, a: any) => {
+              // Proceed to next term, unless this is an incomplete
+              // prefix or suffix expression.
 
-          // },
+              const opdef = suffixTM[r.c0.tin]
+
+              let pass = true
+
+              let last: any = undefined
+
+              for (let i = ctx.rs.length - 1; -1 < i; i--) {
+                if ('expr' === ctx.rs[i].name) {
+                  last = ctx.rs[i]
+                  break
+                }
+              }
+
+              if (last && 'expr' === last.name &&
+                last.node?.op$.left > opdef.left) {
+                pass = false
+              }
+
+              // console.log('EXPR SUFFIX', pass, last?.node?.op$.left)
+              a.r = pass ? 'expr' : ''
+              return a
+            },
+
+          },
 
 
           {

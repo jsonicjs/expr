@@ -438,106 +438,139 @@ describe('expr', () => {
   })
 
 
-  // test('unary-suffix', () => {
-  //   const je = Jsonic.make().use(Expr, {
-  //     op: {
-  //       factorial: {
-  //         suffix: true, left: 15000, right: 15000, src: '!'
-  //       }
-  //     }
-  //   })
-  //   const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+  test('unary-suffix', () => {
+    const je = Jsonic.make().use(Expr, {
+      op: {
+        factorial: {
+          suffix: true, left: 15000, right: 15000, src: '!'
+        },
+        question: {
+          suffix: true, left: 13000, right: 13000, src: '?'
+        },
+      }
+    })
+    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
 
-  //   expect(j('1')).toEqual(1)
-  //   expect(j('z')).toEqual('z')
+    expect(j('1')).toEqual(1)
+    expect(j('z')).toEqual('z')
 
-  //   expect(j('1!')).toMatchObject(['!', 1])
-  //   expect(j('1 !')).toMatchObject(['!', 1])
+    expect(j('1!')).toMatchObject(['!', 1])
+    expect(j('1 !')).toMatchObject(['!', 1])
 
-  //   expect(j('z!')).toMatchObject(['!', 'z'])
-  //   expect(j('z !')).toMatchObject(['!', 'z'])
+    expect(j('1!!')).toMatchObject(['!', ['!', 1]])
+    expect(j('1!!!')).toMatchObject(['!', ['!', ['!', 1]]])
 
-  //   expect(j('1+2!')).toMatchObject(['+', 1, ['!', 2]])
-  //   expect(j('1!+2')).toMatchObject(['+', ['!', 1], 2])
-  //   expect(j('1!+2!')).toMatchObject(['+', ['!', 1], ['!', 2]])
-
-  //   expect(j('0+1+2!')).toMatchObject(['+', ['+', 0, 1], ['!', 2]])
-  //   expect(j('0+1!+2')).toMatchObject(['+', ['+', 0, ['!', 1]], 2])
-  //   expect(j('0+1!+2!')).toMatchObject(['+', ['+', 0, ['!', 1]], ['!', 2]])
-  //   expect(j('0!+1!+2!')).toMatchObject(['+', ['+', ['!', 0], ['!', 1]], ['!', 2]])
-  //   expect(j('0!+1!+2')).toMatchObject(['+', ['+', ['!', 0], ['!', 1]], 2])
-  //   expect(j('0!+1+2!')).toMatchObject(['+', ['+', ['!', 0], 1], ['!', 2]])
-  //   expect(j('0!+1+2')).toMatchObject(['+', ['+', ['!', 0], 1], 2])
+    expect(j('z!')).toMatchObject(['!', 'z'])
+    expect(j('z !')).toMatchObject(['!', 'z'])
 
 
-  //   expect(j('(1)')).toEqual(['(', 1])
-  //   expect(j('(z)')).toEqual(['(', 'z'])
+    expect(j('1?')).toMatchObject(['?', 1])
+    expect(j('1 ?')).toMatchObject(['?', 1])
 
-  //   expect(j('(1!)')).toMatchObject(['(', ['!', 1]])
-  //   expect(j('(1 !)')).toMatchObject(['(', ['!', 1]])
-
-  //   expect(j('(z!)')).toMatchObject(['(', ['!', 'z']])
-  //   expect(j('(z !)')).toMatchObject(['(', ['!', 'z']])
-
-  //   expect(j('(1+2!)')).toMatchObject(['(', ['+', 1, ['!', 2]]])
-  //   expect(j('(1!+2)')).toMatchObject(['(', ['+', ['!', 1], 2]])
-  //   expect(j('(1!+2!)')).toMatchObject(['(', ['+', ['!', 1], ['!', 2]]])
-
-  //   expect(j('(0+1+2!)')).toMatchObject(['(', ['+', ['+', 0, 1], ['!', 2]]])
-  //   expect(j('(0+1!+2)')).toMatchObject(['(', ['+', ['+', 0, ['!', 1]], 2]])
-  //   expect(j('(0+1!+2!)')).toMatchObject(['(', ['+', ['+', 0, ['!', 1]], ['!', 2]]])
-  //   expect(j('(0!+1!+2!)')).toMatchObject(['(', ['+', ['+', ['!', 0], ['!', 1]], ['!', 2]]])
-  //   expect(j('(0!+1!+2)')).toMatchObject(['(', ['+', ['+', ['!', 0], ['!', 1]], 2]])
-  //   expect(j('(0!+1+2!)')).toMatchObject(['(', ['+', ['+', ['!', 0], 1], ['!', 2]]])
-  //   expect(j('(0!+1+2)')).toMatchObject(['(', ['+', ['+', ['!', 0], 1], 2]])
-
-
-  //   expect(j('-1!')).toEqual(['-', ['!', 1]])
-  //   expect(j('--1!')).toEqual(['-', ['-', ['!', 1]]])
-
-  //   expect(j('-1!+2')).toEqual(['+', ['-', ['!', 1]], 2])
-  //   expect(j('--1!+2')).toEqual(['+', ['-', ['-', ['!', 1]]], 2])
+    expect(j('1??')).toMatchObject(['?', ['?', 1]])
+    expect(j('1???')).toMatchObject(['?', ['?', ['?', 1]]])
 
 
 
-  //   expect(j('1!,2!')).toMatchObject([['!', 1], ['!', 2]])
-  //   expect(j('1!,2!,3!')).toMatchObject([['!', 1], ['!', 2], ['!', 3]])
-  //   expect(j('1!,2!,3!,4!')).toMatchObject([['!', 1], ['!', 2], ['!', 3], ['!', 4]])
+    expect(j('1+2!')).toMatchObject(['+', 1, ['!', 2]])
+    expect(j('1!+2')).toMatchObject(['+', ['!', 1], 2])
+    expect(j('1!+2!')).toMatchObject(['+', ['!', 1], ['!', 2]])
 
-  //   expect(j('1! 2!')).toMatchObject([['!', 1], ['!', 2]])
-  //   expect(j('1! 2! 3!')).toMatchObject([['!', 1], ['!', 2], ['!', 3]])
-  //   expect(j('1! 2! 3! 4!')).toMatchObject([['!', 1], ['!', 2], ['!', 3], ['!', 4]])
-
-  //   expect(j('[1!,2!]')).toMatchObject([['!', 1], ['!', 2]])
-  //   expect(j('[1!,2!,3!]')).toMatchObject([['!', 1], ['!', 2], ['!', 3]])
-  //   expect(j('[1!,2!,3!,4!]')).toMatchObject([['!', 1], ['!', 2], ['!', 3], ['!', 4]])
-
-  //   expect(j('[1! 2!]')).toMatchObject([['!', 1], ['!', 2]])
-  //   expect(j('[1! 2! 3!]')).toMatchObject([['!', 1], ['!', 2], ['!', 3]])
-  //   expect(j('[1! 2! 3! 4!]')).toMatchObject([['!', 1], ['!', 2], ['!', 3], ['!', 4]])
+    expect(j('0+1+2!')).toMatchObject(['+', ['+', 0, 1], ['!', 2]])
+    expect(j('0+1!+2')).toMatchObject(['+', ['+', 0, ['!', 1]], 2])
+    expect(j('0+1!+2!')).toMatchObject(['+', ['+', 0, ['!', 1]], ['!', 2]])
+    expect(j('0!+1!+2!')).toMatchObject(['+', ['+', ['!', 0], ['!', 1]], ['!', 2]])
+    expect(j('0!+1!+2')).toMatchObject(['+', ['+', ['!', 0], ['!', 1]], 2])
+    expect(j('0!+1+2!')).toMatchObject(['+', ['+', ['!', 0], 1], ['!', 2]])
+    expect(j('0!+1+2')).toMatchObject(['+', ['+', ['!', 0], 1], 2])
 
 
-  //   expect(j('a:1!')).toMatchObject({ a: ['!', 1] })
-  //   expect(j('a:1!,b:2!')).toMatchObject({ a: ['!', 1], b: ['!', 2] })
-  //   expect(j('a:1!,b:2!,c:3!')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3] })
-  //   expect(j('a:1!,b:2!,c:3!,d:4!')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3], d: ['!', 4] })
+    expect(j('(1)')).toEqual(['(', 1])
+    expect(j('(z)')).toEqual(['(', 'z'])
 
-  //   expect(j('a:1! b:2!')).toMatchObject({ a: ['!', 1], b: ['!', 2] })
-  //   expect(j('a:1! b:2! c:3!')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3] })
-  //   expect(j('a:1! b:2! c:3!,d:4!')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3], d: ['!', 4] })
+    expect(j('(1!)')).toMatchObject(['(', ['!', 1]])
+    expect(j('(1 !)')).toMatchObject(['(', ['!', 1]])
 
-  //   expect(j('{a:1!}')).toMatchObject({ a: ['!', 1] })
-  //   expect(j('{a:1!,b:2!}')).toMatchObject({ a: ['!', 1], b: ['!', 2] })
-  //   expect(j('{a:1!,b:2!,c:3!}')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3] })
-  //   expect(j('{a:1!,b:2!,c:3!,d:4!}')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3], d: ['!', 4] })
+    expect(j('(z!)')).toMatchObject(['(', ['!', 'z']])
+    expect(j('(z !)')).toMatchObject(['(', ['!', 'z']])
 
-  //   expect(j('{a:1! b:2!}')).toMatchObject({ a: ['!', 1], b: ['!', 2] })
-  //   expect(j('{a:1! b:2! c:3!}')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3] })
-  //   expect(j('{a:1! b:2! c:3! d:4!}')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3], d: ['!', 4] })
+    expect(j('(1+2!)')).toMatchObject(['(', ['+', 1, ['!', 2]]])
+    expect(j('(1!+2)')).toMatchObject(['(', ['+', ['!', 1], 2]])
+    expect(j('(1!+2!)')).toMatchObject(['(', ['+', ['!', 1], ['!', 2]]])
+
+    expect(j('(0+1+2!)')).toMatchObject(['(', ['+', ['+', 0, 1], ['!', 2]]])
+    expect(j('(0+1!+2)')).toMatchObject(['(', ['+', ['+', 0, ['!', 1]], 2]])
+    expect(j('(0+1!+2!)')).toMatchObject(['(', ['+', ['+', 0, ['!', 1]], ['!', 2]]])
+    expect(j('(0!+1!+2!)')).toMatchObject(['(', ['+', ['+', ['!', 0], ['!', 1]], ['!', 2]]])
+    expect(j('(0!+1!+2)')).toMatchObject(['(', ['+', ['+', ['!', 0], ['!', 1]], 2]])
+    expect(j('(0!+1+2!)')).toMatchObject(['(', ['+', ['+', ['!', 0], 1], ['!', 2]]])
+    expect(j('(0!+1+2)')).toMatchObject(['(', ['+', ['+', ['!', 0], 1], 2]])
+
+
+    expect(j('-1!')).toEqual(['-', ['!', 1]])
+    expect(j('--1!')).toEqual(['-', ['-', ['!', 1]]])
+    expect(j('-1!!')).toEqual(['-', ['!', ['!', 1]]])
+    expect(j('--1!!')).toEqual(['-', ['-', ['!', ['!', 1]]]])
+
+    expect(j('-1!+2')).toEqual(['+', ['-', ['!', 1]], 2])
+    expect(j('--1!+2')).toEqual(['+', ['-', ['-', ['!', 1]]], 2])
+    expect(j('---1!+2')).toEqual(['+', ['-', ['-', ['-', ['!', 1]]]], 2])
+
+
+    expect(j('-1?')).toEqual(['?', ['-', 1]])
+    expect(j('--1?')).toEqual(['?', ['-', ['-', 1]]])
+    expect(j('-1??')).toEqual(['?', ['?', ['-', 1]]])
+    expect(j('--1??')).toEqual(['?', ['?', ['-', ['-', 1]]]])
+
+
+    expect(j('-1!?')).toEqual(['?', ['-', ['!', 1]]])
+    expect(j('-1!?!')).toEqual(['!', ['?', ['-', ['!', 1]]]])
+
+
+    expect(j('-1?+2')).toEqual(['+', ['?', ['-', 1]], 2])
+    expect(j('--1?+2')).toEqual(['+', ['?', ['-', ['-', 1]]], 2])
+    expect(j('-1??+2')).toEqual(['+', ['?', ['?', ['-', 1]]], 2])
+    expect(j('--1??+2')).toEqual(['+', ['?', ['?', ['-', ['-', 1]]]], 2])
+
+
+    expect(j('1!,2!')).toMatchObject([['!', 1], ['!', 2]])
+    expect(j('1!,2!,3!')).toMatchObject([['!', 1], ['!', 2], ['!', 3]])
+    expect(j('1!,2!,3!,4!')).toMatchObject([['!', 1], ['!', 2], ['!', 3], ['!', 4]])
+
+    expect(j('1! 2!')).toMatchObject([['!', 1], ['!', 2]])
+    expect(j('1! 2! 3!')).toMatchObject([['!', 1], ['!', 2], ['!', 3]])
+    expect(j('1! 2! 3! 4!')).toMatchObject([['!', 1], ['!', 2], ['!', 3], ['!', 4]])
+
+    expect(j('[1!,2!]')).toMatchObject([['!', 1], ['!', 2]])
+    expect(j('[1!,2!,3!]')).toMatchObject([['!', 1], ['!', 2], ['!', 3]])
+    expect(j('[1!,2!,3!,4!]')).toMatchObject([['!', 1], ['!', 2], ['!', 3], ['!', 4]])
+
+    expect(j('[1! 2!]')).toMatchObject([['!', 1], ['!', 2]])
+    expect(j('[1! 2! 3!]')).toMatchObject([['!', 1], ['!', 2], ['!', 3]])
+    expect(j('[1! 2! 3! 4!]')).toMatchObject([['!', 1], ['!', 2], ['!', 3], ['!', 4]])
+
+
+    expect(j('a:1!')).toMatchObject({ a: ['!', 1] })
+    expect(j('a:1!,b:2!')).toMatchObject({ a: ['!', 1], b: ['!', 2] })
+    expect(j('a:1!,b:2!,c:3!')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3] })
+    expect(j('a:1!,b:2!,c:3!,d:4!')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3], d: ['!', 4] })
+
+    expect(j('a:1! b:2!')).toMatchObject({ a: ['!', 1], b: ['!', 2] })
+    expect(j('a:1! b:2! c:3!')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3] })
+    expect(j('a:1! b:2! c:3!,d:4!')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3], d: ['!', 4] })
+
+    expect(j('{a:1!}')).toMatchObject({ a: ['!', 1] })
+    expect(j('{a:1!,b:2!}')).toMatchObject({ a: ['!', 1], b: ['!', 2] })
+    expect(j('{a:1!,b:2!,c:3!}')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3] })
+    expect(j('{a:1!,b:2!,c:3!,d:4!}')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3], d: ['!', 4] })
+
+    expect(j('{a:1! b:2!}')).toMatchObject({ a: ['!', 1], b: ['!', 2] })
+    expect(j('{a:1! b:2! c:3!}')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3] })
+    expect(j('{a:1! b:2! c:3! d:4!}')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3], d: ['!', 4] })
 
 
 
-  // })
+  })
 
 
   test('paren', () => {
