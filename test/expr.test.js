@@ -3,13 +3,104 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const jsonic_1 = require("jsonic");
 const expr_1 = require("../expr");
-const mj = (je) => (s, m) => JSON.parse(JSON.stringify(je(s, m)));
+const C = (x) => JSON.parse(JSON.stringify(x));
+const mj = (je) => (s, m) => C(je(s, m));
 const _mo_ = 'toMatchObject';
+function makeOp(opspec) {
+    const op = opspec;
+    return op;
+}
+function makeExpr(opspec, term0, term1) {
+    const op = makeOp(opspec);
+    const expr = [opspec.src];
+    expr.op$ = op;
+    if (term0) {
+        expr.push(term0);
+    }
+    if (term1) {
+        expr.push(term1);
+    }
+    return expr;
+}
 describe('expr', () => {
     test('happy', () => {
         const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
         expect(j('1+2')).toMatchObject(['+', 1, 2]);
         expect(j('-1+2')).toMatchObject(['+', ['-', 1], 2]);
+    });
+    test('term', () => {
+        let T = (expr, opdef) => C((0, expr_1.term)(expr, opdef));
+        let ME = makeExpr;
+        let MO = makeOp;
+        let INFIX = { terms: 2, infix: true, prefix: false, suffix: false };
+        let PREFIX = { terms: 1, infix: false, prefix: true, suffix: false };
+        let SUFFIX = { terms: 1, infix: false, prefix: false, suffix: true };
+        let PLUS_LA = MO({ src: '+', left: 140, right: 150, ...INFIX });
+        let PLUS_RA = MO({ src: '+', left: 150, right: 140, ...INFIX });
+        let MUL_LA = MO({ src: '*', left: 160, right: 170, ...INFIX });
+        let PIPE_LA = MO({ src: '|', left: 18000, right: 17000, ...INFIX });
+        let AT_P = MO({ src: '@', right: 1500, ...PREFIX });
+        let PER_P = MO({ src: '%', right: 1300, ...PREFIX });
+        let BANG_S = MO({ src: '!', left: 1600, ...SUFFIX });
+        let QUEST_S = MO({ src: '?', left: 1400, ...SUFFIX });
+        let E;
+        // 1+2+N => (1+2)+N
+        expect(T(E = ME(PLUS_LA, 1, 2), PLUS_LA))[_mo_](['+', ['+', 1, 2]]);
+        expect(C(E))[_mo_](['+', ['+', 1, 2]]);
+        // 1+2+N => 1+(2+N)
+        expect(T(E = ME(PLUS_RA, 1, 2), PLUS_RA))[_mo_](['+', 2]);
+        expect(C(E))[_mo_](['+', 1, ['+', 2]]);
+        // 1+2*N => 1+(2*N)
+        expect(T(E = ME(PLUS_LA, 1, 2), MUL_LA))[_mo_](['*', 2]);
+        expect(C(E))[_mo_](['+', 1, ['*', 2]]);
+        // 1*2+N => (1+2)+N
+        expect(T(E = ME(MUL_LA, 1, 2), PLUS_LA))[_mo_](['+', ['*', 1, 2]]);
+        expect(C(E))[_mo_](['+', ['*', 1, 2]]);
+        // @1+N => (@1)+N
+        expect(T(E = ME(AT_P, 1), PLUS_LA))[_mo_](['+', ['@', 1]]);
+        expect(C(E))[_mo_](['+', ['@', 1]]);
+        // 1!+N => (!1)+N
+        expect(T(E = ME(BANG_S, 1), PLUS_LA))[_mo_](['+', ['!', 1]]);
+        expect(C(E))[_mo_](['+', ['!', 1]]);
+        // @1|N => @(1|N)
+        expect(T(E = ME(AT_P, 1), PIPE_LA))[_mo_](['|', 1]);
+        expect(C(E))[_mo_](['@', ['|', 1]]);
+        // 1!|N => (!1)|N
+        expect(T(E = ME(BANG_S, 1), PIPE_LA))[_mo_](['|', ['!', 1]]);
+        expect(C(E))[_mo_](['|', ['!', 1]]);
+        // 1+@N => 1+(@N)
+        expect(T(E = ME(PLUS_LA, 1), AT_P))[_mo_](['@']);
+        expect(C(E))[_mo_](['+', 1, ['@']]);
+        // @@N => @(@N)
+        expect(T(E = ME(AT_P), AT_P))[_mo_](['@']);
+        expect(C(E))[_mo_](['@', ['@']]);
+        // %@N => %(@N)
+        expect(T(E = ME(PER_P), AT_P))[_mo_](['@']);
+        expect(C(E))[_mo_](['%', ['@']]);
+        // @%N => @(%N)
+        expect(T(E = ME(AT_P), PER_P))[_mo_](['%']);
+        expect(C(E))[_mo_](['@', ['%']]);
+        // 1+2! => 1+(2!)
+        expect(T(E = ME(PLUS_LA, 1, 2), BANG_S))[_mo_](['!', 2]);
+        expect(C(E))[_mo_](['+', 1, ['!', 2]]);
+        // 1|2! => (1|2)!
+        expect(T(E = ME(PIPE_LA, 1, 2), BANG_S))[_mo_](['!', ['|', 1, 2]]);
+        expect(C(E))[_mo_](['!', ['|', 1, 2]]);
+        // 1!! => !(!1)
+        expect(T(E = ME(BANG_S, 1), BANG_S))[_mo_](['!', ['!', 1]]);
+        expect(C(E))[_mo_](['!', ['!', 1]]);
+        // 1!? => ?(!1)
+        expect(T(E = ME(BANG_S, 1), QUEST_S))[_mo_](['?', ['!', 1]]);
+        expect(C(E))[_mo_](['?', ['!', 1]]);
+        // 1?! => !(?1)
+        expect(T(E = ME(QUEST_S, 1), BANG_S))[_mo_](['!', ['?', 1]]);
+        expect(C(E))[_mo_](['!', ['?', 1]]);
+        // @1! => @(1!)
+        expect(T(E = ME(AT_P, 1), BANG_S))[_mo_](['!', 1]);
+        expect(C(E))[_mo_](['@', ['!', 1]]);
+        // @1? => (@1)?
+        expect(T(E = ME(AT_P, 1), QUEST_S))[_mo_](['?', ['@', 1]]);
+        expect(C(E))[_mo_](['?', ['@', 1]]);
     });
     test('binary', () => {
         const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
@@ -339,6 +430,15 @@ describe('expr', () => {
         expect(j('1+2!')).toMatchObject(['+', 1, ['!', 2]]);
         expect(j('1!+2')).toMatchObject(['+', ['!', 1], 2]);
         expect(j('1!+2!')).toMatchObject(['+', ['!', 1], ['!', 2]]);
+        expect(j('1+2!!')).toMatchObject(['+', 1, ['!', ['!', 2]]]);
+        expect(j('1!!+2')).toMatchObject(['+', ['!', ['!', 1]], 2]);
+        expect(j('1!!+2!!')).toMatchObject(['+', ['!', ['!', 1]], ['!', ['!', 2]]]);
+        expect(j('1+2?')).toMatchObject(['+', 1, ['?', 2]]);
+        expect(j('1?+2')).toMatchObject(['+', ['?', 1], 2]);
+        expect(j('1?+2?')).toMatchObject(['+', ['?', 1], ['?', 2]]);
+        expect(j('1+2??')).toMatchObject(['+', 1, ['?', ['?', 2]]]);
+        expect(j('1??+2')).toMatchObject(['+', ['?', ['?', 1]], 2]);
+        expect(j('1??+2??')).toMatchObject(['+', ['?', ['?', 1]], ['?', ['?', 2]]]);
         expect(j('0+1+2!')).toMatchObject(['+', ['+', 0, 1], ['!', 2]]);
         expect(j('0+1!+2')).toMatchObject(['+', ['+', 0, ['!', 1]], 2]);
         expect(j('0+1!+2!')).toMatchObject(['+', ['+', 0, ['!', 1]], ['!', 2]]);

@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2021 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Expr = void 0;
+exports.term = exports.Expr = void 0;
 // This algorithm is based on Pratt parsing, and draws heavily from
 // the explanation written by Aleksey Kladov here:
 // https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
@@ -30,6 +30,7 @@ let Expr = function expr(jsonic, options) {
         }
     });
     let tokenize = jsonic.token.bind(jsonic);
+    // Build token maps (TM).
     const prefixTM = makeOpMap(tokenize, options.op || {}, 'prefix');
     const suffixTM = makeOpMap(tokenize, options.op || {}, 'suffix');
     const infixTM = makeOpMap(tokenize, options.op || {}, 'infix');
@@ -38,22 +39,26 @@ let Expr = function expr(jsonic, options) {
     const PREFIX = Object.values(prefixTM).map(opdef => opdef.tin);
     const INFIX = Object.values(infixTM).map(opdef => opdef.tin);
     const SUFFIX = Object.values(suffixTM).map(opdef => opdef.tin);
-    const INFIX_SUFFIX = [...new Set([
-            ...INFIX,
-            ...SUFFIX, // ...Object.values(suffixTM).map(opdef => opdef.tin),
-        ])];
+    const hasPrefix = true; // 0 < PREFIX.length
+    const hasInfix = true; // 0 < INFIX.length
+    const hasSuffix = true; // 0 < SUFFIX.length
     const OP = Object.values(parenOTM).map(pdef => pdef.otin);
     const CP = Object.values(parenCTM).map(pdef => pdef.ctin);
+    const hasOP = true; // 0 < OP.length
+    const hasCP = true; // 0 < CP.length
     const CA = jsonic.token.CA;
     const TX = jsonic.token.TX;
     const NR = jsonic.token.NR;
     const ST = jsonic.token.ST;
     const VL = jsonic.token.VL;
     const VAL = [TX, NR, ST, VL];
+    // An AltSpec === null is ignored.
+    // const NONE = (null as unknown as AltSpec)
     jsonic
         .rule('val', (rs) => {
         rs
             .open([
+            // !hasPrefix ? NONE : {
             {
                 // Prefix operators occur before a value.
                 s: [PREFIX],
@@ -68,6 +73,7 @@ let Expr = function expr(jsonic, options) {
                 },
                 g: 'expr,expr-op,expr-open',
             },
+            // !hasOP ? NONE : {
             {
                 s: [OP],
                 b: 1,
@@ -76,10 +82,13 @@ let Expr = function expr(jsonic, options) {
             },
         ])
             .close([
+            // !hasInfix ? NONE : {
             {
                 // Infix and suffix operators occur after a value.
                 s: [INFIX],
                 b: 1,
+                // QQQ
+                c: (r) => !r.n.expr_prefix,
                 h: (r, _, a) => {
                     let opdef = infixTM[r.c0.tin];
                     let pass = !r.n.expr_prefix ||
@@ -95,6 +104,7 @@ let Expr = function expr(jsonic, options) {
                 u: { expr_val: true },
                 g: 'expr,expr-infix',
             },
+            // !hasSuffix ? NONE : {
             {
                 // Infix and suffix operators occur after a value.
                 s: [SUFFIX],
@@ -115,10 +125,12 @@ let Expr = function expr(jsonic, options) {
                 u: { expr_val: true },
                 g: 'expr,expr-op,expr-open',
             },
+            // !hasCP ? NONE : {
             {
                 s: [CP],
                 b: 1,
             },
+            // !hasOP ? NONE : {
             {
                 s: [OP],
                 b: 1,
@@ -150,12 +162,14 @@ let Expr = function expr(jsonic, options) {
         rs
             .close([
             // Close implicit list within parens.
+            // !hasCP ? NONE : {
             {
                 s: [CP],
                 b: 1,
                 g: 'expr,paren,imp,list',
             },
             // Following elem is a paren expression.
+            // !hasOP ? NONE : {
             {
                 s: [OP],
                 b: 1,
@@ -168,6 +182,7 @@ let Expr = function expr(jsonic, options) {
         rs
             .close([
             // Close implicit map within parens.
+            // !hasCP ? NONE : {
             {
                 s: [CP],
                 b: 1,
@@ -181,11 +196,13 @@ let Expr = function expr(jsonic, options) {
             .bo((r) => {
             r.n.expr_bind = r.n.expr_bind || 0;
             r.n.expr_term = r.n.expr_term || 0;
-            if (r.n.expr_prefix) {
-                r.n.expr_prefix++;
-            }
+            // ###
+            // if (r.n.expr_prefix) {
+            //   r.n.expr_prefix++
+            // }
         })
             .open([
+            // !hasPrefix ? NONE : {
             {
                 s: [PREFIX],
                 c: (r) => !r.prev.use.expr_val,
@@ -202,6 +219,7 @@ let Expr = function expr(jsonic, options) {
                     r.n.expr_bind = opdef.right;
                 }
             },
+            // !hasInfix ? NONE : {
             {
                 s: [INFIX],
                 c: (r) => r.prev.use.expr_val,
@@ -237,45 +255,19 @@ let Expr = function expr(jsonic, options) {
                                 infix.node.push(prev.node);
                             }
                             let root = infix;
-                            // console.log('ROOT A', root.name, root.id, root.node, root.n)
-                            // // TODO: make this more robust using node.op$ marker
-                            // for (let pI = 0;
-                            //   pI < r.n.expr_term - 2 && root.node[0] !== opsrc;
-                            //   //    pI < (r.n.expr_term - 2) &&
-                            //   // root.node[0] !== opsrc &&
-                            //   // root.n.expr_root &&
-                            //   // 1 < root.n.expr_root;
-                            //   pI++) {
-                            //   root = root.parent
-                            //   // console.log('ROOT B', root.name, root.id, root.node, root.n)
-                            //   if ('expr' !== root.name) { //  && undefined !== root.parent.node) {
-                            //     root = root.parent
-                            //   }
-                            //   // console.log('ROOT C', root.name, root.node, root.n)
-                            // }
-                            // // if (undefined === root.node) {
-                            // //   root = root.child
-                            // // }
-                            // console.log('ROOT A', root.name, root.id, root.state, root.node, root.n)
                             // TODO: use node.op$.name not node[0]
                             for (let rI = ctx.rs.length - 1; -1 < rI; rI--) {
                                 let rn = ctx.rs[rI].name;
                                 if ('expr' === rn) {
-                                    let nn = ctx.rs[rI].node;
-                                    // console.log('ROOT B', rn, ctx.rs[rI].id, nn.op$?.right, opdef.right)
                                     if (ctx.rs[rI].node[0] === opsrc) {
                                         root = ctx.rs[rI];
                                         break;
                                     }
-                                    // else if (ctx.rs[rI].node?.op$.right >= opdef.right) {
-                                    //   // root = ctx.rs[rI]
-                                    // }
                                 }
                                 else if ('val' !== rn && 'paren' !== rn) {
                                     break;
                                 }
                             }
-                            // console.log('ROOT Z', root.name, root.id, root.state, root.node, root.n)
                             root.node[1] = [...root.node];
                             root.node[0] = opsrc;
                             root.node.length = 2;
@@ -286,7 +278,6 @@ let Expr = function expr(jsonic, options) {
                     // Left value was plain, so replace with an incomplete expression.
                     // Then get the right value with a child node (p=val).
                     else if (expr_val) {
-                        // console.log('EXPR OPEN B', prev.node, prev.prev.node)
                         prev.node = [opsrc, prev.node];
                         r.node = prev.node;
                         let prevprev = prev;
@@ -298,11 +289,11 @@ let Expr = function expr(jsonic, options) {
                     // Pratt: track the right binding power to overcome with
                     // following left binding power.
                     r.n.expr_bind = right;
-                    // console.log('EXPR Z', r.node)
                     a.p = p;
                     return a;
                 }
             },
+            // !hasSuffix ? NONE : {
             {
                 // A infix or suffix expression, with the left value already parsed.
                 // NOTE: infix and suffix are handled together so that the Pratt
@@ -313,7 +304,7 @@ let Expr = function expr(jsonic, options) {
                 // No implicit lists or maps inside expressions.
                 n: { il: 1, im: 1 },
                 a: (r) => {
-                    var _a, _b, _c, _d;
+                    var _a, _b, _c, _d, _e;
                     r.n.expr_term++;
                     const prev = r.prev;
                     const parent = r.parent;
@@ -332,16 +323,13 @@ let Expr = function expr(jsonic, options) {
                             // prev.node.push(r.node)
                         }
                         else {
-                            // console.log('EXPR SUFFIX A2')
-                            // TODO: -1!? fails - use stack walk?
                             let ancestor = prev;
                             do {
-                                // console.log('EXPR SUFFIX ANC', ancestor.node, r.n.expr_bind, ancestor.node?.op$.right)
-                                if (r.n.expr_bind <= ((_b = prev.node) === null || _b === void 0 ? void 0 : _b.op$.right)) {
+                                if (r.n.expr_bind <= ((_c = (_b = prev.node) === null || _b === void 0 ? void 0 : _b.op$) === null || _c === void 0 ? void 0 : _c.right)) {
                                     break;
                                 }
-                            } while (((_c = prev.prev.node) === null || _c === void 0 ? void 0 : _c.terms$) && (ancestor = prev.prev));
-                            // console.log('EXPR SUFFIX ANC X', ancestor.node)
+                            } while (((_d = prev.prev.node) === null || _d === void 0 ? void 0 : _d.terms$) && (ancestor = prev.prev));
+                            console.log('EXPR SUFFIX ANC X', ancestor.node);
                             ancestor.node[1] = [...ancestor.node];
                             ancestor.node[0] = opsrc;
                             ancestor.node.length = 2;
@@ -355,7 +343,7 @@ let Expr = function expr(jsonic, options) {
                         r.node = prev.node;
                     }
                     let prevprev = prev;
-                    while ((prevprev = prevprev.prev) && ((_d = prevprev.node) === null || _d === void 0 ? void 0 : _d.terms$)) {
+                    while ((prevprev = prevprev.prev) && ((_e = prevprev.node) === null || _e === void 0 ? void 0 : _e.terms$)) {
                         prevprev.node = r.node;
                     }
                     // Pratt: track the right binding power to overcome with
@@ -375,6 +363,14 @@ let Expr = function expr(jsonic, options) {
             if (((_a = r.node) === null || _a === void 0 ? void 0 : _a.length) - 1 < ((_b = r.node) === null || _b === void 0 ? void 0 : _b.terms$)) {
                 r.node.push(r.child.node);
             }
+            // if (r.n.expr_prefix) {
+            //   r.n.expr_prefix--
+            // }
+            // if (r.n.expr_suffix) {
+            //   r.n.expr_suffix--
+            // }
+        })
+            .ac((r) => {
             if (r.n.expr_prefix) {
                 r.n.expr_prefix--;
             }
@@ -383,20 +379,32 @@ let Expr = function expr(jsonic, options) {
             }
         })
             .close([
+            // !hasInfix ? NONE : {
             {
                 s: [INFIX],
+                // QQQ
+                c: (r) => {
+                    console.log('EXPR INFIX CLOSE', r.n);
+                    return !r.n.expr_prefix || 0 === r.n.expr_term;
+                },
                 b: 1,
                 g: 'expr,expr-infix',
                 u: { expr_val: true },
                 h: (r, _, a) => {
                     // Proceed to next term, unless this is an incomplete
                     // prefix or suffix expression.
-                    let pass = !r.n.expr_prefix && !r.n.expr_suffix;
+                    let pass = 
+                    // !r.n.expr_prefix &&
+                    !r.n.expr_suffix;
                     // console.log('EXPR IFP', pass, r.n)
+                    if (pass) {
+                        r.n.expr_prefix = 0;
+                    }
                     a.r = pass ? 'expr' : '';
                     return a;
                 },
             },
+            // !hasSuffix ? NONE : {
             {
                 s: [SUFFIX],
                 b: 1,
@@ -405,25 +413,31 @@ let Expr = function expr(jsonic, options) {
                 h: (r, ctx, a) => {
                     // Proceed to next term, unless this is an incomplete
                     // prefix or suffix expression.
-                    var _a;
+                    var _a, _b;
                     const opdef = suffixTM[r.c0.tin];
                     let pass = true;
-                    let last = undefined;
-                    for (let i = ctx.rs.length - 1; -1 < i; i--) {
-                        if ('expr' === ctx.rs[i].name) {
-                            last = ctx.rs[i];
-                            break;
-                        }
-                    }
-                    if (last && 'expr' === last.name &&
-                        ((_a = last.node) === null || _a === void 0 ? void 0 : _a.op$.left) > opdef.left) {
+                    // let last: any = undefined
+                    // for (let i = ctx.rs.length - 1; -1 < i; i--) {
+                    //   if ('expr' === ctx.rs[i].name) {
+                    //     last = ctx.rs[i]
+                    //     break
+                    //   }
+                    // }
+                    // if (last && 'expr' === last.name &&
+                    //   last.node?.op$.left > opdef.left) {
+                    //   pass = false
+                    // }
+                    if (((_b = (_a = r.node) === null || _a === void 0 ? void 0 : _a.op$) === null || _b === void 0 ? void 0 : _b.left) > opdef.left) {
                         pass = false;
                     }
-                    // console.log('EXPR SUFFIX', pass, last?.node?.op$.left)
+                    console.log('EXPR SUFFIX', pass, r.node.op$, 
+                    // last?.node?.op$,
+                    opdef);
                     a.r = pass ? 'expr' : '';
                     return a;
                 },
             },
+            // !hasCP ? NONE : {
             {
                 s: [CP],
                 b: 1,
@@ -520,6 +534,8 @@ let Expr = function expr(jsonic, options) {
             r.n.pk = 0;
         })
             .open([
+            // (!hasOP || !hasCP) ? NONE : {
+            // !hasOP ? NONE : {
             {
                 s: [OP, CP],
                 b: 1,
@@ -534,6 +550,7 @@ let Expr = function expr(jsonic, options) {
                     // r.node.paren$ = true
                 },
             },
+            // !hasOP ? NONE : {
             {
                 s: [OP],
                 // p: 'expr',
@@ -551,6 +568,7 @@ let Expr = function expr(jsonic, options) {
             },
         ])
             .close([
+            // !hasCP ? NONE : {
             {
                 s: [CP],
                 c: (r) => {
@@ -640,9 +658,9 @@ Expr.defaults = {
             prefix: true, left: 14000, right: 14000, src: '-'
         },
         // TODO: move to test
-        // factorial: {
-        //   suffix: true, left:15000, right:15000, src: '!'
-        // },
+        factorial: {
+            suffix: true, left: 15000, right: 15000, src: '!'
+        },
         // NOTE: right-associative as lbp > rbp
         // Example: 2**3**4 === 2**(3**4)
         exponentiation: {
@@ -688,4 +706,64 @@ Expr.defaults = {
         // quote: { osrc: '<<', csrc: '>>', prefix: {}, suffix: {} },
     }
 };
+const jj = (x) => JSON.parse(JSON.stringify(x));
+// Build next term using Pratt algorithm.
+// NOTE: preserves referential integrity of root expression.
+function term(expr, op) {
+    let out = expr;
+    let log = '';
+    if (op) {
+        log += 'O';
+        if (op.infix) {
+            log += 'I';
+            // op is lower
+            if (expr.op$.suffix || op.left <= expr.op$.right) {
+                log += 'L';
+                expr[1] = [...expr];
+                expr[1].op$ = expr.op$;
+                expr[0] = op.src;
+                expr.op$ = op;
+                expr.length = 2;
+            }
+            // op is higher
+            else {
+                log += 'R';
+                const end = expr.op$.terms;
+                expr[end] = [op.src, expr[end]];
+                expr[end].op$ = op;
+                out = expr[end];
+            }
+        }
+        else if (op.prefix) {
+            log += 'P';
+            // expr.op$ MUST be infix or prefix
+            const end = expr.op$.terms;
+            expr[end] = [op.src];
+            expr[end].op$ = op;
+            out = expr[end];
+        }
+        else if (op.suffix) {
+            log += 'S';
+            if (expr.op$.right <= op.left) {
+                const end = expr.op$.terms;
+                expr[end] = [op.src, expr[end]];
+                expr[end].op$ = op;
+                out = expr[end];
+            }
+            else {
+                expr[1] = [...expr];
+                expr[1].op$ = expr.op$;
+                expr[0] = op.src;
+                expr.op$ = op;
+                expr.length = 2;
+            }
+        }
+    }
+    else {
+        log += 'N';
+    }
+    console.log('OUT', log, '/', jj(out), '/', jj(expr));
+    return out;
+}
+exports.term = term;
 //# sourceMappingURL=expr.js.map
