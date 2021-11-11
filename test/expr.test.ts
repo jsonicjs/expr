@@ -1611,17 +1611,17 @@ describe('expr', () => {
   })
 
 
-  test('paren-prefix-basic', () => {
+  test('paren-preval-basic', () => {
     const je = Jsonic.make().use(Expr, {
       paren: {
         pure: {
-          prefix: true
+          preval: true
         }
       }
     })
     const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
 
-    // This has a paren prefix.
+    // This has a paren preval.
     expect(j('foo(1,a)')).toMatchObject(['(', 'foo', [1, 'a']])
     expect(j('foo (1,a)')).toMatchObject(['(', 'foo', [1, 'a']])
 
@@ -1630,11 +1630,11 @@ describe('expr', () => {
   })
 
 
-  test('paren-prefix-implicit', () => {
+  test('paren-preval-implicit', () => {
     const je = Jsonic.make().use(Expr, {
       paren: {
         pure: {
-          prefix: true
+          preval: true
         }
       }
     })

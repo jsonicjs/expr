@@ -1123,26 +1123,26 @@ describe('expr', () => {
         expect(j('1*(2+3)')).toMatchObject(['*', 1, ['(', ['+', 2, 3]]]);
         expect(j('1*<2+3>')).toMatchObject(['*', 1, ['<', ['+', 2, 3]]]);
     });
-    test('paren-prefix-basic', () => {
+    test('paren-preval-basic', () => {
         const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
             paren: {
                 pure: {
-                    prefix: true
+                    preval: true
                 }
             }
         });
         const j = (s, m) => JSON.parse(JSON.stringify(je(s, m)));
-        // This has a paren prefix.
+        // This has a paren preval.
         expect(j('foo(1,a)')).toMatchObject(['(', 'foo', [1, 'a']]);
         expect(j('foo (1,a)')).toMatchObject(['(', 'foo', [1, 'a']]);
         expect(j('foo(a:1,b:2)')).toMatchObject(['(', 'foo', { a: 1, b: 2 }]);
         expect(j('foo(a:b:1,c:2)')).toMatchObject(['(', 'foo', { a: { b: 1 }, c: 2 }]);
     });
-    test('paren-prefix-implicit', () => {
+    test('paren-preval-implicit', () => {
         const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
             paren: {
                 pure: {
-                    prefix: true
+                    preval: true
                 }
             }
         });

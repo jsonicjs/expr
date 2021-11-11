@@ -58,7 +58,7 @@ type OpDefMap = { [tin: number]: OpFullDef }
 type ParenDef = {
   osrc: string
   csrc: string
-  prefix?: boolean
+  preval?: boolean
 }
 
 type ParenFullDef = ParenDef & {
@@ -67,7 +67,7 @@ type ParenFullDef = ParenDef & {
   otin: number
   ctkn: string
   ctin: number
-  prefix: boolean
+  preval: boolean
 }
 
 
@@ -150,8 +150,9 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
     .rule('val', (rs: RuleSpec) => {
       rs
         .open([
+
+          // The prefix operator of the first term of an expression.
           hasPrefix ? {
-            // Prefix operators occur before a value.
             s: [PREFIX],
             b: 1,
             n: { expr_prefix: 1, expr_suffix: 0 },
@@ -159,6 +160,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             g: 'expr,expr-prefix',
           } : NONE,
 
+          // An opening parenthesis of an expression.
           hasParen ? {
             s: [OP],
             b: 1,
@@ -166,9 +168,11 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             g: 'expr,expr-paren',
           } : NONE,
         ])
+
         .close([
+
+          // The infix operator following the first term of an expression.
           hasInfix ? {
-            // Infix and suffix operators occur after a value.
             s: [INFIX],
             b: 1,
             n: { expr_prefix: 0, expr_suffix: 0 },
@@ -176,8 +180,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             g: 'expr,expr-infix',
           } : NONE,
 
+          // The suffix operator following the first term of an expression.
           hasSuffix ? {
-            // Infix and suffix operators occur after a value.
             s: [SUFFIX],
             b: 1,
             n: { expr_prefix: 0, expr_suffix: 1 },
@@ -185,24 +189,23 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             g: 'expr,expr-suffix',
           } : NONE,
 
+          // The closing parenthesis of an expression.
+          // TODO: use n.expr to validate actually in an expression?
           hasParen ? {
             s: [CP],
             b: 1,
             g: 'expr,expr-paren',
           } : NONE,
 
+          // The opening parenthesis of an expression with a prefix value.
           hasParen ? {
             s: [OP],
             b: 1,
             r: 'paren',
-            c: (r: Rule) => {
-              const pdef = parenOTM[r.c0.tin]
-              return pdef.prefix
-            },
-            u: { paren_prefix: true },
+            c: (r: Rule) => parenOTM[r.c0.tin].preval,
+            u: { paren_preval: true },
             g: 'expr,expr-paren,expr-paren-prefix',
           } : NONE,
-
         ])
     })
 
@@ -421,7 +424,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
                 }
                 r.node.paren$ = true
 
-                if (r.prev.use.paren_prefix) {
+                if (r.prev.use.paren_preval) {
                   r.node.prefix$ = true
                   r.node[2] = r.node[1]
                   r.node[1] = r.prev.node
@@ -539,7 +542,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   //             const pdef = parenOTM[r.c0.tin]
   //             return pdef.prefix
   //           },
-  //           u: { paren_prefix: true },
+  //           u: { paren_preval: true },
   //           g: 'expr,expr-paren,expr-open',
   //         },
 
@@ -1096,7 +1099,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   //               }
   //               r.node.paren$ = true
 
-  //               if (r.prev.use.paren_prefix) {
+  //               if (r.prev.use.paren_preval) {
   //                 r.node.prefix$ = true
   //                 r.node[2] = r.node[1]
   //                 r.node[1] = r.prev.node
@@ -1160,7 +1163,7 @@ function makeParenMap(
           otin,
           ctkn,
           ctin,
-          prefix: !!pdef.prefix
+          preval: !!pdef.preval
         }
         return a
       },
@@ -1237,7 +1240,7 @@ Expr.defaults = {
   paren: {
     pure: {
       osrc: '(', csrc: ')',
-      // prefix: {}
+      // preval: {}
     },
 
     // TODO: move to test

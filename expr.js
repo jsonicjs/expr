@@ -60,14 +60,15 @@ let Expr = function expr(jsonic, options) {
         .rule('val', (rs) => {
         rs
             .open([
+            // The prefix operator of the first term of an expression.
             hasPrefix ? {
-                // Prefix operators occur before a value.
                 s: [PREFIX],
                 b: 1,
                 n: { expr_prefix: 1, expr_suffix: 0 },
                 p: 'expr',
                 g: 'expr,expr-prefix',
             } : NONE,
+            // An opening parenthesis of an expression.
             hasParen ? {
                 s: [OP],
                 b: 1,
@@ -76,36 +77,36 @@ let Expr = function expr(jsonic, options) {
             } : NONE,
         ])
             .close([
+            // The infix operator following the first term of an expression.
             hasInfix ? {
-                // Infix and suffix operators occur after a value.
                 s: [INFIX],
                 b: 1,
                 n: { expr_prefix: 0, expr_suffix: 0 },
                 r: (r) => !r.n.expr ? 'expr' : '',
                 g: 'expr,expr-infix',
             } : NONE,
+            // The suffix operator following the first term of an expression.
             hasSuffix ? {
-                // Infix and suffix operators occur after a value.
                 s: [SUFFIX],
                 b: 1,
                 n: { expr_prefix: 0, expr_suffix: 1 },
                 r: (r) => !r.n.expr ? 'expr' : '',
                 g: 'expr,expr-suffix',
             } : NONE,
+            // The closing parenthesis of an expression.
+            // TODO: use n.expr to validate actually in an expression?
             hasParen ? {
                 s: [CP],
                 b: 1,
                 g: 'expr,expr-paren',
             } : NONE,
+            // The opening parenthesis of an expression with a prefix value.
             hasParen ? {
                 s: [OP],
                 b: 1,
                 r: 'paren',
-                c: (r) => {
-                    const pdef = parenOTM[r.c0.tin];
-                    return pdef.prefix;
-                },
-                u: { paren_prefix: true },
+                c: (r) => parenOTM[r.c0.tin].preval,
+                u: { paren_preval: true },
                 g: 'expr,expr-paren,expr-paren-prefix',
             } : NONE,
         ]);
@@ -304,7 +305,7 @@ let Expr = function expr(jsonic, options) {
                             r.node[1] = val;
                         }
                         r.node.paren$ = true;
-                        if (r.prev.use.paren_prefix) {
+                        if (r.prev.use.paren_preval) {
                             r.node.prefix$ = true;
                             r.node[2] = r.node[1];
                             r.node[1] = r.prev.node;
@@ -402,7 +403,7 @@ let Expr = function expr(jsonic, options) {
     //             const pdef = parenOTM[r.c0.tin]
     //             return pdef.prefix
     //           },
-    //           u: { paren_prefix: true },
+    //           u: { paren_preval: true },
     //           g: 'expr,expr-paren,expr-open',
     //         },
     //         {
@@ -853,7 +854,7 @@ let Expr = function expr(jsonic, options) {
     //                 r.node[1] = val
     //               }
     //               r.node.paren$ = true
-    //               if (r.prev.use.paren_prefix) {
+    //               if (r.prev.use.paren_preval) {
     //                 r.node.prefix$ = true
     //                 r.node[2] = r.node[1]
     //                 r.node[1] = r.prev.node
@@ -903,7 +904,7 @@ function makeParenMap(tokenize, paren) {
             otin,
             ctkn,
             ctin,
-            prefix: !!pdef.prefix
+            preval: !!pdef.preval
         };
         return a;
     }, {});
@@ -958,7 +959,7 @@ Expr.defaults = {
     paren: {
         pure: {
             osrc: '(', csrc: ')',
-            // prefix: {}
+            // preval: {}
         },
         // TODO: move to test
         // index: {
