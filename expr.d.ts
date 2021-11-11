@@ -1,13 +1,15 @@
 import { Plugin } from 'jsonic';
 declare type OpDef = {
-    left: number;
-    right: number;
+    left?: number;
+    right?: number;
     src: string;
     prefix?: boolean;
     suffix?: boolean;
     infix?: boolean;
 };
 declare type OpFullDef = OpDef & {
+    left: number;
+    right: number;
     terms: number;
     name: string;
     tkn: string;

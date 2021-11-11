@@ -36,6 +36,7 @@ let Expr = function expr(jsonic, options) {
     const infixTM = makeOpMap(tokenize, options.op || {}, 'infix');
     const parenOTM = makeParenMap(tokenize, options.paren || {});
     const parenCTM = omap(parenOTM, ([_, pdef]) => [undefined, undefined, pdef.ctin, pdef]);
+    console.log('prefixTM', prefixTM);
     const PREFIX = Object.values(prefixTM).map(opdef => opdef.tin);
     const INFIX = Object.values(infixTM).map(opdef => opdef.tin);
     const SUFFIX = Object.values(suffixTM).map(opdef => opdef.tin);
@@ -57,15 +58,21 @@ let Expr = function expr(jsonic, options) {
     jsonic
         .rule('val', (rs) => {
         rs
+            // .open([
+            //   hasPrefix ? {
+            //     // Prefix operators occur before a value.
+            //     s: [PREFIX],
+            //     b: 1,
+            //     p: 'expr',
+            //     g: 'expr,expr-prefix',
+            //   } : NONE,
+            // ])
             .close([
             hasInfix ? {
                 // Infix and suffix operators occur after a value.
                 s: [INFIX],
                 b: 1,
-                h: (r, ctx, a) => {
-                    a.r = !r.n.expr ? 'expr' : '';
-                    return a;
-                },
+                r: (r) => !r.n.expr ? 'expr' : '',
                 g: 'expr,expr-infix',
             } : NONE,
         ]);
@@ -675,8 +682,8 @@ function makeOpMap(tokenize, op, anyfix) {
         odm[tin] = {
             src: opdef.src,
             terms: 'infix' === anyfix ? 2 : 1,
-            left: opdef.left,
-            right: opdef.right,
+            left: opdef.left || 0,
+            right: opdef.right || 0,
             name: name + '-' + anyfix,
             infix: 'infix' === anyfix,
             prefix: 'prefix' === anyfix,
@@ -710,11 +717,14 @@ function makeParenMap(tokenize, paren) {
 Expr.defaults = {
     // TODO: this should not be a list, use a map for easier overrides
     op: {
-        positive: {
-            prefix: true, left: 14000, right: 14000, src: '+'
-        },
-        negative: {
-            prefix: true, left: 14000, right: 14000, src: '-'
+        // positive: {
+        //   prefix: true, left: 14000, right: 14000, src: '+'
+        // },
+        // negative: {
+        //   prefix: true, left: 14000, right: 14000, src: '-'
+        // },
+        atp: {
+            prefix: true, right: 15000, src: '@'
         },
         // NOTE: right-associative as lbp > rbp
         // Example: 2**3**4 === 2**(3**4)
