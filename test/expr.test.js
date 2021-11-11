@@ -649,7 +649,7 @@ describe('expr', () => {
         expect(j('(0!+1+2!)')).toMatchObject(['(', ['+', ['+', ['!', 0], 1], ['!', 2]]]);
         expect(j('(0!+1+2)')).toMatchObject(['(', ['+', ['+', ['!', 0], 1], 2]]);
     });
-    test('paren', () => {
+    test('paren-basic', () => {
         const je = jsonic_1.Jsonic.make().use(expr_1.Expr);
         const j = (s, m) => JSON.parse(JSON.stringify(je(s, m)));
         expect(j('()')).toMatchObject(['(']);
@@ -1123,7 +1123,7 @@ describe('expr', () => {
         expect(j('1*(2+3)')).toMatchObject(['*', 1, ['(', ['+', 2, 3]]]);
         expect(j('1*<2+3>')).toMatchObject(['*', 1, ['<', ['+', 2, 3]]]);
     });
-    test('paren-prefix', () => {
+    test('paren-prefix-basic', () => {
         const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
             paren: {
                 pure: {
@@ -1135,13 +1135,23 @@ describe('expr', () => {
         // This has a paren prefix.
         expect(j('foo(1,a)')).toMatchObject(['(', 'foo', [1, 'a']]);
         expect(j('foo (1,a)')).toMatchObject(['(', 'foo', [1, 'a']]);
+        expect(j('foo(a:1,b:2)')).toMatchObject(['(', 'foo', { a: 1, b: 2 }]);
+        expect(j('foo(a:b:1,c:2)')).toMatchObject(['(', 'foo', { a: { b: 1 }, c: 2 }]);
+    });
+    test('paren-prefix-implicit', () => {
+        const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+            paren: {
+                pure: {
+                    prefix: true
+                }
+            }
+        });
+        const j = (s, m) => JSON.parse(JSON.stringify(je(s, m)));
         // But this is an implicit list.
         expect(j('foo,(1,a)')).toMatchObject(['foo', ['(', [1, 'a']]]);
         expect(j('foo,(1+2,a)')).toMatchObject(['foo', ['(', [['+', 1, 2], 'a']]]);
         expect(j('foo,(1+2+3,a)'))
             .toMatchObject(['foo', ['(', [['+', ['+', 1, 2], 3], 'a']]]);
-        expect(j('foo(a:1,b:2)')).toMatchObject(['(', 'foo', { a: 1, b: 2 }]);
-        expect(j('foo(a:b:1,c:2)')).toMatchObject(['(', 'foo', { a: { b: 1 }, c: 2 }]);
     });
     test('add-infix', () => {
         const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {

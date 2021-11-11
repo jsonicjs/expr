@@ -911,7 +911,7 @@ describe('expr', () => {
 
 
 
-  test('paren', () => {
+  test('paren-basic', () => {
     const je = Jsonic.make().use(Expr)
     const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
 
@@ -1611,7 +1611,7 @@ describe('expr', () => {
   })
 
 
-  test('paren-prefix', () => {
+  test('paren-prefix-basic', () => {
     const je = Jsonic.make().use(Expr, {
       paren: {
         pure: {
@@ -1625,14 +1625,26 @@ describe('expr', () => {
     expect(j('foo(1,a)')).toMatchObject(['(', 'foo', [1, 'a']])
     expect(j('foo (1,a)')).toMatchObject(['(', 'foo', [1, 'a']])
 
+    expect(j('foo(a:1,b:2)')).toMatchObject(['(', 'foo', { a: 1, b: 2 }])
+    expect(j('foo(a:b:1,c:2)')).toMatchObject(['(', 'foo', { a: { b: 1 }, c: 2 }])
+  })
+
+
+  test('paren-prefix-implicit', () => {
+    const je = Jsonic.make().use(Expr, {
+      paren: {
+        pure: {
+          prefix: true
+        }
+      }
+    })
+    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+
     // But this is an implicit list.
     expect(j('foo,(1,a)')).toMatchObject(['foo', ['(', [1, 'a']]])
     expect(j('foo,(1+2,a)')).toMatchObject(['foo', ['(', [['+', 1, 2], 'a']]])
     expect(j('foo,(1+2+3,a)'))
       .toMatchObject(['foo', ['(', [['+', ['+', 1, 2], 3], 'a']]])
-
-    expect(j('foo(a:1,b:2)')).toMatchObject(['(', 'foo', { a: 1, b: 2 }])
-    expect(j('foo(a:b:1,c:2)')).toMatchObject(['(', 'foo', { a: { b: 1 }, c: 2 }])
   })
 
 

@@ -47,8 +47,7 @@ let Expr = function expr(jsonic, options) {
     const hasSuffix = 0 < SUFFIX.length;
     const OP = Object.values(parenOTM).map(pdef => pdef.otin);
     const CP = Object.values(parenCTM).map(pdef => pdef.ctin);
-    const hasOP = true; // 0 < OP.length
-    const hasCP = true; // 0 < CP.length
+    const hasParen = 0 < OP.length && 0 < CP.length;
     const CA = jsonic.token.CA;
     const TX = jsonic.token.TX;
     const NR = jsonic.token.NR;
@@ -69,6 +68,12 @@ let Expr = function expr(jsonic, options) {
                 p: 'expr',
                 g: 'expr,expr-prefix',
             } : NONE,
+            hasParen ? {
+                s: [OP],
+                b: 1,
+                p: 'paren',
+                g: 'expr,expr-paren',
+            } : NONE,
         ])
             .close([
             hasInfix ? {
@@ -86,6 +91,53 @@ let Expr = function expr(jsonic, options) {
                 n: { expr_prefix: 0, expr_suffix: 1 },
                 r: (r) => !r.n.expr ? 'expr' : '',
                 g: 'expr,expr-suffix',
+            } : NONE,
+            hasParen ? {
+                s: [CP],
+                b: 1,
+                g: 'expr,expr-paren',
+            } : NONE,
+            hasParen ? {
+                s: [OP],
+                b: 1,
+                r: 'paren',
+                c: (r) => {
+                    const pdef = parenOTM[r.c0.tin];
+                    return pdef.prefix;
+                },
+                u: { paren_prefix: true },
+                g: 'expr,expr-paren,expr-paren-prefix',
+            } : NONE,
+        ]);
+    });
+    jsonic
+        .rule('elem', (rs) => {
+        rs
+            .close([
+            // Close implicit list within parens.
+            hasParen ? {
+                s: [CP],
+                b: 1,
+                g: 'expr,expr-paren,imp,close,list',
+            } : NONE,
+            // Following elem is a paren expression.
+            hasParen ? {
+                s: [OP],
+                b: 1,
+                r: 'elem',
+                g: 'expr,expr-paren,imp,open,list',
+            } : NONE,
+        ]);
+    });
+    jsonic
+        .rule('pair', (rs) => {
+        rs
+            .close([
+            // Close implicit map within parens.
+            hasParen ? {
+                s: [CP],
+                b: 1,
+                g: 'expr,paren,imp,map',
             } : NONE,
         ]);
     });
@@ -148,7 +200,7 @@ let Expr = function expr(jsonic, options) {
                 a: (r) => {
                     var _a;
                     const prev = r.prev;
-                    const parent = r.parent;
+                    // const parent = r.parent
                     const op = suffixTM[r.o0.tin];
                     // console.log('SUFFIX OPEN', op, parent.node, prev.node)
                     if ((_a = prev.node) === null || _a === void 0 ? void 0 : _a.op$) {
@@ -186,9 +238,82 @@ let Expr = function expr(jsonic, options) {
                 r: 'expr',
                 g: 'expr,expr-suffix',
             } : NONE,
+            hasParen ? {
+                s: [CP],
+                b: 1,
+            } : NONE,
             {
                 g: 'expr,expr-close',
             }
+        ]);
+    });
+    jsonic
+        .rule('paren', (rs) => {
+        rs
+            .open([
+            hasParen ? {
+                s: [OP, CP],
+                b: 1,
+                g: 'expr,expr-paren,empty',
+                c: (r) => parenOTM[r.o0.tin].name === parenCTM[r.o1.tin].name,
+                a: (r) => {
+                    const pdef = parenOTM[r.o0.tin];
+                    let pd = 'expr_paren_depth_' + pdef.name;
+                    r.use[pd] = r.n[pd] = 1;
+                    r.node = undefined;
+                },
+            } : NONE,
+            hasParen ? {
+                s: [OP],
+                p: 'val',
+                n: {
+                    expr: 0, expr_prefix: 0, expr_suffix: 0,
+                },
+                g: 'expr,expr-paren,open',
+                a: (r) => {
+                    const pdef = parenOTM[r.o0.tin];
+                    let pd = 'expr_paren_depth_' + pdef.name;
+                    r.use[pd] = r.n[pd] = 1;
+                    r.node = undefined;
+                },
+            } : NONE,
+        ])
+            .close([
+            hasParen ? {
+                s: [CP],
+                c: (r) => {
+                    const pdef = parenCTM[r.c0.tin];
+                    let pd = 'expr_paren_depth_' + pdef.name;
+                    return !!r.n[pd];
+                },
+                a: (r) => {
+                    var _a;
+                    if ((_a = r.child.node) === null || _a === void 0 ? void 0 : _a.op$) {
+                        r.node = r.child.node;
+                    }
+                    else if (undefined === r.node) {
+                        r.node = r.child.node;
+                    }
+                    const pdef = parenCTM[r.c0.tin];
+                    let pd = 'expr_paren_depth_' + pdef.name;
+                    if (r.use[pd] === r.n[pd]) {
+                        const pdef = parenCTM[r.c0.tin];
+                        const val = r.node;
+                        r.node = [pdef.osrc];
+                        if (undefined !== val) {
+                            r.node[1] = val;
+                        }
+                        r.node.paren$ = true;
+                        if (r.prev.use.paren_prefix) {
+                            r.node.prefix$ = true;
+                            r.node[2] = r.node[1];
+                            r.node[1] = r.prev.node;
+                            r.prev.node = r.node;
+                        }
+                    }
+                },
+                g: 'expr,paren',
+            } : NONE,
         ]);
     });
     // jsonic
