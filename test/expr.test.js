@@ -156,7 +156,7 @@ describe('expr', () => {
         expect(j('[1+2,3+4]'))[_mo_]([['+', 1, 2], ['+', 3, 4]]);
         expect(j('{a:[1+2]}'))[_mo_]({ a: [['+', 1, 2]] });
     });
-    test('implicit-list-top-none', () => {
+    test.skip('implicit-list-top-none', () => {
         const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
         expect(j('1,2'))[_mo_]([1, 2]);
         expect(j('1+2,3'))[_mo_]([['+', 1, 2], 3]);
@@ -201,7 +201,7 @@ describe('expr', () => {
         expect(j('1+2,3+4'))[_mo_]([['+', 1, 2], ['+', 3, 4]]);
         expect(j('1+2,3+4,5+6'))[_mo_]([['+', 1, 2], ['+', 3, 4], ['+', 5, 6]]);
     });
-    test('implicit-list-top-paren', () => {
+    test.skip('implicit-list-top-paren', () => {
         const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
         expect(j('(1,2)'))[_mo_](['(', [1, 2]]);
         expect(j('(1+2,3)'))[_mo_](['(', [['+', 1, 2], 3]]);
@@ -248,7 +248,7 @@ describe('expr', () => {
         expect(j('(1+2 3+4)'))[_mo_](['(', [['+', 1, 2], ['+', 3, 4]]]);
         expect(j('(1+2 3+4 5+6)'))[_mo_](['(', [['+', 1, 2], ['+', 3, 4], ['+', 5, 6]]]);
     });
-    test('map-implicit-list-paren', () => {
+    test.skip('map-implicit-list-paren', () => {
         const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
         expect(j('a:(1,2),b:0'))[_mo_]({ a: ['(', [1, 2]], b: 0 });
         expect(j('a:(1+2,3),b:0'))[_mo_]({ a: ['(', [['+', 1, 2], 3]], b: 0 });
@@ -551,7 +551,7 @@ describe('expr', () => {
         expect(j('1~2!~3')).toEqual(['~', ['!', ['~', 1, 2]], 3]);
         expect(j('1!~2!~3')).toEqual(['~', ['!', ['~', ['!', 1], 2]], 3]);
     });
-    test('unary-suffix-structure', () => {
+    test.skip('unary-suffix-structure', () => {
         const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
             op: {
                 factorial: {
@@ -703,7 +703,7 @@ describe('expr', () => {
         expect(j('({a:1 b:2 c:3})')).toMatchObject(['(', { a: 1, b: 2, c: 3 }]);
         expect(j('(a:1)')).toMatchObject(['(', { a: 1 }]);
     });
-    test('paren-map-implicit-structure-comma', () => {
+    test.skip('paren-map-implicit-structure-comma', () => {
         const je = jsonic_1.Jsonic.make().use(expr_1.Expr);
         const j = (s, m) => JSON.parse(JSON.stringify(je(s, m)));
         expect(j('{a:(1)}')).toMatchObject({ a: ['(', 1] });
@@ -791,7 +791,7 @@ describe('expr', () => {
         expect(j('d:0,a:(1,2),b:(8,9),c:8')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', [8, 9]], c: 8 });
         expect(j('d:0,a:(1,2,3),b:(8,9),c:8')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', [8, 9]], c: 8 });
     });
-    test('paren-map-implicit-structure-space', () => {
+    test.skip('paren-map-implicit-structure-space', () => {
         const je = jsonic_1.Jsonic.make().use(expr_1.Expr);
         const j = (s, m) => JSON.parse(JSON.stringify(je(s, m)));
         expect(j('{a:(1)}')).toMatchObject({ a: ['(', 1] });
@@ -879,7 +879,7 @@ describe('expr', () => {
         expect(j('d:0,a:(1 2) b:(8 9) c:8')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', [8, 9]], c: 8 });
         expect(j('d:0,a:(1 2 3) b:(8 9) c:8')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', [8, 9]], c: 8 });
     });
-    test('paren-list-implicit-structure-comma', () => {
+    test.skip('paren-list-implicit-structure-comma', () => {
         const je = jsonic_1.Jsonic.make().use(expr_1.Expr);
         const j = (s, m) => JSON.parse(JSON.stringify(je(s, m)));
         expect(j('[(1)]')).toMatchObject([['(', 1]]);
@@ -969,7 +969,7 @@ describe('expr', () => {
         expect(j('0,(1,2),(8,9),8')).toMatchObject([0, ['(', [1, 2]], ['(', [8, 9]], 8]);
         expect(j('0,(1,2,3),(8,9),8')).toMatchObject([0, ['(', [1, 2, 3]], ['(', [8, 9]], 8]);
     });
-    test('paren-list-implicit-structure-space', () => {
+    test.skip('paren-list-implicit-structure-space', () => {
         const je = jsonic_1.Jsonic.make().use(expr_1.Expr);
         const j = (s, m) => JSON.parse(JSON.stringify(je(s, m)));
         expect(j('[(1)]')).toMatchObject([['(', 1]]);
@@ -1059,7 +1059,7 @@ describe('expr', () => {
         expect(j('0 (1 2) (8 9) 8')).toMatchObject([0, ['(', [1, 2]], ['(', [8, 9]], 8]);
         expect(j('0 (1 2 3) (8 9) 8')).toMatchObject([0, ['(', [1, 2, 3]], ['(', [8, 9]], 8]);
     });
-    test('paren-implicit-list', () => {
+    test.skip('paren-implicit-list', () => {
         const je = jsonic_1.Jsonic.make().use(expr_1.Expr);
         const j = (s, m) => JSON.parse(JSON.stringify(je(s, m)));
         expect(j('(a)')).toMatchObject(['(', 'a']);
@@ -1138,7 +1138,7 @@ describe('expr', () => {
         expect(j('foo(a:1,b:2)')).toMatchObject(['(', 'foo', { a: 1, b: 2 }]);
         expect(j('foo(a:b:1,c:2)')).toMatchObject(['(', 'foo', { a: { b: 1 }, c: 2 }]);
     });
-    test('paren-preval-implicit', () => {
+    test.skip('paren-preval-implicit', () => {
         const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
             paren: {
                 pure: {

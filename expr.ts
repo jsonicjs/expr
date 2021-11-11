@@ -197,7 +197,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             g: 'expr,expr-paren',
           } : NONE,
 
-          // The opening parenthesis of an expression with a prefix value.
+          // The opening parenthesis of an expression with a preceding value.
+          // foo(1) => preval='foo', expr=['(',1]
           hasParen ? {
             s: [OP],
             b: 1,
@@ -212,7 +213,6 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   jsonic
     .rule('elem', (rs: RuleSpec) => {
       rs
-
         .close([
 
           // Close implicit list within parens.
@@ -260,15 +260,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
               const parent = r.parent
               const op = prefixTM[r.o0.tin]
 
-              // console.log('EXPR PREFIX P OP', parent.node?.op$)
-              if (parent.node?.op$) {
-                r.node = term(parent.node, op)
-              }
-              else {
-                parent.node = [op.src]
-                parent.node.op$ = op
-                r.node = parent.node
-              }
+              r.node = parent.node?.op$ ? term(parent.node, op) : prior(r, parent, op)
             }
           } : NONE,
 
@@ -281,24 +273,20 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
               const parent = r.parent
               const op = infixTM[r.o0.tin]
 
-              // console.log('INFIX OPEN PARENT', parent.node, prev.node)
-
+              // Second and further operators.
               if (parent.node?.op$) {
                 r.node = term(parent.node, op)
               }
 
+              // First term was unary expression.
               else if (prev.node?.op$) {
                 r.node = term(prev.node, op)
                 r.parent = prev
               }
 
-              // Left value was plain, so replace with an incomplete expression.
-              // Then get the right value with a child node (p=val).
+              // First term was plain value.
               else {
-                prev.node = [op.src, prev.node]
-                prev.node.op$ = op
-                r.node = prev.node
-                r.parent = prev
+                r.node = prior(r, prev, op)
               }
             },
             g: 'expr,expr-infix',
@@ -312,19 +300,21 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
               // const parent = r.parent
               const op = suffixTM[r.o0.tin]
 
+              r.node = prev.node?.op$ ? term(prev.node, op) : prior(r, prev, op)
               // console.log('SUFFIX OPEN', op, parent.node, prev.node)
 
-              if (prev.node?.op$) {
-                // console.log('SUFFIX OPEN PREV')
-                r.node = term(prev.node, op)
-              }
+              // if (prev.node?.op$) {
+              //   // console.log('SUFFIX OPEN PREV')
+              //   r.node = term(prev.node, op)
+              // }
 
-              else {
-                prev.node = [op.src, prev.node]
-                prev.node.op$ = op
-                r.node = prev.node
-                r.parent = prev
-              }
+              // else {
+              //   // prev.node = [op.src, prev.node]
+              //   // prev.node.op$ = op
+              //   // r.node = prev.node
+              //   r.node = prior(r, prev, op)
+              //   // r.parent = prev
+              // }
             },
             g: 'expr,expr-suffix',
           } : NONE,
@@ -356,6 +346,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             b: 1,
           } : NONE,
 
+          // Expression ends with non-expression token.
           {
             g: 'expr,expr-close',
           }
@@ -414,6 +405,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
               const pdef = parenCTM[r.c0.tin]
               let pd = 'expr_paren_depth_' + pdef.name
 
+              // Construct completed paren expression.
               if (r.use[pd] === r.n[pd]) {
                 const pdef = parenCTM[r.c0.tin]
 
@@ -422,7 +414,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
                 if (undefined !== val) {
                   r.node[1] = val
                 }
-                r.node.paren$ = true
+                // r.node.paren$ = true
+                r.node.paren$ = pdef
 
                 if (r.prev.use.paren_preval) {
                   r.node.prefix$ = true
@@ -432,7 +425,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
                 }
               }
             },
-            g: 'expr,paren',
+            g: 'expr,expr-paren,close',
           } : NONE,
         ])
     })
@@ -1112,6 +1105,24 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   //       ])
   //   })
 
+}
+
+
+// Convert prior (parent or previous) rule node into an expression.
+function prior(rule: Rule, prior: Rule, op: OpFullDef) {
+  if (op.prefix) {
+    prior.node = [op.src]
+  }
+  else {
+    prior.node = [op.src, prior.node]
+  }
+
+  prior.node.op$ = op
+
+  // Ensure first term val rule contains final expression.
+  rule.parent = prior
+
+  return prior.node
 }
 
 

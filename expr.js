@@ -100,7 +100,8 @@ let Expr = function expr(jsonic, options) {
                 b: 1,
                 g: 'expr,expr-paren',
             } : NONE,
-            // The opening parenthesis of an expression with a prefix value.
+            // The opening parenthesis of an expression with a preceding value.
+            // foo(1) => preval='foo', expr=['(',1]
             hasParen ? {
                 s: [OP],
                 b: 1,
@@ -156,15 +157,7 @@ let Expr = function expr(jsonic, options) {
                     var _a;
                     const parent = r.parent;
                     const op = prefixTM[r.o0.tin];
-                    // console.log('EXPR PREFIX P OP', parent.node?.op$)
-                    if ((_a = parent.node) === null || _a === void 0 ? void 0 : _a.op$) {
-                        r.node = term(parent.node, op);
-                    }
-                    else {
-                        parent.node = [op.src];
-                        parent.node.op$ = op;
-                        r.node = parent.node;
-                    }
+                    r.node = ((_a = parent.node) === null || _a === void 0 ? void 0 : _a.op$) ? term(parent.node, op) : prior(r, parent, op);
                 }
             } : NONE,
             hasInfix ? {
@@ -176,21 +169,18 @@ let Expr = function expr(jsonic, options) {
                     const prev = r.prev;
                     const parent = r.parent;
                     const op = infixTM[r.o0.tin];
-                    // console.log('INFIX OPEN PARENT', parent.node, prev.node)
+                    // Second and further operators.
                     if ((_a = parent.node) === null || _a === void 0 ? void 0 : _a.op$) {
                         r.node = term(parent.node, op);
                     }
+                    // First term was unary expression.
                     else if ((_b = prev.node) === null || _b === void 0 ? void 0 : _b.op$) {
                         r.node = term(prev.node, op);
                         r.parent = prev;
                     }
-                    // Left value was plain, so replace with an incomplete expression.
-                    // Then get the right value with a child node (p=val).
+                    // First term was plain value.
                     else {
-                        prev.node = [op.src, prev.node];
-                        prev.node.op$ = op;
-                        r.node = prev.node;
-                        r.parent = prev;
+                        r.node = prior(r, prev, op);
                     }
                 },
                 g: 'expr,expr-infix',
@@ -203,17 +193,19 @@ let Expr = function expr(jsonic, options) {
                     const prev = r.prev;
                     // const parent = r.parent
                     const op = suffixTM[r.o0.tin];
+                    r.node = ((_a = prev.node) === null || _a === void 0 ? void 0 : _a.op$) ? term(prev.node, op) : prior(r, prev, op);
                     // console.log('SUFFIX OPEN', op, parent.node, prev.node)
-                    if ((_a = prev.node) === null || _a === void 0 ? void 0 : _a.op$) {
-                        // console.log('SUFFIX OPEN PREV')
-                        r.node = term(prev.node, op);
-                    }
-                    else {
-                        prev.node = [op.src, prev.node];
-                        prev.node.op$ = op;
-                        r.node = prev.node;
-                        r.parent = prev;
-                    }
+                    // if (prev.node?.op$) {
+                    //   // console.log('SUFFIX OPEN PREV')
+                    //   r.node = term(prev.node, op)
+                    // }
+                    // else {
+                    //   // prev.node = [op.src, prev.node]
+                    //   // prev.node.op$ = op
+                    //   // r.node = prev.node
+                    //   r.node = prior(r, prev, op)
+                    //   // r.parent = prev
+                    // }
                 },
                 g: 'expr,expr-suffix',
             } : NONE,
@@ -243,6 +235,7 @@ let Expr = function expr(jsonic, options) {
                 s: [CP],
                 b: 1,
             } : NONE,
+            // Expression ends with non-expression token.
             {
                 g: 'expr,expr-close',
             }
@@ -297,6 +290,7 @@ let Expr = function expr(jsonic, options) {
                     }
                     const pdef = parenCTM[r.c0.tin];
                     let pd = 'expr_paren_depth_' + pdef.name;
+                    // Construct completed paren expression.
                     if (r.use[pd] === r.n[pd]) {
                         const pdef = parenCTM[r.c0.tin];
                         const val = r.node;
@@ -304,7 +298,8 @@ let Expr = function expr(jsonic, options) {
                         if (undefined !== val) {
                             r.node[1] = val;
                         }
-                        r.node.paren$ = true;
+                        // r.node.paren$ = true
+                        r.node.paren$ = pdef;
                         if (r.prev.use.paren_preval) {
                             r.node.prefix$ = true;
                             r.node[2] = r.node[1];
@@ -313,7 +308,7 @@ let Expr = function expr(jsonic, options) {
                         }
                     }
                 },
-                g: 'expr,paren',
+                g: 'expr,expr-paren,close',
             } : NONE,
         ]);
     });
@@ -868,6 +863,19 @@ let Expr = function expr(jsonic, options) {
     //   })
 };
 exports.Expr = Expr;
+// Convert prior (parent or previous) rule node into an expression.
+function prior(rule, prior, op) {
+    if (op.prefix) {
+        prior.node = [op.src];
+    }
+    else {
+        prior.node = [op.src, prior.node];
+    }
+    prior.node.op$ = op;
+    // Ensure first term val rule contains final expression.
+    rule.parent = prior;
+    return prior.node;
+}
 function makeOpMap(tokenize, op, anyfix) {
     return Object.entries(op)
         .filter(([_, opdef]) => opdef[anyfix])
