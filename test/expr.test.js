@@ -335,7 +335,7 @@ describe('expr', () => {
         expect(j('{a:(1+2 3+4)}'))[_mo_]({ a: ['(', [['+', 1, 2], ['+', 3, 4]]] });
         expect(j('{a:(1+2 3+4 5+6)}'))[_mo_]({ a: ['(', [['+', 1, 2], ['+', 3, 4], ['+', 5, 6]]] });
     });
-    test('unary-prefix', () => {
+    test('unary-prefix-basic', () => {
         const je = jsonic_1.Jsonic.make().use(expr_1.Expr);
         const j = (s, m) => JSON.parse(JSON.stringify(je(s, m)));
         expect(j('1')).toEqual(1);
@@ -416,6 +416,50 @@ describe('expr', () => {
         expect(j('1+-2+-3')).toMatchObject(['+', ['+', 1, ['-', 2]], ['-', 3]]);
         expect(j('1+2+-3')).toMatchObject(['+', ['+', 1, 2], ['-', 3]]);
     });
+    test('unary-prefix-edge', () => {
+        const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+            op: {
+                at: {
+                    prefix: true, right: 15000, src: '@'
+                },
+                tight: {
+                    infix: true, left: 120000, right: 130000, src: '~'
+                },
+            }
+        });
+        const j = (s, m) => JSON.parse(JSON.stringify(je(s, m)));
+        expect(j('@1')).toEqual(['@', 1]);
+        expect(j('@@1')).toEqual(['@', ['@', 1]]);
+        expect(j('@@@1')).toEqual(['@', ['@', ['@', 1]]]);
+        // Precedence does not matter within prefix sequences.
+        expect(j('-@1')).toEqual(['-', ['@', 1]]);
+        expect(j('@-1')).toEqual(['@', ['-', 1]]);
+        expect(j('--@1')).toEqual(['-', ['-', ['@', 1]]]);
+        expect(j('@--1')).toEqual(['@', ['-', ['-', 1]]]);
+        expect(j('@@-1')).toEqual(['@', ['@', ['-', 1]]]);
+        expect(j('-@@1')).toEqual(['-', ['@', ['@', 1]]]);
+        expect(j('-@-1')).toEqual(['-', ['@', ['-', 1]]]);
+        expect(j('@-@1')).toEqual(['@', ['-', ['@', 1]]]);
+        expect(j('@1+2')).toEqual(['+', ['@', 1], 2]);
+        expect(j('1+@2')).toEqual(['+', 1, ['@', 2]]);
+        expect(j('@1+@2')).toEqual(['+', ['@', 1], ['@', 2]]);
+        expect(j('@1+2+3')).toEqual(['+', ['+', ['@', 1], 2], 3]);
+        expect(j('1+@2+3')).toEqual(['+', ['+', 1, ['@', 2]], 3]);
+        expect(j('@1+@2+3')).toEqual(['+', ['+', ['@', 1], ['@', 2]], 3]);
+        expect(j('@1+2+@3')).toEqual(['+', ['+', ['@', 1], 2], ['@', 3]]);
+        expect(j('1+@2+@3')).toEqual(['+', ['+', 1, ['@', 2]], ['@', 3]]);
+        expect(j('@1+@2+@3')).toEqual(['+', ['+', ['@', 1], ['@', 2]], ['@', 3]]);
+        // Tighter!
+        expect(j('@1~2')).toEqual(['@', ['~', 1, 2]]);
+        expect(j('1~@2')).toEqual(['~', 1, ['@', 2]]);
+        expect(j('@1~@2')).toEqual(['@', ['~', 1, ['@', 2]]]);
+        expect(j('@1~2+3')).toEqual(['+', ['@', ['~', 1, 2]], 3]);
+        expect(j('1~@2+3')).toEqual(['+', ['~', 1, ['@', 2]], 3]);
+        expect(j('@1~@2+3')).toEqual(['+', ['@', ['~', 1, ['@', 2]]], 3]);
+        expect(j('@1~2~3')).toEqual(['@', ['~', ['~', 1, 2], 3]]);
+        expect(j('1~@2~3')).toEqual(['~', ['~', 1, ['@', 2]], 3]);
+        expect(j('@1~@2~3')).toEqual(['@', ['~', ['~', 1, ['@', 2]], 3]]);
+    });
     test('unary-suffix-basic', () => {
         const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
             op: {
@@ -459,6 +503,53 @@ describe('expr', () => {
         expect(j('0!+1!+2')).toMatchObject(['+', ['+', ['!', 0], ['!', 1]], 2]);
         expect(j('0!+1+2!')).toMatchObject(['+', ['+', ['!', 0], 1], ['!', 2]]);
         expect(j('0!+1+2')).toMatchObject(['+', ['+', ['!', 0], 1], 2]);
+    });
+    test('unary-suffix-edge', () => {
+        const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+            op: {
+                factorial: {
+                    suffix: true, left: 15000, src: '!'
+                },
+                question: {
+                    suffix: true, left: 13000, src: '?'
+                },
+                tight: {
+                    infix: true, left: 120000, right: 130000, src: '~'
+                },
+            }
+        });
+        const j = (s, m) => JSON.parse(JSON.stringify(je(s, m)));
+        expect(j('1!')).toEqual(['!', 1]);
+        expect(j('1!!')).toEqual(['!', ['!', 1]]);
+        expect(j('1!!!')).toEqual(['!', ['!', ['!', 1]]]);
+        // Precedence does not matter within prefix sequences.
+        expect(j('1!?')).toEqual(['?', ['!', 1]]);
+        expect(j('1?!')).toEqual(['!', ['?', 1]]);
+        expect(j('1!??')).toEqual(['?', ['?', ['!', 1]]]);
+        expect(j('1??!')).toEqual(['!', ['?', ['?', 1]]]);
+        expect(j('1?!!')).toEqual(['!', ['!', ['?', 1]]]);
+        expect(j('1!!?')).toEqual(['?', ['!', ['!', 1]]]);
+        expect(j('1?!?')).toEqual(['?', ['!', ['?', 1]]]);
+        expect(j('1!?!')).toEqual(['!', ['?', ['!', 1]]]);
+        expect(j('1!+2')).toEqual(['+', ['!', 1], 2]);
+        expect(j('1+2!')).toEqual(['+', 1, ['!', 2]]);
+        expect(j('1!+2!')).toEqual(['+', ['!', 1], ['!', 2]]);
+        expect(j('1!+2+3')).toEqual(['+', ['+', ['!', 1], 2], 3]);
+        expect(j('1+2!+3')).toEqual(['+', ['+', 1, ['!', 2]], 3]);
+        expect(j('1!+2!+3')).toEqual(['+', ['+', ['!', 1], ['!', 2]], 3]);
+        expect(j('1!+2+3!')).toEqual(['+', ['+', ['!', 1], 2], ['!', 3]]);
+        expect(j('1+2!+3!')).toEqual(['+', ['+', 1, ['!', 2]], ['!', 3]]);
+        expect(j('1!+2!+3!')).toEqual(['+', ['+', ['!', 1], ['!', 2]], ['!', 3]]);
+        // Tighter!
+        expect(j('1!~2')).toEqual(['~', ['!', 1], 2]);
+        expect(j('1~2!')).toEqual(['!', ['~', 1, 2]]);
+        expect(j('1!~2!')).toEqual(['!', ['~', ['!', 1], 2]]);
+        expect(j('1!~2+3')).toEqual(['+', ['~', ['!', 1], 2], 3]);
+        expect(j('1~2!+3')).toEqual(['+', ['!', ['~', 1, 2]], 3]);
+        expect(j('1!~2!+3')).toEqual(['+', ['!', ['~', ['!', 1], 2]], 3]);
+        expect(j('1!~2~3')).toEqual(['~', ['~', ['!', 1], 2], 3]);
+        expect(j('1~2!~3')).toEqual(['~', ['!', ['~', 1, 2]], 3]);
+        expect(j('1!~2!~3')).toEqual(['~', ['!', ['~', ['!', 1], 2]], 3]);
     });
     test('unary-suffix-structure', () => {
         const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
