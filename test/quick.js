@@ -8,16 +8,16 @@ const { Expr }  = require('..')
 const clean = (v)=>JSON.parse(JSON.stringify(v))
 
 const j = Jsonic.make().use(Debug).use(Expr
-  //                                      ,{
-  // op: {
-  //   factorial: {
-  //     suffix: true, left: 15000, right: 15000, src: '!'
-  //   },
-  //   question: {
-  //     suffix: true, left: 13000, right: 13000, src: '?'
-  //   }
-  // }
-  //                                      }
+                                       ,{
+  op: {
+    factorial: {
+      suffix: true, left: 15000, src: '!'
+    },
+    // question: {
+    //   suffix: true, left: 13000, src: '?'
+    // }
+  }
+                                       }
                                       )
 
 console.log(j.describe())

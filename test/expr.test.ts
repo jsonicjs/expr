@@ -51,23 +51,22 @@ describe('expr', () => {
     let ME = makeExpr
     let MO = makeOp
 
-    let INFIX = { terms: 2, infix: true, prefix: false, suffix: false }
-    let PREFIX = { terms: 1, infix: false, prefix: true, suffix: false }
-    let SUFFIX = { terms: 1, infix: false, prefix: false, suffix: true }
+    let BLANK = { infix: false, prefix: false, suffix: false, left: 0, right: 0 }
+    let INFIX = { ...BLANK, terms: 2, infix: true }
+    let PREFIX = { ...BLANK, terms: 1, prefix: true }
+    let SUFFIX = { ...BLANK, terms: 1, suffix: true }
 
-    let PLUS_LA = MO({ src: '+', left: 140, right: 150, ...INFIX })
-    let PLUS_RA = MO({ src: '+', left: 150, right: 140, ...INFIX })
+    let PLUS_LA = MO({ ...INFIX, src: '+', left: 140, right: 150 })
+    let PLUS_RA = MO({ ...INFIX, src: '+', left: 150, right: 140 })
 
-    let MUL_LA = MO({ src: '*', left: 160, right: 170, ...INFIX })
-    let PIPE_LA = MO({ src: '|', left: 18000, right: 17000, ...INFIX })
+    let MUL_LA = MO({ ...INFIX, src: '*', left: 160, right: 170 })
+    let PIPE_LA = MO({ ...INFIX, src: '|', left: 18000, right: 17000 })
 
-    let AT_P = MO({ src: '@', right: 1500, ...PREFIX })
-    let PER_P = MO({ src: '%', right: 1300, ...PREFIX })
+    let AT_P = MO({ ...PREFIX, src: '@', right: 1500 })
+    let PER_P = MO({ ...PREFIX, src: '%', right: 1300 })
 
-    let BANG_S = MO({ src: '!', left: 1600, ...SUFFIX })
-    let QUEST_S = MO({ src: '?', left: 1400, ...SUFFIX })
-
-
+    let BANG_S = MO({ ...SUFFIX, src: '!', left: 1600 })
+    let QUEST_S = MO({ ...SUFFIX, src: '?', left: 1400 })
 
     let E: any
 
@@ -102,6 +101,11 @@ describe('expr', () => {
     expect(T(E = ME(AT_P, 1), PIPE_LA))[_mo_](['|', 1])
     expect(C(E))[_mo_](['@', ['|', 1]])
 
+    // 1|@N => 1|(@N)
+    expect(T(E = ME(PIPE_LA, 1), AT_P))[_mo_](['@'])
+    expect(C(E))[_mo_](['|', 1, ['@']])
+
+
     // 1!|N => (!1)|N
     expect(T(E = ME(BANG_S, 1), PIPE_LA))[_mo_](['|', ['!', 1]])
     expect(C(E))[_mo_](['|', ['!', 1]])
@@ -128,7 +132,8 @@ describe('expr', () => {
 
 
     // 1+2! => 1+(2!)
-    expect(T(E = ME(PLUS_LA, 1, 2), BANG_S))[_mo_](['!', 2])
+    // expect(T(E = ME(PLUS_LA, 1, 2), BANG_S))[_mo_](['!', 2])
+    expect(T(E = ME(PLUS_LA, 1, 2), BANG_S))[_mo_](['+', 1, ['!', 2]])
     expect(C(E))[_mo_](['+', 1, ['!', 2]])
 
     // 1|2! => (1|2)!
@@ -151,13 +156,23 @@ describe('expr', () => {
 
 
     // @1! => @(1!)
-    expect(T(E = ME(AT_P, 1), BANG_S))[_mo_](['!', 1])
+    // expect(T(E = ME(AT_P, 1), BANG_S))[_mo_](['!', 1])
+    expect(T(E = ME(AT_P, 1), BANG_S))[_mo_](['@', ['!', 1]])
     expect(C(E))[_mo_](['@', ['!', 1]])
 
     // @1? => (@1)?
     expect(T(E = ME(AT_P, 1), QUEST_S))[_mo_](['?', ['@', 1]])
     expect(C(E))[_mo_](['?', ['@', 1]])
 
+
+    // @@1! => @(@(1!))
+    // expect(T(E = ME(AT_P, ME(AT_P, 1)), BANG_S))[_mo_](['!', 1])
+    expect(T(E = ME(AT_P, ME(AT_P, 1)), BANG_S))[_mo_](['@', ['@', ['!', 1]]])
+    expect(C(E))[_mo_](['@', ['@', ['!', 1]]])
+
+    // @@1? => (@(@1))?
+    expect(T(E = ME(AT_P, ME(AT_P, 1)), QUEST_S))[_mo_](['?', ['@', ['@', 1]]])
+    expect(C(E))[_mo_](['?', ['@', ['@', 1]]])
 
   })
 
@@ -579,14 +594,14 @@ describe('expr', () => {
   })
 
 
-  test('unary-suffix', () => {
+  test('unary-suffix-basic', () => {
     const je = Jsonic.make().use(Expr, {
       op: {
         factorial: {
-          suffix: true, left: 15000, right: 15000, src: '!'
+          suffix: true, left: 15000, src: '!'
         },
         question: {
-          suffix: true, left: 13000, right: 13000, src: '?'
+          suffix: true, left: 13000, src: '?'
         },
       }
     })
@@ -631,7 +646,6 @@ describe('expr', () => {
     expect(j('1??+2??')).toMatchObject(['+', ['?', ['?', 1]], ['?', ['?', 2]]])
 
 
-
     expect(j('0+1+2!')).toMatchObject(['+', ['+', 0, 1], ['!', 2]])
     expect(j('0+1!+2')).toMatchObject(['+', ['+', 0, ['!', 1]], 2])
     expect(j('0+1!+2!')).toMatchObject(['+', ['+', 0, ['!', 1]], ['!', 2]])
@@ -639,56 +653,21 @@ describe('expr', () => {
     expect(j('0!+1!+2')).toMatchObject(['+', ['+', ['!', 0], ['!', 1]], 2])
     expect(j('0!+1+2!')).toMatchObject(['+', ['+', ['!', 0], 1], ['!', 2]])
     expect(j('0!+1+2')).toMatchObject(['+', ['+', ['!', 0], 1], 2])
+  })
 
 
-    expect(j('(1)')).toEqual(['(', 1])
-    expect(j('(z)')).toEqual(['(', 'z'])
-
-    expect(j('(1!)')).toMatchObject(['(', ['!', 1]])
-    expect(j('(1 !)')).toMatchObject(['(', ['!', 1]])
-
-    expect(j('(z!)')).toMatchObject(['(', ['!', 'z']])
-    expect(j('(z !)')).toMatchObject(['(', ['!', 'z']])
-
-    expect(j('(1+2!)')).toMatchObject(['(', ['+', 1, ['!', 2]]])
-    expect(j('(1!+2)')).toMatchObject(['(', ['+', ['!', 1], 2]])
-    expect(j('(1!+2!)')).toMatchObject(['(', ['+', ['!', 1], ['!', 2]]])
-
-    expect(j('(0+1+2!)')).toMatchObject(['(', ['+', ['+', 0, 1], ['!', 2]]])
-    expect(j('(0+1!+2)')).toMatchObject(['(', ['+', ['+', 0, ['!', 1]], 2]])
-    expect(j('(0+1!+2!)')).toMatchObject(['(', ['+', ['+', 0, ['!', 1]], ['!', 2]]])
-    expect(j('(0!+1!+2!)')).toMatchObject(['(', ['+', ['+', ['!', 0], ['!', 1]], ['!', 2]]])
-    expect(j('(0!+1!+2)')).toMatchObject(['(', ['+', ['+', ['!', 0], ['!', 1]], 2]])
-    expect(j('(0!+1+2!)')).toMatchObject(['(', ['+', ['+', ['!', 0], 1], ['!', 2]]])
-    expect(j('(0!+1+2)')).toMatchObject(['(', ['+', ['+', ['!', 0], 1], 2]])
-
-
-    expect(j('-1!')).toEqual(['-', ['!', 1]])
-    expect(j('--1!')).toEqual(['-', ['-', ['!', 1]]])
-    expect(j('-1!!')).toEqual(['-', ['!', ['!', 1]]])
-    expect(j('--1!!')).toEqual(['-', ['-', ['!', ['!', 1]]]])
-
-    expect(j('-1!+2')).toEqual(['+', ['-', ['!', 1]], 2])
-    expect(j('--1!+2')).toEqual(['+', ['-', ['-', ['!', 1]]], 2])
-    expect(j('---1!+2')).toEqual(['+', ['-', ['-', ['-', ['!', 1]]]], 2])
-
-
-    expect(j('-1?')).toEqual(['?', ['-', 1]])
-    expect(j('--1?')).toEqual(['?', ['-', ['-', 1]]])
-    expect(j('-1??')).toEqual(['?', ['?', ['-', 1]]])
-    expect(j('--1??')).toEqual(['?', ['?', ['-', ['-', 1]]]])
-
-
-    expect(j('-1!?')).toEqual(['?', ['-', ['!', 1]]])
-    expect(j('-1!?!')).toEqual(['!', ['?', ['-', ['!', 1]]]])
-
-
-    expect(j('-1?+2')).toEqual(['+', ['?', ['-', 1]], 2])
-    expect(j('--1?+2')).toEqual(['+', ['?', ['-', ['-', 1]]], 2])
-    expect(j('-1??+2')).toEqual(['+', ['?', ['?', ['-', 1]]], 2])
-    expect(j('--1??+2')).toEqual(['+', ['?', ['?', ['-', ['-', 1]]]], 2])
-
-
+  test('unary-suffix-structure', () => {
+    const je = Jsonic.make().use(Expr, {
+      op: {
+        factorial: {
+          suffix: true, left: 15000, src: '!'
+        },
+        question: {
+          suffix: true, left: 13000, src: '?'
+        },
+      }
+    })
+    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
     expect(j('1!,2!')).toMatchObject([['!', 1], ['!', 2]])
     expect(j('1!,2!,3!')).toMatchObject([['!', 1], ['!', 2], ['!', 3]])
     expect(j('1!,2!,3!,4!')).toMatchObject([['!', 1], ['!', 2], ['!', 3], ['!', 4]])
@@ -724,9 +703,85 @@ describe('expr', () => {
     expect(j('{a:1! b:2! c:3!}')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3] })
     expect(j('{a:1! b:2! c:3! d:4!}')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3], d: ['!', 4] })
 
+  })
 
+
+  test('unary-suffix-prefix', () => {
+    const je = Jsonic.make().use(Expr, {
+      op: {
+        factorial: {
+          suffix: true, left: 15000, src: '!'
+        },
+        question: {
+          suffix: true, left: 13000, src: '?'
+        },
+      }
+    })
+    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+
+    expect(j('-1!')).toEqual(['-', ['!', 1]])
+    expect(j('--1!')).toEqual(['-', ['-', ['!', 1]]])
+    expect(j('-1!!')).toEqual(['-', ['!', ['!', 1]]])
+    expect(j('--1!!')).toEqual(['-', ['-', ['!', ['!', 1]]]])
+
+    expect(j('-1!+2')).toEqual(['+', ['-', ['!', 1]], 2])
+    expect(j('--1!+2')).toEqual(['+', ['-', ['-', ['!', 1]]], 2])
+    expect(j('---1!+2')).toEqual(['+', ['-', ['-', ['-', ['!', 1]]]], 2])
+
+
+    expect(j('-1?')).toEqual(['?', ['-', 1]])
+    expect(j('--1?')).toEqual(['?', ['-', ['-', 1]]])
+    expect(j('-1??')).toEqual(['?', ['?', ['-', 1]]])
+    expect(j('--1??')).toEqual(['?', ['?', ['-', ['-', 1]]]])
+
+
+    expect(j('-1!?')).toEqual(['?', ['-', ['!', 1]]])
+    expect(j('-1!?!')).toEqual(['!', ['?', ['-', ['!', 1]]]])
+
+
+    expect(j('-1?+2')).toEqual(['+', ['?', ['-', 1]], 2])
+    expect(j('--1?+2')).toEqual(['+', ['?', ['-', ['-', 1]]], 2])
+    expect(j('-1??+2')).toEqual(['+', ['?', ['?', ['-', 1]]], 2])
+    expect(j('--1??+2')).toEqual(['+', ['?', ['?', ['-', ['-', 1]]]], 2])
 
   })
+
+
+
+  test('unary-suffix-paren', () => {
+    const je = Jsonic.make().use(Expr, {
+      op: {
+        factorial: {
+          suffix: true, left: 15000, src: '!'
+        },
+        question: {
+          suffix: true, left: 13000, src: '?'
+        },
+      }
+    })
+    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+    expect(j('(1)')).toEqual(['(', 1])
+    expect(j('(z)')).toEqual(['(', 'z'])
+
+    expect(j('(1!)')).toMatchObject(['(', ['!', 1]])
+    expect(j('(1 !)')).toMatchObject(['(', ['!', 1]])
+
+    expect(j('(z!)')).toMatchObject(['(', ['!', 'z']])
+    expect(j('(z !)')).toMatchObject(['(', ['!', 'z']])
+
+    expect(j('(1+2!)')).toMatchObject(['(', ['+', 1, ['!', 2]]])
+    expect(j('(1!+2)')).toMatchObject(['(', ['+', ['!', 1], 2]])
+    expect(j('(1!+2!)')).toMatchObject(['(', ['+', ['!', 1], ['!', 2]]])
+
+    expect(j('(0+1+2!)')).toMatchObject(['(', ['+', ['+', 0, 1], ['!', 2]]])
+    expect(j('(0+1!+2)')).toMatchObject(['(', ['+', ['+', 0, ['!', 1]], 2]])
+    expect(j('(0+1!+2!)')).toMatchObject(['(', ['+', ['+', 0, ['!', 1]], ['!', 2]]])
+    expect(j('(0!+1!+2!)')).toMatchObject(['(', ['+', ['+', ['!', 0], ['!', 1]], ['!', 2]]])
+    expect(j('(0!+1!+2)')).toMatchObject(['(', ['+', ['+', ['!', 0], ['!', 1]], 2]])
+    expect(j('(0!+1+2!)')).toMatchObject(['(', ['+', ['+', ['!', 0], 1], ['!', 2]]])
+    expect(j('(0!+1+2)')).toMatchObject(['(', ['+', ['+', ['!', 0], 1], 2]])
+  })
+
 
 
   test('paren', () => {
