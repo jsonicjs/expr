@@ -7,7 +7,12 @@ const C = (x) => JSON.parse(JSON.stringify(x));
 const mj = (je) => (s, m) => C(je(s, m));
 const _mo_ = 'toMatchObject';
 function makeOp(opspec) {
-    const op = opspec;
+    const base = { infix: false, prefix: false, suffix: false, left: 0, right: 0 };
+    const op = {
+        ...base,
+        terms: opspec.infix ? 2 : 1,
+        ...opspec
+    };
     return op;
 }
 function makeExpr(opspec, term0, term1) {
@@ -28,22 +33,18 @@ describe('expr', () => {
         expect(j('1+2')).toMatchObject(['+', 1, 2]);
         expect(j('-1+2')).toMatchObject(['+', ['-', 1], 2]);
     });
-    test('term', () => {
+    test('prattify-basic', () => {
         let T = (expr, opdef) => C((0, expr_1.prattify)(expr, opdef));
         let ME = makeExpr;
         let MO = makeOp;
-        let BLANK = { infix: false, prefix: false, suffix: false, left: 0, right: 0 };
-        let INFIX = { ...BLANK, terms: 2, infix: true };
-        let PREFIX = { ...BLANK, terms: 1, prefix: true };
-        let SUFFIX = { ...BLANK, terms: 1, suffix: true };
-        let PLUS_LA = MO({ ...INFIX, src: '+', left: 140, right: 150 });
-        let PLUS_RA = MO({ ...INFIX, src: '+', left: 150, right: 140 });
-        let MUL_LA = MO({ ...INFIX, src: '*', left: 160, right: 170 });
-        let PIPE_LA = MO({ ...INFIX, src: '|', left: 18000, right: 17000 });
-        let AT_P = MO({ ...PREFIX, src: '@', right: 1500 });
-        let PER_P = MO({ ...PREFIX, src: '%', right: 1300 });
-        let BANG_S = MO({ ...SUFFIX, src: '!', left: 1600 });
-        let QUEST_S = MO({ ...SUFFIX, src: '?', left: 1400 });
+        let PLUS_LA = MO({ infix: true, src: '+', left: 140, right: 150 });
+        let PLUS_RA = MO({ infix: true, src: '+', left: 150, right: 140 });
+        let MUL_LA = MO({ infix: true, src: '*', left: 160, right: 170 });
+        let PIPE_LA = MO({ infix: true, src: '|', left: 18000, right: 17000 });
+        let AT_P = MO({ prefix: true, src: '@', right: 1500 });
+        let PER_P = MO({ prefix: true, src: '%', right: 1300 });
+        let BANG_S = MO({ suffix: true, src: '!', left: 1600 });
+        let QUEST_S = MO({ suffix: true, src: '?', left: 1400 });
         let E;
         // 1+2+N => (1+2)+N
         expect(T(E = ME(PLUS_LA, 1, 2), PLUS_LA))[_mo_](['+', ['+', 1, 2]]);
@@ -115,6 +116,59 @@ describe('expr', () => {
         expect(T(E = ME(AT_P, ME(AT_P, 1)), QUEST_S))[_mo_](['?', ['@', ['@', 1]]]);
         expect(C(E))[_mo_](['?', ['@', ['@', 1]]]);
     });
+    test('prattify-assoc', () => {
+        let T = (expr, opdef) => C((0, expr_1.prattify)(expr, opdef));
+        let ME = makeExpr;
+        let MO = makeOp;
+        let AT_LA = MO({ infix: true, src: '@', left: 14, right: 15 });
+        let PER_RA = MO({ infix: true, src: '%', left: 17, right: 16 });
+        let E;
+        // 1@2@N
+        expect(T(E = ME(AT_LA, 1, 2), AT_LA))[_mo_](['@', ['@', 1, 2]]);
+        expect(C(E))[_mo_](['@', ['@', 1, 2]]);
+        // 1@2@3@N
+        expect(T(E = ME(AT_LA, ME(AT_LA, 1, 2), 3), AT_LA))[_mo_](['@', ['@', ['@', 1, 2], 3]]);
+        expect(C(E))[_mo_](['@', ['@', ['@', 1, 2], 3]]);
+        // 1@2@3@4@N
+        expect(T(E = ME(AT_LA, ME(AT_LA, ME(AT_LA, 1, 2), 3), 4), AT_LA))[_mo_](['@', ['@', ['@', ['@', 1, 2], 3], 4]]);
+        expect(C(E))[_mo_](['@', ['@', ['@', ['@', 1, 2], 3], 4]]);
+        // 1@2@3@4@5@N
+        expect(T(E = ME(AT_LA, ME(AT_LA, ME(AT_LA, ME(AT_LA, 1, 2), 3), 4), 5), AT_LA))[_mo_](['@', ['@', ['@', ['@', ['@', 1, 2], 3], 4], 5]]);
+        expect(C(E))[_mo_](['@', ['@', ['@', ['@', ['@', 1, 2], 3], 4], 5]]);
+        // 1%2%N
+        expect(T(E = ME(PER_RA, 1, 2), PER_RA))[_mo_](['%', 2]);
+        expect(C(E))[_mo_](['%', 1, ['%', 2]]);
+        // 1%2%3%N
+        expect(T(E = ME(PER_RA, 1, ME(PER_RA, 2, 3)), PER_RA))[_mo_](['%', 3]);
+        expect(C(E))[_mo_](['%', 1, ['%', 2, ['%', 3]]]);
+        // 1%2%3%4%N
+        expect(T(E = ME(PER_RA, 1, ME(PER_RA, 2, ME(PER_RA, 3, 4))), PER_RA))[_mo_](['%', 4]);
+        expect(C(E))[_mo_](['%', 1, ['%', 2, ['%', 3, ['%', 4]]]]);
+        // 1%2%3%4%5%N
+        expect(T(E = ME(PER_RA, 1, ME(PER_RA, 2, ME(PER_RA, 3, ME(PER_RA, 4, 5)))), PER_RA))[_mo_](['%', 5]);
+        expect(C(E))[_mo_](['%', 1, ['%', 2, ['%', 3, ['%', 4, ['%', 5]]]]]);
+    });
+    // TODO: reconsider
+    // test('prattify-ternary', () => {
+    //   let T = (expr: any[], opdef?: OpFullDef) => C(prattify(expr, opdef))
+    //   let ME = makeExpr
+    //   let MO = makeOp
+    //   let QUEST_RA = MO({ infix: true, src: '?', left: 15, right: 14 })
+    //   let COLON_LA = MO({ infix: true, src: ':', left: 16, right: 17 })
+    //   let E: any
+    //   // 1?2?N => 1?(2?N)
+    //   expect(T(E = ME(QUEST_RA, 1, 2), QUEST_RA))[_mo_](['?', 2])
+    //   expect(C(E))[_mo_](['?', 1, ['?', 2]])
+    //   // 1:2:N => (1:2):N
+    //   expect(T(E = ME(COLON_LA, 1, 2), COLON_LA))[_mo_]([':', [':', 1, 2]])
+    //   expect(C(E))[_mo_]([':', [':', 1, 2]])
+    //   // 1?2:N => 1?(2:N)
+    //   expect(T(E = ME(QUEST_RA, 1, 2), COLON_LA))[_mo_]([':', 2])
+    //   expect(C(E))[_mo_](['?', 1, [':', 2]])
+    //   // 1:2?N => (1:2)?N
+    //   expect(T(E = ME(COLON_LA, 1, 2), QUEST_RA))[_mo_](['?', [':', 1, 2]])
+    //   expect(C(E))[_mo_](['?', [':', 1, 2]])
+    // })
     test('binary', () => {
         const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
         expect(j('1+2'))[_mo_](['+', 1, 2]);
@@ -1127,17 +1181,41 @@ describe('expr', () => {
         const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
             paren: {
                 pure: {
-                    preval: true
+                    preval: true,
+                },
+                angle: {
+                    osrc: '<',
+                    csrc: '>',
+                    preval: true,
                 }
             }
         });
         const j = (s, m) => JSON.parse(JSON.stringify(je(s, m)));
+        expect(j('(1)')).toMatchObject(['(', 1]);
         // This has a paren preval.
         expect(j('foo(1,a)')).toMatchObject(['(', 'foo', [1, 'a']]);
         expect(j('foo (1,a)')).toMatchObject(['(', 'foo', [1, 'a']]);
         expect(j('foo(a:1,b:2)')).toMatchObject(['(', 'foo', { a: 1, b: 2 }]);
         expect(j('foo(a:b:1,c:2)')).toMatchObject(['(', 'foo', { a: { b: 1 }, c: 2 }]);
+        expect(j('a:b<c>')).toMatchObject({ a: ['<', 'b', 'c'] });
+        expect(j('a:b<c,d>')).toMatchObject({ a: ['<', 'b', ['c', 'd']] });
+        expect(j('a:b<1+2,3+4>'))
+            .toMatchObject({ a: ['<', 'b', [['+', 1, 2], ['+', 3, 4]]] });
     });
+    // test('paren-preval-square', () => {
+    //   const je = Jsonic.make().use(Expr, {
+    //     paren: {
+    //       square: {
+    //         osrc: '[',
+    //         csrc: ']',
+    //         preval: { require: true },
+    //       }
+    //     }
+    //   })
+    //   const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+    //   expect(j('a[1]')).toMatchObject(['[', 'a', 1])
+    //   expect(j('a:[1]')).toMatchObject({ a: [1] })
+    // })
     test('paren-preval-implicit', () => {
         const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
             paren: {

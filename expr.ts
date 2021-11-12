@@ -5,8 +5,10 @@
 // https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
 
 
+// TODO: increase infix base binding values
 // TODO: error on incomplete expr: 1+2+
 // TODO: disambiguate infix and suffix by val.close r.o1 lookahead
+// TODO: paren preval required
 
 import {
   Jsonic,
@@ -662,16 +664,26 @@ Expr.defaults = {
 } as ExprOptions
 
 
+
+const jj = (x: any) => JSON.parse(JSON.stringify(x))
+
+
 // Pratt algorithm embeds next operator.
 // NOTE: preserves referential integrity of root expression.
 function prattify(expr: any, op?: OpFullDef): any[] {
   let out = expr
 
+  let log = ''
+  let in_expr = jj(expr)
+
   if (op) {
     if (op.infix) {
+      log += 'I'
 
       // op is lower
       if (expr.op$.suffix || op.left <= expr.op$.right) {
+        log += 'L'
+
         expr[1] = [...expr]
         expr[1].op$ = expr.op$
 
@@ -682,10 +694,18 @@ function prattify(expr: any, op?: OpFullDef): any[] {
 
       // op is higher
       else {
+        log += 'H'
+
         const end = expr.op$.terms
-        expr[end] = [op.src, expr[end]]
-        expr[end].op$ = op
-        out = expr[end]
+
+        if (expr[end]?.op$?.right < op.left) {
+          out = prattify(expr[end], op)
+        }
+        else {
+          expr[end] = [op.src, expr[end]]
+          expr[end].op$ = op
+          out = expr[end]
+        }
       }
     }
 
@@ -725,6 +745,16 @@ function prattify(expr: any, op?: OpFullDef): any[] {
     }
   }
 
+  // console.log('PRATT', log,
+  //   // in_expr_op,
+  //   in_expr,
+  //   '::',
+  //   op?.src,
+  //   '/',
+  //   jj(expr),
+  //   '/',
+  //   jj(out),
+  //   '')
   return out
 }
 

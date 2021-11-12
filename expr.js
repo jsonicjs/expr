@@ -5,8 +5,10 @@ exports.prattify = exports.Expr = void 0;
 // This algorithm is based on Pratt parsing, and draws heavily from
 // the explanation written by Aleksey Kladov here:
 // https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
+// TODO: increase infix base binding values
 // TODO: error on incomplete expr: 1+2+
 // TODO: disambiguate infix and suffix by val.close r.o1 lookahead
+// TODO: paren preval required
 const jsonic_1 = require("jsonic");
 const { omap, entries } = jsonic_1.util;
 let Expr = function expr(jsonic, options) {
@@ -500,14 +502,20 @@ Expr.defaults = {
         // quote: { osrc: '<<', csrc: '>>', prefix: {}, suffix: {} },
     }
 };
+const jj = (x) => JSON.parse(JSON.stringify(x));
 // Pratt algorithm embeds next operator.
 // NOTE: preserves referential integrity of root expression.
 function prattify(expr, op) {
+    var _a, _b;
     let out = expr;
+    let log = '';
+    let in_expr = jj(expr);
     if (op) {
         if (op.infix) {
+            log += 'I';
             // op is lower
             if (expr.op$.suffix || op.left <= expr.op$.right) {
+                log += 'L';
                 expr[1] = [...expr];
                 expr[1].op$ = expr.op$;
                 expr[0] = op.src;
@@ -516,10 +524,16 @@ function prattify(expr, op) {
             }
             // op is higher
             else {
+                log += 'H';
                 const end = expr.op$.terms;
-                expr[end] = [op.src, expr[end]];
-                expr[end].op$ = op;
-                out = expr[end];
+                if (((_b = (_a = expr[end]) === null || _a === void 0 ? void 0 : _a.op$) === null || _b === void 0 ? void 0 : _b.right) < op.left) {
+                    out = prattify(expr[end], op);
+                }
+                else {
+                    expr[end] = [op.src, expr[end]];
+                    expr[end].op$ = op;
+                    out = expr[end];
+                }
             }
         }
         else if (op.prefix) {
@@ -553,6 +567,16 @@ function prattify(expr, op) {
             }
         }
     }
+    // console.log('PRATT', log,
+    //   // in_expr_op,
+    //   in_expr,
+    //   '::',
+    //   op?.src,
+    //   '/',
+    //   jj(expr),
+    //   '/',
+    //   jj(out),
+    //   '')
     return out;
 }
 exports.prattify = prattify;
