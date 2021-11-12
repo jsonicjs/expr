@@ -243,7 +243,7 @@ describe('expr', () => {
   })
 
 
-  test.skip('implicit-list-top-none', () => {
+  test('implicit-list-top-basic', () => {
     const j = mj(Jsonic.make().use(Expr))
 
     expect(j('1,2'))[_mo_]([1, 2])
@@ -302,7 +302,7 @@ describe('expr', () => {
   })
 
 
-  test.skip('implicit-list-top-paren', () => {
+  test('implicit-list-top-paren', () => {
     const j = mj(Jsonic.make().use(Expr))
 
     expect(j('(1,2)'))[_mo_](['(', [1, 2]])
@@ -365,7 +365,7 @@ describe('expr', () => {
   })
 
 
-  test.skip('map-implicit-list-paren', () => {
+  test('map-implicit-list-paren', () => {
     const j = mj(Jsonic.make().use(Expr))
 
     expect(j('a:(1,2),b:0'))[_mo_]({ a: ['(', [1, 2]], b: 0 })
@@ -783,7 +783,7 @@ describe('expr', () => {
   })
 
 
-  test.skip('unary-suffix-structure', () => {
+  test('unary-suffix-structure', () => {
     const je = Jsonic.make().use(Expr, {
       op: {
         factorial: {
@@ -980,7 +980,7 @@ describe('expr', () => {
   })
 
 
-  test.skip('paren-map-implicit-structure-comma', () => {
+  test('paren-map-implicit-structure-comma', () => {
     const je = Jsonic.make().use(Expr)
     const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
 
@@ -1115,7 +1115,7 @@ describe('expr', () => {
   })
 
 
-  test.skip('paren-map-implicit-structure-space', () => {
+  test('paren-map-implicit-structure-space', () => {
     const je = Jsonic.make().use(Expr)
     const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
 
@@ -1250,7 +1250,7 @@ describe('expr', () => {
   })
 
 
-  test.skip('paren-list-implicit-structure-comma', () => {
+  test('paren-list-implicit-structure-comma', () => {
     const je = Jsonic.make().use(Expr)
     const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
 
@@ -1388,7 +1388,7 @@ describe('expr', () => {
   })
 
 
-  test.skip('paren-list-implicit-structure-space', () => {
+  test('paren-list-implicit-structure-space', () => {
     const je = Jsonic.make().use(Expr)
     const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
 
@@ -1527,7 +1527,7 @@ describe('expr', () => {
 
 
 
-  test.skip('paren-implicit-list', () => {
+  test('paren-implicit-list', () => {
     const je = Jsonic.make().use(Expr)
     const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
 
@@ -1630,7 +1630,7 @@ describe('expr', () => {
   })
 
 
-  test.skip('paren-preval-implicit', () => {
+  test('paren-preval-implicit', () => {
     const je = Jsonic.make().use(Expr, {
       paren: {
         pure: {

@@ -118,8 +118,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
     [undefined, undefined, pdef.ctin, pdef])
 
 
-  console.log('prefixTM', prefixTM)
-  console.log('suffixTM', suffixTM)
+  // console.log('prefixTM', prefixTM)
+  // console.log('suffixTM', suffixTM)
 
 
   const PREFIX = Object.values(prefixTM).map(opdef => opdef.tin)
@@ -207,6 +207,21 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             u: { paren_preval: true },
             g: 'expr,expr-paren,expr-paren-prefix',
           } : NONE,
+
+          {
+            s: [CA],
+            c: (r: Rule) => 1 === r.d && 1 <= r.n.expr,
+            b: 1,
+            g: 'expr,list,val,imp,comma,top',
+          },
+
+          {
+            s: [VAL],
+            c: (r: Rule) => 1 === r.d && 1 <= r.n.expr,
+            b: 1,
+            g: 'expr,list,val,imp,space,top',
+          },
+
         ])
     })
 
@@ -241,7 +256,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           hasParen ? {
             s: [CP],
             b: 1,
-            g: 'expr,paren,imp,map',
+            g: 'expr,expr-paren,imp,map',
           } : NONE,
         ])
     })
@@ -253,7 +268,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           hasPrefix ? {
             s: [PREFIX],
             c: (r: Rule) => !!r.n.expr_prefix,
-            n: { expr: 1 },
+            n: { expr: 1, il: 1, im: 1 },
             p: 'val',
             g: 'expr,expr-prefix',
             a: (r: Rule) => {
@@ -267,7 +282,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           hasInfix ? {
             s: [INFIX],
             p: 'val',
-            n: { expr: 1, expr_prefix: 0 },
+            n: { expr: 1, expr_prefix: 0, il: 1, im: 1 },
             a: (r: Rule) => {
               const prev = r.prev
               const parent = r.parent
@@ -294,27 +309,11 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
           hasSuffix ? {
             s: [SUFFIX],
-            n: { expr: 1, expr_prefix: 0 },
+            n: { expr: 1, expr_prefix: 0, il: 1, im: 1 },
             a: (r: Rule) => {
               const prev = r.prev
-              // const parent = r.parent
               const op = suffixTM[r.o0.tin]
-
               r.node = prev.node?.op$ ? term(prev.node, op) : prior(r, prev, op)
-              // console.log('SUFFIX OPEN', op, parent.node, prev.node)
-
-              // if (prev.node?.op$) {
-              //   // console.log('SUFFIX OPEN PREV')
-              //   r.node = term(prev.node, op)
-              // }
-
-              // else {
-              //   // prev.node = [op.src, prev.node]
-              //   // prev.node.op$ = op
-              //   // r.node = prev.node
-              //   r.node = prior(r, prev, op)
-              //   // r.parent = prev
-              // }
             },
             g: 'expr,expr-suffix',
           } : NONE,
@@ -346,9 +345,106 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             b: 1,
           } : NONE,
 
+          // Implicit list at the top level. 
+          {
+            s: [CA],
+            c: { d: 0 },
+            n: { expr: 0 },
+            r: 'elem',
+            // r: 'val',
+            // a: (rule: Rule) => rule.prev.node = rule.node = [rule.node],
+            a: (rule: Rule) => rule.parent.node = rule.node = [rule.node],
+            g: 'expr,comma,list,top',
+          },
+
+          // Implicit list at the top level. 
+          {
+            s: [VAL],
+            c: { d: 0 },
+            n: { expr: 0 },
+            b: 1,
+            r: 'elem',
+            // r: 'val',
+            // a: (rule: Rule) => rule.prev.node = rule.node = [rule.node],
+            a: (rule: Rule) => rule.parent.node = rule.node = [rule.node],
+            g: 'expr,space,list,top',
+          },
+
+          //         // Implicit list indicated by comma.
+          //         {
+          //           s: [CA],
+          //           c: { n: { pk: 0 } },
+          //           b: 1,
+          //           h: (rule: Rule, ctx: Context, a: any) => {
+          //             let paren: Rule | null = null
+
+          //             // Find the paren rule that contains this implicit list.
+          //             for (let rI = ctx.rs.length - 1; -1 < rI; rI--) {
+          //               if ('paren' === ctx.rs[rI].name) {
+          //                 paren = ctx.rs[rI]
+          //                 break
+          //               }
+          //             }
+
+          //             if (paren) {
+          //               // Create a list value for the paren rule.
+          //               if (null == paren.child.node) {
+          //                 paren.child.node = [rule.node]
+          //                 a.r = 'elem'
+          //                 a.b = 0
+          //               }
+
+          //               // Convert paren value into a list value.
+          //               else if (paren.child.node.terms$) {
+          //                 paren.child.node = [paren.child.node]
+          //                 a.r = 'elem'
+          //                 a.b = 0
+          //               }
+
+          //               rule.node = paren.child.node
+          //             }
+          //             return a
+          //           },
+          //           g: 'expr,list,val,imp,comma',
+          //         },
+
+          //         // Implicit list indicated by space separated value.
+          //         {
+          //           c: { n: { pk: 0, expr_suffix: 0 } },
+          //           h: (rule: Rule, ctx: Context, a: any) => {
+          //             let paren: Rule | null = null
+
+          //             // Find the paren rule that contains this implicit list.
+          //             for (let rI = ctx.rs.length - 1; -1 < rI; rI--) {
+          //               if ('paren' === ctx.rs[rI].name) {
+          //                 paren = ctx.rs[rI]
+          //                 break
+          //               }
+          //             }
+
+          //             if (paren) {
+          //               // Create a list value for the paren rule.
+          //               if (null == paren.child.node) {
+          //                 paren.child.node = [rule.node]
+          //                 a.r = 'elem'
+          //               }
+
+          //               // Convert paren value into a list value.
+          //               else if (paren.child.node.terms$) {
+          //                 paren.child.node = [paren.child.node]
+          //                 a.r = 'elem'
+          //               }
+
+          //               rule.node = paren.child.node
+          //             }
+          //             return a
+          //           },
+          //           g: 'expr,list,val,imp,space',
+          //         },
+
           // Expression ends with non-expression token.
           {
-            g: 'expr,expr-close',
+            g: 'expr,expr-end',
           }
         ])
     })
@@ -356,6 +452,12 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   jsonic
     .rule('paren', (rs: RuleSpec) => {
       rs
+        .bo((r: Rule) => {
+          // Allow implicits inside parens
+          r.n.im = 0
+          r.n.il = 0
+          r.n.pk = 0
+        })
         .open([
           hasParen ? {
             s: [OP, CP],
@@ -1364,11 +1466,12 @@ function term(expr: any, op?: OpFullDef): any[] {
     log += 'N'
   }
 
-  console.log('TERM', log,
-    // in_expr_op,
-    in_expr,
-    // in_op,
-    '/', jj(out), '/', jj(expr))
+  // console.log('TERM', log,
+  //   // in_expr_op,
+  //   in_expr,
+  //   // in_op,
+  //   '/', jj(out), '/', jj(expr))
+
   return out
 }
 
