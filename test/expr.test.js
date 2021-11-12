@@ -29,7 +29,7 @@ describe('expr', () => {
         expect(j('-1+2')).toMatchObject(['+', ['-', 1], 2]);
     });
     test('term', () => {
-        let T = (expr, opdef) => C((0, expr_1.term)(expr, opdef));
+        let T = (expr, opdef) => C((0, expr_1.prattify)(expr, opdef));
         let ME = makeExpr;
         let MO = makeOp;
         let BLANK = { infix: false, prefix: false, suffix: false, left: 0, right: 0 };

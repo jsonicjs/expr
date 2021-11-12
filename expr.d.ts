@@ -18,6 +18,6 @@ declare type OpFullDef = OpDef & {
     suffix: boolean;
 };
 declare let Expr: Plugin;
-declare function term(expr: any, op?: OpFullDef): any[];
-export { Expr, term, };
+declare function prattify(expr: any, op?: OpFullDef): any[];
+export { Expr, prattify, };
 export type { OpFullDef };

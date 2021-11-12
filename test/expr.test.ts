@@ -2,7 +2,7 @@
 
 
 import { Jsonic } from 'jsonic'
-import { Expr, term, OpFullDef } from '../expr'
+import { Expr, prattify, OpFullDef } from '../expr'
 
 
 
@@ -47,7 +47,7 @@ describe('expr', () => {
 
 
   test('term', () => {
-    let T = (expr: any[], opdef?: OpFullDef) => C(term(expr, opdef))
+    let T = (expr: any[], opdef?: OpFullDef) => C(prattify(expr, opdef))
     let ME = makeExpr
     let MO = makeOp
 
