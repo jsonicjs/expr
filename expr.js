@@ -257,68 +257,70 @@ let Expr = function expr(jsonic, options) {
                 a: (rule) => rule.parent.node = rule.node = [rule.node],
                 g: 'expr,space,list,top',
             },
-            //         // Implicit list indicated by comma.
-            //         {
-            //           s: [CA],
-            //           c: { n: { pk: 0 } },
-            //           b: 1,
-            //           h: (rule: Rule, ctx: Context, a: any) => {
-            //             let paren: Rule | null = null
-            //             // Find the paren rule that contains this implicit list.
-            //             for (let rI = ctx.rs.length - 1; -1 < rI; rI--) {
-            //               if ('paren' === ctx.rs[rI].name) {
-            //                 paren = ctx.rs[rI]
-            //                 break
-            //               }
-            //             }
-            //             if (paren) {
-            //               // Create a list value for the paren rule.
-            //               if (null == paren.child.node) {
-            //                 paren.child.node = [rule.node]
-            //                 a.r = 'elem'
-            //                 a.b = 0
-            //               }
-            //               // Convert paren value into a list value.
-            //               else if (paren.child.node.terms$) {
-            //                 paren.child.node = [paren.child.node]
-            //                 a.r = 'elem'
-            //                 a.b = 0
-            //               }
-            //               rule.node = paren.child.node
-            //             }
-            //             return a
-            //           },
-            //           g: 'expr,list,val,imp,comma',
-            //         },
-            //         // Implicit list indicated by space separated value.
-            //         {
-            //           c: { n: { pk: 0, expr_suffix: 0 } },
-            //           h: (rule: Rule, ctx: Context, a: any) => {
-            //             let paren: Rule | null = null
-            //             // Find the paren rule that contains this implicit list.
-            //             for (let rI = ctx.rs.length - 1; -1 < rI; rI--) {
-            //               if ('paren' === ctx.rs[rI].name) {
-            //                 paren = ctx.rs[rI]
-            //                 break
-            //               }
-            //             }
-            //             if (paren) {
-            //               // Create a list value for the paren rule.
-            //               if (null == paren.child.node) {
-            //                 paren.child.node = [rule.node]
-            //                 a.r = 'elem'
-            //               }
-            //               // Convert paren value into a list value.
-            //               else if (paren.child.node.terms$) {
-            //                 paren.child.node = [paren.child.node]
-            //                 a.r = 'elem'
-            //               }
-            //               rule.node = paren.child.node
-            //             }
-            //             return a
-            //           },
-            //           g: 'expr,list,val,imp,space',
-            //         },
+            // Implicit list indicated by comma.
+            {
+                s: [CA],
+                c: { n: { pk: 0 } },
+                n: { expr: 0 },
+                b: 1,
+                h: (rule, ctx, a) => {
+                    let paren = null;
+                    // Find the paren rule that contains this implicit list.
+                    for (let rI = ctx.rs.length - 1; -1 < rI; rI--) {
+                        if ('paren' === ctx.rs[rI].name) {
+                            paren = ctx.rs[rI];
+                            break;
+                        }
+                    }
+                    if (paren) {
+                        // Create a list value for the paren rule.
+                        if (null == paren.child.node) {
+                            paren.child.node = [rule.node];
+                            a.r = 'elem';
+                            a.b = 0;
+                        }
+                        // Convert paren value into a list value.
+                        else if (paren.child.node.op$) {
+                            paren.child.node = [paren.child.node];
+                            a.r = 'elem';
+                            a.b = 0;
+                        }
+                        rule.node = paren.child.node;
+                    }
+                    return a;
+                },
+                g: 'expr,list,val,imp,comma',
+            },
+            // Implicit list indicated by space separated value.
+            {
+                c: { n: { pk: 0, expr_suffix: 0 } },
+                n: { expr: 0 },
+                h: (rule, ctx, a) => {
+                    let paren = null;
+                    // Find the paren rule that contains this implicit list.
+                    for (let rI = ctx.rs.length - 1; -1 < rI; rI--) {
+                        if ('paren' === ctx.rs[rI].name) {
+                            paren = ctx.rs[rI];
+                            break;
+                        }
+                    }
+                    if (paren) {
+                        // Create a list value for the paren rule.
+                        if (null == paren.child.node) {
+                            paren.child.node = [rule.node];
+                            a.r = 'elem';
+                        }
+                        // Convert paren value into a list value.
+                        else if (paren.child.node.op$) {
+                            paren.child.node = [paren.child.node];
+                            a.r = 'elem';
+                        }
+                        rule.node = paren.child.node;
+                    }
+                    return a;
+                },
+                g: 'expr,list,val,imp,space',
+            },
             // Expression ends with non-expression token.
             {
                 g: 'expr,expr-end',
