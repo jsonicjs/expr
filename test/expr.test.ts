@@ -1732,6 +1732,25 @@ describe('expr', () => {
   })
 
 
+  test('paren-postval-basic', () => {
+    const je = Jsonic.make().use(Expr, {
+      paren: {
+        angle: {
+          osrc: '<',
+          csrc: '>',
+          postval: true,
+        }
+      }
+    })
+    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+
+
+    expect(j('<1>2')).toMatchObject(['<', 1, 2])
+
+  })
+
+
+
   // test('paren-preval-square', () => {
   //   const je = Jsonic.make().use(Expr, {
   //     paren: {

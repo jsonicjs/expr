@@ -73,6 +73,13 @@ let Expr = function expr(jsonic, options) {
             } : NONE,
         ])
             .close([
+            {
+                c: (r) => r.prev.use.paren_postval,
+                a: (r) => {
+                    r.prev.node.push(r.node);
+                },
+                g: 'expr,expr-paren,expr-paren-postval',
+            },
             // The infix operator following the first term of an expression.
             hasInfix ? {
                 s: [INFIX],
@@ -309,6 +316,15 @@ let Expr = function expr(jsonic, options) {
                     let pd = 'expr_paren_depth_' + pdef.name;
                     return !!r.n[pd];
                 },
+                r: (r) => {
+                    const pdef = parenCTM[r.c0.tin];
+                    // console.log('R pdef', pdef)
+                    if (pdef.postval) {
+                        r.use.paren_postval = true;
+                        return 'val';
+                    }
+                    return '';
+                },
                 a: makeCloseParen(parenCTM),
                 g: 'expr,expr-paren,close',
             } : NONE,
@@ -429,7 +445,8 @@ function makeParenMap(tokenize, paren) {
             otin,
             ctkn,
             ctin,
-            preval: !!pdef.preval
+            preval: !!pdef.preval,
+            postval: !!pdef.postval,
         };
         return a;
     }, {});

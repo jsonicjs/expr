@@ -52,6 +52,7 @@ type ParenDef = {
   osrc: string
   csrc: string
   preval?: boolean
+  postval?: boolean
 }
 
 type ParenFullDef = ParenDef & {
@@ -157,6 +158,15 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
         ])
 
         .close([
+
+          {
+            c: (r: Rule) => r.prev.use.paren_postval,
+            a: (r: Rule) => {
+              r.prev.node.push(r.node)
+            },
+            g: 'expr,expr-paren,expr-paren-postval',
+          },
+
 
           // The infix operator following the first term of an expression.
           hasInfix ? {
@@ -417,6 +427,15 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
               let pd = 'expr_paren_depth_' + pdef.name
               return !!r.n[pd]
             },
+            r: (r: Rule) => {
+              const pdef = parenCTM[r.c0.tin]
+              // console.log('R pdef', pdef)
+              if (pdef.postval) {
+                r.use.paren_postval = true
+                return 'val'
+              }
+              return ''
+            },
             a: makeCloseParen(parenCTM),
             g: 'expr,expr-paren,close',
           } : NONE,
@@ -567,7 +586,8 @@ function makeParenMap(
           otin,
           ctkn,
           ctin,
-          preval: !!pdef.preval
+          preval: !!pdef.preval,
+          postval: !!pdef.postval,
         }
         return a
       },

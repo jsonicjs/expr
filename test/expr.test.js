@@ -1202,6 +1202,19 @@ describe('expr', () => {
         expect(j('a:b<1+2,3+4>'))
             .toMatchObject({ a: ['<', 'b', [['+', 1, 2], ['+', 3, 4]]] });
     });
+    test('paren-postval-basic', () => {
+        const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+            paren: {
+                angle: {
+                    osrc: '<',
+                    csrc: '>',
+                    postval: true,
+                }
+            }
+        });
+        const j = (s, m) => JSON.parse(JSON.stringify(je(s, m)));
+        expect(j('<1>2')).toMatchObject(['<', 1, 2]);
+    });
     // test('paren-preval-square', () => {
     //   const je = Jsonic.make().use(Expr, {
     //     paren: {

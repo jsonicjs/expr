@@ -17,13 +17,20 @@ const j = Jsonic.make().use(Debug).use(Expr,{
     // }
 
 
-    question: {
-      infix: true, left: 15, right: 14, src: '?'
-    },
-    semicolon: {
-      infix: true, left: 16, right: 17, src: ';'
-    },
-    
+    // question: {
+    //   infix: true, left: 15, right: 14, src: '?'
+    // },
+    // semicolon: {
+    //   infix: true, left: 16, right: 17, src: ';'
+    // },
+  },
+  
+  paren: {
+    angle: {
+      osrc: '<',
+      csrc: '>',
+      postval: true,
+    }
   }
 })
 
