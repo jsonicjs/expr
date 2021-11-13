@@ -29,6 +29,7 @@ const j = Jsonic.make().use(Debug).use(Expr,{
     angle: {
       osrc: '<',
       csrc: '>',
+      preval: true,
       postval: true,
     }
   }

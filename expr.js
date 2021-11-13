@@ -73,13 +73,14 @@ let Expr = function expr(jsonic, options) {
             } : NONE,
         ])
             .close([
-            {
-                c: (r) => r.prev.use.paren_postval,
-                a: (r) => {
-                    r.prev.node.push(r.node);
-                },
-                g: 'expr,expr-paren,expr-paren-postval',
-            },
+            // {
+            //   c: (r: Rule) => r.prev.use.paren_postval,
+            //   a: (r: Rule) => {
+            //     r.prev.node.push(r.node)
+            //     console.log('VAL POST', r.prev.node)
+            //   },
+            //   g: 'expr,expr-paren,expr-paren-postval',
+            // },
             // The infix operator following the first term of an expression.
             hasInfix ? {
                 s: [INFIX],
@@ -101,6 +102,9 @@ let Expr = function expr(jsonic, options) {
             hasParen ? {
                 s: [CP],
                 b: 1,
+                a: (r) => {
+                    // console.log('VAL CP', r.node)
+                },
                 g: 'expr,expr-paren',
             } : NONE,
             // The opening parenthesis of an expression with a preceding value.
@@ -108,9 +112,14 @@ let Expr = function expr(jsonic, options) {
             hasParen ? {
                 s: [OP],
                 b: 1,
-                r: 'paren',
+                // r: 'paren',
+                // r: 'expr',
+                r: 'val',
                 c: (r) => parenOTM[r.c0.tin].preval,
                 u: { paren_preval: true },
+                a: (r) => {
+                    // console.log('VAL PRE', r.prev.node, r.node)
+                },
                 g: 'expr,expr-paren,expr-paren-prefix',
             } : NONE,
             {
@@ -213,11 +222,17 @@ let Expr = function expr(jsonic, options) {
                 },
                 g: 'expr,expr-suffix',
             } : NONE,
+            // hasParen ? {
+            //   s: [OP],
+            //   b: 1,
+            //   p: 'paren',
+            //   g: 'expr,expr-paren',
+            // } : NONE,
         ])
             .bc((r) => {
-            var _a, _b;
+            var _a, _b, _c;
             // Append final term to expression.
-            if (((_a = r.node) === null || _a === void 0 ? void 0 : _a.length) - 1 < ((_b = r.node) === null || _b === void 0 ? void 0 : _b.op$.terms)) {
+            if (((_a = r.node) === null || _a === void 0 ? void 0 : _a.length) - 1 < ((_c = (_b = r.node) === null || _b === void 0 ? void 0 : _b.op$) === null || _c === void 0 ? void 0 : _c.terms)) {
                 r.node.push(r.child.node);
             }
         })
@@ -316,15 +331,15 @@ let Expr = function expr(jsonic, options) {
                     let pd = 'expr_paren_depth_' + pdef.name;
                     return !!r.n[pd];
                 },
-                r: (r) => {
-                    const pdef = parenCTM[r.c0.tin];
-                    // console.log('R pdef', pdef)
-                    if (pdef.postval) {
-                        r.use.paren_postval = true;
-                        return 'val';
-                    }
-                    return '';
-                },
+                // r: (r: Rule) => {
+                //   const pdef = parenCTM[r.c0.tin]
+                //   // console.log('R pdef', pdef)
+                //   if (pdef.postval) {
+                //     r.use.paren_postval = true
+                //     return 'val'
+                //   }
+                //   return ''
+                // },
                 a: makeCloseParen(parenCTM),
                 g: 'expr,expr-paren,close',
             } : NONE,
@@ -355,7 +370,7 @@ function makeOpenParen(parenOTM) {
 }
 function makeCloseParen(parenCTM) {
     return function closeParen(r) {
-        var _a;
+        var _a, _b;
         if ((_a = r.child.node) === null || _a === void 0 ? void 0 : _a.op$) {
             r.node = r.child.node;
         }
@@ -374,12 +389,34 @@ function makeCloseParen(parenCTM) {
             }
             // r.node.paren$ = true
             r.node.paren$ = pdef;
-            if (r.prev.use.paren_preval) {
-                r.node.prefix$ = true;
-                r.node[2] = r.node[1];
-                r.node[1] = r.prev.node;
-                r.prev.node = r.node;
+            // console.log('CP', r.node, r.parent.prev.use, r.parent.prev.prev.node)
+            // if (r.prev.use.paren_preval) {
+            if (r.parent.prev.use.paren_preval) {
+                // r.node.splice(1, 0, r.parent.prev.node)
+                // console.log('CP PREVAL', r.node)
+                // r.node.prefix$ = true
+                // r.node[2] = r.node[1]
+                // r.node[1] = r.prev.node
+                // r.prev.node = r.node
+                // r.node[1] = r.parent.prev.node
+                if ((_b = r.parent.prev.node) === null || _b === void 0 ? void 0 : _b.paren$) {
+                    // console.log('P2', r.node, r.parent.prev.node)
+                    r.parent.prev.node[1] = [...r.parent.prev.node];
+                    r.parent.prev.node[1].paren$ = r.parent.prev.node.paren$;
+                    r.parent.prev.node[2] = r.node[1];
+                    r.parent.prev.node.paren$ = r.node.paren$;
+                    r.node = r.parent.prev.node;
+                }
+                else {
+                    r.node.splice(1, 0, r.parent.prev.node);
+                    r.parent.prev.node = r.node;
+                    // r.parent.prev.prev.node = r.parent.prev.node = r.node
+                }
             }
+            // if (r.prev.use.paren_preval && r.prev.prev.use.paren_postval) {
+            //   // console.log('PAREN PP', r.prev.prev.node, r.node)
+            //   r.prev.prev.node.push(r.node)
+            // }
         }
     };
 }
