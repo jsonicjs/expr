@@ -8,7 +8,7 @@ exports.prattify = exports.Expr = void 0;
 // TODO: increase infix base binding values
 // TODO: error on incomplete expr: 1+2+
 // TODO: disambiguate infix and suffix by val.close r.o1 lookahead
-// TODO: paren preval required
+// TODO: paren preval/postval required
 const jsonic_1 = require("jsonic");
 const { omap, entries } = jsonic_1.util;
 let Expr = function expr(jsonic, options) {
@@ -170,6 +170,9 @@ let Expr = function expr(jsonic, options) {
     jsonic
         .rule('expr', (rs) => {
         rs
+            .bo((r, ctx) => {
+            // console.log('EXPR BO', ctx.F(r.node))
+        })
             .open([
             hasPrefix ? {
                 s: [PREFIX],
@@ -229,12 +232,14 @@ let Expr = function expr(jsonic, options) {
             //   g: 'expr,expr-paren',
             // } : NONE,
         ])
-            .bc((r) => {
+            .bc((r, ctx) => {
+            // console.log('EXPR BC A', ctx.F(r.node))
             var _a, _b, _c;
             // Append final term to expression.
             if (((_a = r.node) === null || _a === void 0 ? void 0 : _a.length) - 1 < ((_c = (_b = r.node) === null || _b === void 0 ? void 0 : _b.op$) === null || _c === void 0 ? void 0 : _c.terms)) {
                 r.node.push(r.child.node);
             }
+            // console.log('EXPR BC B', ctx.F(r.node))
         })
             .close([
             hasInfix ? {
@@ -294,7 +299,10 @@ let Expr = function expr(jsonic, options) {
             {
                 g: 'expr,expr-end',
             }
-        ]);
+        ])
+            .ac((r, ctx) => {
+            // console.log('EXPR AC', ctx.F(r.node))
+        });
     });
     jsonic
         .rule('paren', (rs) => {
@@ -381,8 +389,9 @@ function makeCloseParen(parenCTM) {
         let pd = 'expr_paren_depth_' + pdef.name;
         // Construct completed paren expression.
         if (r.use[pd] === r.n[pd]) {
-            const pdef = parenCTM[r.c0.tin];
+            // const pdef = parenCTM[r.c0.tin]
             const val = r.node;
+            // console.log('CP', val)
             r.node = [pdef.osrc];
             if (undefined !== val) {
                 r.node[1] = val;
@@ -423,12 +432,13 @@ function makeCloseParen(parenCTM) {
 function implicitList(rule, ctx, a) {
     let paren = null;
     // Find the paren rule that contains this implicit list.
-    for (let rI = ctx.rs.length - 1; -1 < rI; rI--) {
+    for (let rI = ctx.rsI - 1; -1 < rI; rI--) {
         if ('paren' === ctx.rs[rI].name) {
             paren = ctx.rs[rI];
             break;
         }
     }
+    console.log('IM', paren === null || paren === void 0 ? void 0 : paren.id);
     if (paren) {
         // Create a list value for the paren rule.
         if (null == paren.child.node) {

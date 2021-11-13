@@ -4,11 +4,10 @@
 // the explanation written by Aleksey Kladov here:
 // https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
 
-
 // TODO: increase infix base binding values
 // TODO: error on incomplete expr: 1+2+
 // TODO: disambiguate infix and suffix by val.close r.o1 lookahead
-// TODO: paren preval required
+// TODO: paren preval/postval required
 
 import {
   Jsonic,
@@ -270,6 +269,9 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   jsonic
     .rule('expr', (rs: RuleSpec) => {
       rs
+        .bo((r: Rule, ctx: Context) => {
+          // console.log('EXPR BO', ctx.F(r.node))
+        })
         .open([
           hasPrefix ? {
             s: [PREFIX],
@@ -333,11 +335,15 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           // } : NONE,
 
         ])
-        .bc((r: Rule) => {
+        .bc((r: Rule, ctx: Context) => {
+          // console.log('EXPR BC A', ctx.F(r.node))
+
           // Append final term to expression.
           if (r.node?.length - 1 < r.node?.op$?.terms) {
             r.node.push(r.child.node)
           }
+
+          // console.log('EXPR BC B', ctx.F(r.node))
         })
         .close([
           hasInfix ? {
@@ -405,6 +411,10 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             g: 'expr,expr-end',
           }
         ])
+        .ac((r: Rule, ctx: Context) => {
+          // console.log('EXPR AC', ctx.F(r.node))
+        })
+
     })
 
   jsonic
@@ -504,9 +514,11 @@ function makeCloseParen(parenCTM: ParenDefMap) {
 
     // Construct completed paren expression.
     if (r.use[pd] === r.n[pd]) {
-      const pdef = parenCTM[r.c0.tin]
+      // const pdef = parenCTM[r.c0.tin]
 
       const val = r.node
+      // console.log('CP', val)
+
       r.node = [pdef.osrc]
       if (undefined !== val) {
         r.node[1] = val
@@ -555,12 +567,15 @@ function implicitList(rule: Rule, ctx: Context, a: any) {
   let paren: Rule | null = null
 
   // Find the paren rule that contains this implicit list.
-  for (let rI = ctx.rs.length - 1; -1 < rI; rI--) {
+  for (let rI = ctx.rsI - 1; -1 < rI; rI--) {
     if ('paren' === ctx.rs[rI].name) {
       paren = ctx.rs[rI]
       break
     }
   }
+
+  console.log('IM', paren?.id)
+
 
   if (paren) {
     // Create a list value for the paren rule.
