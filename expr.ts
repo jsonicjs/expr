@@ -173,6 +173,13 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             b: 1,
             n: { expr_prefix: 0, expr_suffix: 0 },
             r: (r: Rule) => !r.n.expr ? 'expr' : '',
+            a: (r: Rule, ctx: Context) => {
+              // console.log('VAL CLOSE INFIX', r.prev.use, r.prev.node === r.node, ctx.F(r.prev.node), ctx.F(r.node))
+              // r.node.push('M0')
+              // if (r.prev.use.paren_preval) {
+              //   r.prev.node = r.node
+              // }
+            },
             g: 'expr,expr-infix',
           } : NONE,
 
@@ -309,7 +316,11 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
               // First term was plain value.
               else {
+                // prev.node.push('M1')
+                // prev.prev.node.push('M3')
+                // console.log('EXPR OPEN INFIX A', prev.node, prev.prev.node, prev.node === prev.prev.node)
                 r.node = prior(r, prev, op)
+                // console.log('EXPR OPEN INFIX B', prev.node, prev.prev.node)
               }
             },
             g: 'expr,expr-infix',
@@ -475,17 +486,37 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
 // Convert prior (parent or previous) rule node into an expression.
 function prior(rule: Rule, prior: Rule, op: OpFullDef) {
-  if (op.prefix) {
-    prior.node = [op.src]
+  // if (op.prefix) {
+  //   prior.node = [op.src]
+  // }
+  // else {
+  //   prior.node = [op.src, prior.node]
+  // }
+
+  // console.log('PRIOR A', prior.node, prior.prev.node, prior.node === prior.prev.node)
+
+  let prior_node =
+    (prior.node?.op$ || prior.node?.paren$) ? [...prior.node] : prior.node
+
+  if (null == prior.node || (!prior.node.op$ && !prior.node.paren$)) {
+    // console.log('PRIOR B')
+    prior.node = []
   }
-  else {
-    prior.node = [op.src, prior.node]
+
+  prior.node[0] = op.src
+  prior.node.length = 1
+
+  if (!op.prefix) {
+    prior.node[1] = prior_node
   }
 
   prior.node.op$ = op
+  delete prior.node.paren$
 
   // Ensure first term val rule contains final expression.
   rule.parent = prior
+
+  // console.log('PRIOR Z', prior.node, prior.prev.node, prior.node === prior.prev.node)
 
   return prior.node
 }
@@ -527,7 +558,7 @@ function makeCloseParen(parenCTM: ParenDefMap) {
       r.node.paren$ = pdef
 
 
-      // console.log('CP', r.node, r.parent.prev.use, r.parent.prev.prev.node)
+      // console.log('CP', r.node, r.parent.prev.use, r.parent.prev.node)
 
       // if (r.prev.use.paren_preval) {
       if (r.parent.prev.use.paren_preval) {
@@ -555,6 +586,8 @@ function makeCloseParen(parenCTM: ParenDefMap) {
         }
       }
 
+      // r.node.push('M2')
+
       // if (r.prev.use.paren_preval && r.prev.prev.use.paren_postval) {
       //   // console.log('PAREN PP', r.prev.prev.node, r.node)
       //   r.prev.prev.node.push(r.node)
@@ -574,8 +607,7 @@ function implicitList(rule: Rule, ctx: Context, a: any) {
     }
   }
 
-  console.log('IM', paren?.id)
-
+  // console.log('IM', paren?.id)
 
   if (paren) {
     // Create a list value for the paren rule.
