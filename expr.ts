@@ -7,7 +7,8 @@
 // TODO: increase infix base binding values
 // TODO: error on incomplete expr: 1+2+
 // TODO: disambiguate infix and suffix by val.close r.o1 lookahead
-// TODO: paren preval/postval required
+// TODO: ternary as special rule
+
 
 import {
   Jsonic,
@@ -54,10 +55,6 @@ type ParenDef = {
     active?: boolean
     required?: boolean
   }
-  postval?: {
-    active?: boolean
-    required?: boolean
-  }
 }
 
 type ParenFullDef = ParenDef & {
@@ -67,10 +64,6 @@ type ParenFullDef = ParenDef & {
   ctkn: string
   ctin: number
   preval: {
-    active: boolean
-    required: boolean
-  }
-  postval: {
     active: boolean
     required: boolean
   }
@@ -87,7 +80,6 @@ type ExprOptions = {
 
 
 let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
-  // console.log('AAA', jsonic.fixed('['))
 
   // Ensure comment matcher is first to avoid conflicts with
   // comment markers (//, /*, etc)
@@ -122,7 +114,6 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
       fixed(od.csrc) ? token(fixed(od.csrc)) : '#E' + od.csrc, od.csrc
     ])
 
-  // console.log('parenFixed', parenFixed)
 
   // Add the operator tokens to the set of fixed tokens.
   jsonic.options({
@@ -148,8 +139,6 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   const parenCTM: ParenDefMap = omap(parenOTM, ([_, pdef]: [Tin, ParenFullDef]) =>
     [undefined, undefined, pdef.ctin, pdef])
 
-  // console.log('parenOTM', parenOTM)
-
   const PREFIX = Object.values(prefixTM).map(opdef => opdef.tin)
   const INFIX = Object.values(infixTM).map(opdef => opdef.tin)
   const SUFFIX = Object.values(suffixTM).map(opdef => opdef.tin)
@@ -170,22 +159,11 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   const VL = jsonic.token.VL
   const VAL = [TX, NR, ST, VL]
 
-  // An AltSpec === null is ignored.
   const NONE = (null as unknown as AltSpec)
 
 
   jsonic
     .rule('val', (rs: RuleSpec) => {
-
-      // let orig_bo: any = rs.def.bo
-      // rs
-      //   .bo((...rest: any) => {
-      //     orig_bo(...rest)
-
-      //     const r = rest[0] as Rule
-      //     console.log('VAL BO', r.use)
-      //   })
-
 
       rs
         .open([
@@ -205,17 +183,12 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             b: 1,
             p: 'paren',
             c: (r: Rule, ctx: Context) => {
-              // console.log('VAP OP', r.use, r.prev.use, r.prev.prev.use)
-
               const pdef = parenOTM[r.o0.tin]
               let pass = true
 
               if (pdef.preval) {
                 if (pdef.preval.required) {
-                  // return 'val' === r.prev.name ? r.prev.use.paren_preval : false
                   pass = 'val' === r.prev.name && r.prev.use.paren_preval
-                  console.log('PREVAL', pass)
-
                 }
               }
 
@@ -232,49 +205,12 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
         ])
 
         .close([
-
-          // {
-          //   c: (r: Rule) => r.prev.use.paren_postval,
-          //   a: (r: Rule) => {
-          //     r.prev.node.push(r.node)
-          //     console.log('VAL POST', r.prev.node)
-          //   },
-          //   g: 'expr,expr-paren,expr-paren-postval',
-          // },
-
-
-          {
-            c: (r: Rule) => {
-              // console.log('VAL POSTVAL CHECK', r.prev.use, r.node, r.prev.node)
-
-              if (r.prev.use.paren_postval) {
-                r.prev.node.push(r.node)
-              }
-
-              // if (r.prev.prev?.use?.paren_postval) {
-              //   r.prev.prev.node.push(r.node)
-              // }
-              // else if (r.prev.use.paren_postval) {
-              //   r.prev.node.push(r.node)
-              // }
-              return false
-            },
-          },
-
-
           // The infix operator following the first term of an expression.
           hasInfix ? {
             s: [INFIX],
             b: 1,
             n: { expr_prefix: 0, expr_suffix: 0 },
             r: (r: Rule) => !r.n.expr ? 'expr' : '',
-            a: (r: Rule, ctx: Context) => {
-              // console.log('VAL CLOSE INFIX', r.prev.use, r.prev.node === r.node, ctx.F(r.prev.node), ctx.F(r.node))
-              // r.node.push('M0')
-              // if (r.prev.use.paren_preval) {
-              //   r.prev.node = r.node
-              // }
-            },
             g: 'expr,expr-infix',
           } : NONE,
 
@@ -293,10 +229,6 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             s: [CP],
             c: (r: Rule) => !!r.n.expr_paren,
             b: 1,
-            a: (r: Rule) => {
-              // console.log('VAL CP', r.node)
-            },
-
             g: 'expr,expr-paren',
           } : NONE,
 
@@ -308,9 +240,6 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             r: 'val',
             c: (r: Rule) => parenOTM[r.c0.tin].preval.active,
             u: { paren_preval: true },
-            a: (r: Rule) => {
-              // console.log('VAL PRE', r.prev.node, r.node)
-            },
             g: 'expr,expr-paren,expr-paren-prefix',
           } : NONE,
 
@@ -399,9 +328,6 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   jsonic
     .rule('expr', (rs: RuleSpec) => {
       rs
-        .bo((r: Rule, ctx: Context) => {
-          // console.log('EXPR BO', ctx.F(r.node))
-        })
         .open([
           hasPrefix ? {
             s: [PREFIX],
@@ -439,11 +365,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
               // First term was plain value.
               else {
-                // prev.node.push('M1')
-                // prev.prev.node.push('M3')
-                // console.log('EXPR OPEN INFIX A', prev.node, prev.prev.node, prev.node === prev.prev.node)
                 r.node = prior(r, prev, op)
-                // console.log('EXPR OPEN INFIX B', prev.node, prev.prev.node)
               }
             },
             g: 'expr,expr-infix',
@@ -460,24 +382,12 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             },
             g: 'expr,expr-suffix',
           } : NONE,
-
-          // hasParen ? {
-          //   s: [OP],
-          //   b: 1,
-          //   p: 'paren',
-          //   g: 'expr,expr-paren',
-          // } : NONE,
-
         ])
-        .bc((r: Rule, ctx: Context) => {
-          // console.log('EXPR BC A', ctx.F(r.node))
-
+        .bc((r: Rule) => {
           // Append final term to expression.
           if (r.node?.length - 1 < r.node?.op$?.terms) {
             r.node.push(r.child.node)
           }
-
-          // console.log('EXPR BC B', ctx.F(r.node))
         })
         .close([
           hasInfix ? {
@@ -546,10 +456,6 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             g: 'expr,expr-end',
           }
         ])
-        .ac((r: Rule, ctx: Context) => {
-          // console.log('EXPR AC', ctx.F(r.node))
-        })
-
     })
 
   jsonic
@@ -589,18 +495,6 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
               let pd = 'expr_paren_depth_' + pdef.name
               return !!r.n[pd]
             },
-
-            // postval can only be required
-            r: (r: Rule) => {
-              const pdef = parenCTM[r.c0.tin]
-              // console.log('R pdef', pdef)
-              if (pdef.postval.active) {
-                r.use.paren_postval = true
-                return 'val'
-              }
-              return ''
-            },
-
             a: makeCloseParen(parenCTM),
             g: 'expr,expr-paren,close',
           } : NONE,
@@ -613,20 +507,11 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
 // Convert prior (parent or previous) rule node into an expression.
 function prior(rule: Rule, prior: Rule, op: OpFullDef) {
-  // if (op.prefix) {
-  //   prior.node = [op.src]
-  // }
-  // else {
-  //   prior.node = [op.src, prior.node]
-  // }
-
-  // console.log('PRIOR A', prior.node, prior.prev.node, prior.node === prior.prev.node)
 
   let prior_node =
     (prior.node?.op$ || prior.node?.paren$) ? [...prior.node] : prior.node
 
   if (null == prior.node || (!prior.node.op$ && !prior.node.paren$)) {
-    // console.log('PRIOR B')
     prior.node = []
   }
 
@@ -642,8 +527,6 @@ function prior(rule: Rule, prior: Rule, op: OpFullDef) {
 
   // Ensure first term val rule contains final expression.
   rule.parent = prior
-
-  // console.log('PRIOR Z', prior.node, prior.prev.node, prior.node === prior.prev.node)
 
   return prior.node
 }
@@ -672,34 +555,17 @@ function makeCloseParen(parenCTM: ParenDefMap) {
 
     // Construct completed paren expression.
     if (r.use[pd] === r.n[pd]) {
-      // const pdef = parenCTM[r.c0.tin]
-
       const val = r.node
-      // console.log('CP', val)
 
       r.node = [pdef.osrc]
       if (undefined !== val) {
         r.node[1] = val
       }
-      // r.node.paren$ = true
       r.node.paren$ = pdef
 
 
-      // console.log('CP', r.node, r.parent.prev.use, r.parent.prev.node)
-
-      // if (r.prev.use.paren_preval) {
       if (r.parent.prev.use.paren_preval) {
-        // r.node.splice(1, 0, r.parent.prev.node)
-        console.log('CP PREVAL', r.node, r.parent.prev.node)
-
-        // r.node.prefix$ = true
-        // r.node[2] = r.node[1]
-        // r.node[1] = r.prev.node
-        // r.prev.node = r.node
-        // r.node[1] = r.parent.prev.node
-
         if (r.parent.prev.node?.paren$) {
-          // console.log('P2', r.node, r.parent.prev.node)
           r.parent.prev.node[1] = [...r.parent.prev.node]
           r.parent.prev.node[1].paren$ = r.parent.prev.node.paren$
           r.parent.prev.node[2] = r.node[1]
@@ -711,21 +577,9 @@ function makeCloseParen(parenCTM: ParenDefMap) {
         else {
           r.node.splice(1, 0, r.parent.prev.node)
           r.parent.prev.node = r.node
-          // r.parent.prev.prev.node = r.parent.prev.node = r.node
         }
       }
 
-      if (pdef.postval.active) {
-        r.use.paren_postval = true
-      }
-
-
-      // r.node.push('M2')
-
-      // if (r.prev.use.paren_preval && r.prev.prev.use.paren_postval) {
-      //   // console.log('PAREN PP', r.prev.prev.node, r.node)
-      //   r.prev.prev.node.push(r.node)
-      // }
     }
   }
 }
@@ -740,8 +594,6 @@ function implicitList(rule: Rule, ctx: Context, a: any) {
       break
     }
   }
-
-  // console.log('IM', paren?.id)
 
   if (paren) {
     // Create a list value for the paren rule.
@@ -823,14 +675,6 @@ function makeParenMap(
             required: null == pdef.preval ? false :
               null == pdef.preval.required ? false : pdef.preval.required,
           },
-          postval: {
-            // True by default if postval specified.
-            active: null == pdef.postval ? false :
-              null == pdef.postval.active ? true : pdef.postval.active,
-            // False by default.
-            required: null == pdef.postval ? false :
-              null == pdef.postval.required ? false : pdef.postval.required,
-          },
         }
         return a
       },
@@ -849,36 +693,6 @@ Expr.defaults = {
     negative: {
       prefix: true, right: 14000, src: '-'
     },
-
-
-    // test_at_p: {
-    //   prefix: true, right: 15000, src: '@'
-    // },
-
-    // test_per_p: {
-    //   prefix: true, right: 13000, src: '%'
-    // },
-
-
-    // test_bang_p: {
-    //   suffix: true, left: 16000, src: '!'
-    // },
-
-    // test_quest_p: {
-    //   suffix: true, left: 14000, src: '?'
-    // },
-
-
-    // test_tilde: {
-    //   infix: true, left: 140_000, right: 150_000, src: '~'
-    // },
-
-
-    // NOTE: right-associative as lbp > rbp
-    // Example: 2**3**4 === 2**(3**4)
-    // test_exponentiation: {
-    //   infix: true, left: 1700, right: 1600, src: '**'
-    // },
 
     // NOTE: all these are left-associative as lbp < rbp
     // Example: 2+3+4 === (2+3)+4
@@ -903,24 +717,6 @@ Expr.defaults = {
     pure: {
       osrc: '(', csrc: ')',
     },
-
-    // TODO: move to test
-    // index: {
-    //   osrc: '[', csrc: ']', prefix: {
-    //     required: true
-    //   }
-    // },
-
-    // func: {
-    //   osrc: '<', csrc: '>',
-    //   prefix: {
-    //     // required: false
-    //   }
-    // },
-
-    // ternary: { osrc: '?', csrc: ':', prefix: {}, suffix: {} },
-    // ternary: { osrc: '<', csrc: '>', prefix: true, suffix: true },
-    // quote: { osrc: '<<', csrc: '>>', prefix: {}, suffix: {} },
   }
 
 } as ExprOptions
@@ -935,16 +731,16 @@ const jj = (x: any) => JSON.parse(JSON.stringify(x))
 function prattify(expr: any, op?: OpFullDef): any[] {
   let out = expr
 
-  let log = ''
-  let in_expr = jj(expr)
+  // let log = ''
+  // let in_expr = jj(expr)
 
   if (op) {
     if (op.infix) {
-      log += 'I'
+      // log += 'I'
 
       // op is lower
       if (expr.op$.suffix || op.left <= expr.op$.right) {
-        log += 'L'
+        // log += 'L'
 
         expr[1] = [...expr]
         expr[1].op$ = expr.op$
@@ -956,7 +752,7 @@ function prattify(expr: any, op?: OpFullDef): any[] {
 
       // op is higher
       else {
-        log += 'H'
+        // log += 'H'
 
         const end = expr.op$.terms
 

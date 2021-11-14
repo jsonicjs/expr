@@ -1,5 +1,7 @@
 
 
+
+
 const { Jsonic } = require('jsonic')
 const { Debug } = require('jsonic/debug')
 
@@ -9,20 +11,21 @@ const clean = (v)=>JSON.parse(JSON.stringify(v))
 
 const j = Jsonic.make().use(Debug).use(Expr,{
   op: {
-    factorial: {
-      suffix: true, left: 15000, src: '!'
-    },
+    // factorial: {
+    //   suffix: true, left: 15000, src: '!'
+    // },
     // question: {
     //   suffix: true, left: 13000, src: '?'
     // }
 
 
     // question: {
-    //   infix: true, left: 15, right: 14, src: '?'
+    //   infix: true, left: 14, right: 15, src: '?'
     // },
     // semicolon: {
     //   infix: true, left: 16, right: 17, src: ';'
     // },
+
   },
   
   paren: {
