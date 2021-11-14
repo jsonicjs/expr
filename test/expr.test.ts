@@ -622,6 +622,38 @@ describe('expr', () => {
     expect(j('+{z:1}')).toMatchObject(['+', { z: 1 }])
     expect(j('+ {z:1}')).toMatchObject(['+', { z: 1 }])
 
+    expect(j('-{z:1,y:2}')).toMatchObject(['-', { z: 1, y: 2 }])
+    expect(j('- {z:1,y:2}')).toMatchObject(['-', { z: 1, y: 2 }])
+    expect(j('+{z:1,y:2}')).toMatchObject(['+', { z: 1, y: 2 }])
+    expect(j('+ {z:1,y:2}')).toMatchObject(['+', { z: 1, y: 2 }])
+
+    expect(j('-{z:1 y:2}')).toMatchObject(['-', { z: 1, y: 2 }])
+    expect(j('- {z:1 y:2}')).toMatchObject(['-', { z: 1, y: 2 }])
+    expect(j('+{z:1 y:2}')).toMatchObject(['+', { z: 1, y: 2 }])
+    expect(j('+ {z:1 y:2}')).toMatchObject(['+', { z: 1, y: 2 }])
+
+    expect(j('-{z:1,y:2,x:3}')).toMatchObject(['-', { z: 1, y: 2, x: 3 }])
+    expect(j('- {z:1,y:2,x:3}')).toMatchObject(['-', { z: 1, y: 2, x: 3 }])
+    expect(j('+{z:1,y:2,x:3}')).toMatchObject(['+', { z: 1, y: 2, x: 3 }])
+    expect(j('+ {z:1,y:2,x:3}')).toMatchObject(['+', { z: 1, y: 2, x: 3 }])
+
+    expect(j('-{z:1 y:2 x:3}')).toMatchObject(['-', { z: 1, y: 2, x: 3 }])
+    expect(j('- {z:1 y:2 x:3}')).toMatchObject(['-', { z: 1, y: 2, x: 3 }])
+    expect(j('+{z:1 y:2 x:3}')).toMatchObject(['+', { z: 1, y: 2, x: 3 }])
+    expect(j('+ {z:1 y:2 x:3}')).toMatchObject(['+', { z: 1, y: 2, x: 3 }])
+
+
+    expect(j('-{z:-1}')).toMatchObject(['-', { z: ['-', 1] }])
+    expect(j('- {z:-1}')).toMatchObject(['-', { z: ['-', 1] }])
+    expect(j('+{z:+1}')).toMatchObject(['+', { z: ['+', 1] }])
+    expect(j('+ {z:+1}')).toMatchObject(['+', { z: ['+', 1] }])
+
+    expect(j('-{z:2-1}')).toMatchObject(['-', { z: ['-', 2, 1] }])
+    expect(j('- {z:2-1}')).toMatchObject(['-', { z: ['-', 2, 1] }])
+    expect(j('+{z:2+1}')).toMatchObject(['+', { z: ['+', 2, 1] }])
+    expect(j('+ {z:2+1}')).toMatchObject(['+', { z: ['+', 2, 1] }])
+
+
     expect(j('--{z:1}')).toMatchObject(['-', ['-', { z: 1 }]])
     expect(j('---{z:1}')).toMatchObject(['-', ['-', ['-', { z: 1 }]]])
     expect(j('++{z:1}')).toMatchObject(['+', ['+', { z: 1 }]])
@@ -1703,12 +1735,12 @@ describe('expr', () => {
     const je = Jsonic.make().use(Expr, {
       paren: {
         pure: {
-          preval: true,
+          preval: {},
         },
         angle: {
           osrc: '<',
           csrc: '>',
-          preval: true,
+          preval: { active: true },
         }
       }
     })
@@ -1775,43 +1807,91 @@ describe('expr', () => {
   })
 
 
-  // test('paren-postval-basic', () => {
-  //   const je = Jsonic.make().use(Expr, {
-  //     paren: {
-  //       angle: {
-  //         osrc: '<',
-  //         csrc: '>',
-  //         postval: true,
-  //       }
-  //     }
-  //   })
-  //   const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+  test('paren-preval-overload', () => {
+    const je = Jsonic.make().use(Expr, {
+      op: {
+        factorial: {
+          suffix: true, left: 15000, src: '!'
+        },
+      },
+      paren: {
+        square: {
+          osrc: '[',
+          csrc: ']',
+          preval: { required: true },
+        },
+        brace: {
+          osrc: '{',
+          csrc: '}',
+          preval: { required: true },
+        }
+      }
+    })
+    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+
+    expect(j('[1]'))[_mo_]([1])
+    expect(j('a[1]'))[_mo_](['[', 'a', 1])
+    expect(j('[a[1]]'))[_mo_]([['[', 'a', 1]])
+    expect(j('a:[1]'))[_mo_]({ a: [1] })
+    expect(j('a:b[1]'))[_mo_]({ a: ['[', 'b', 1] })
+    expect(j('a:[b[1]]'))[_mo_]({ a: [['[', 'b', 1]] })
+    expect(j('{a:[1]}'))[_mo_]({ a: [1] })
+    expect(j('{a:b[1]}'))[_mo_]({ a: ['[', 'b', 1] })
+    expect(j('{a:[b[1]]}'))[_mo_]({ a: [['[', 'b', 1]] })
+
+    expect(j('-[1]+2'))[_mo_](['+', ['-', [1]], 2])
+    expect(j('-a[1]+2'))[_mo_](['+', ['-', ['[', 'a', 1]], 2])
+    expect(j('-[a[1]]+2'))[_mo_](['+', ['-', [['[', 'a', 1]]], 2])
+    expect(j('-a:[1]+2'))[_mo_](['-', { a: ['+', [1], 2] }])
+    expect(j('-a:b[1]+2'))[_mo_](['-', { a: ['+', ['[', 'b', 1], 2] }])
+    expect(j('-a:[b[1]]+2'))[_mo_](['-', { a: ['+', [['[', 'b', 1]], 2] }])
+    expect(j('-{a:[1]+2}'))[_mo_](['-', { a: ['+', [1], 2] }])
+    expect(j('-{a:b[1]+2}'))[_mo_](['-', { a: ['+', ['[', 'b', 1], 2] }])
+    expect(j('-{a:[b[1]]+2}'))[_mo_](['-', { a: ['+', [['[', 'b', 1]], 2] }])
+
+    expect(j('2+[1]'))[_mo_](['+', 2, [1]])
+    expect(j('2+a[1]'))[_mo_](['+', 2, ['[', 'a', 1]])
+    expect(j('2+[a[1]]'))[_mo_](['+', 2, [['[', 'a', 1]]])
+    expect(j('2+a:[1]'))[_mo_](['+', 2, { a: [1] }])
+    expect(j('2+a:b[1]'))[_mo_](['+', 2, { a: ['[', 'b', 1] }])
+    expect(j('2+a:[b[1]]'))[_mo_](['+', 2, { a: [['[', 'b', 1]] }])
+    expect(j('2+{a:[1]}'))[_mo_](['+', 2, { a: [1] }])
+    expect(j('2+{a:b[1]}'))[_mo_](['+', 2, { a: ['[', 'b', 1] }])
+    expect(j('2+{a:[b[1]]}'))[_mo_](['+', 2, { a: [['[', 'b', 1]] }])
+
+    expect(j('a[b[1]]'))[_mo_](['[', 'a', ['[', 'b', 1]])
+    expect(j('a[b[c[1]]]'))[_mo_](['[', 'a', ['[', 'b', ['[', 'c', 1]]])
+    expect(j('a[b[c[d[1]]]]'))
+    [_mo_](['[', 'a', ['[', 'b', ['[', 'c', ['[', 'd', 1]]]])
+
+    expect(j('a[b[[1]]]'))[_mo_](['[', 'a', ['[', 'b', [1]]])
+    expect(j('a[b[c[[1]]]]'))[_mo_](['[', 'a', ['[', 'b', ['[', 'c', [1]]]])
+    expect(j('a[b[c[d[[1]]]]]'))
+    [_mo_](['[', 'a', ['[', 'b', ['[', 'c', ['[', 'd', [1]]]]])
+
+    expect(j('a[b[[1,2]]]'))[_mo_](['[', 'a', ['[', 'b', [1, 2]]])
+    expect(j('a[b[c[[1,2]]]]'))[_mo_](['[', 'a', ['[', 'b', ['[', 'c', [1, 2]]]])
+    expect(j('a[b[c[d[[1,2]]]]]'))
+    [_mo_](['[', 'a', ['[', 'b', ['[', 'c', ['[', 'd', [1, 2]]]]])
+
+    expect(j('a[b[[x[1]]]]'))[_mo_](['[', 'a', ['[', 'b', [['[', 'x', 1]]]])
+    expect(j('a[b[c[[x[1]]]]]'))
+    [_mo_](['[', 'a', ['[', 'b', ['[', 'c', [['[', 'x', 1]]]]])
+    expect(j('a[b[c[d[[x[1]]]]]]'))
+    [_mo_](['[', 'a', ['[', 'b', ['[', 'c', ['[', 'd', [['[', 'x', 1]]]]]])
 
 
-  //   expect(j('<1>2')).toMatchObject(['<', 1, 2])
+    expect(j('a{1}'))[_mo_](['{', 'a', 1])
+    expect(j('a{b{1}}'))[_mo_](['{', 'a', ['{', 'b', 1]])
+    expect(j('a{b{c{1}}}'))[_mo_](['{', 'a', ['{', 'b', ['{', 'c', 1]]])
 
+    expect(j('a{1+2}'))[_mo_](['{', 'a', ['+', 1, 2]])
+    expect(j('a{b{1+2}}'))[_mo_](['{', 'a', ['{', 'b', ['+', 1, 2]]])
+    expect(j('a{b{c{1+2}}}'))[_mo_](['{', 'a', ['{', 'b', ['{', 'c', ['+', 1, 2]]]])
 
-  // })
-
-
-
-  // test('paren-preval-square', () => {
-  //   const je = Jsonic.make().use(Expr, {
-  //     paren: {
-  //       square: {
-  //         osrc: '[',
-  //         csrc: ']',
-  //         preval: { require: true },
-  //       }
-  //     }
-  //   })
-  //   const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
-
-
-  //   expect(j('a[1]')).toMatchObject(['[', 'a', 1])
-  //   expect(j('a:[1]')).toMatchObject({ a: [1] })
-
-  // })
+    expect(j('a{{x:1}}'))[_mo_](['{', 'a', { x: 1 }])
+    expect(j('a{{x:1,y:2}}'))[_mo_](['{', 'a', { x: 1, y: 2 }])
+  })
 
 
 
@@ -1833,6 +1913,27 @@ describe('expr', () => {
   })
 
 
+
+  // test('paren-postval-basic', () => {
+  //   const je = Jsonic.make().use(Expr, {
+  //     paren: {
+  //       angle: {
+  //         osrc: '<',
+  //         csrc: '>',
+  //         postval: true,
+  //       }
+  //     }
+  //   })
+  //   const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+
+
+  //   expect(j('<1>2')).toMatchObject(['<', 1, 2])
+
+
+  // })
+
+
+
   test('add-infix', () => {
     const je = Jsonic.make().use(Expr, {
       op: {
@@ -1844,6 +1945,39 @@ describe('expr', () => {
     const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
 
     expect(j('1 foo 2')).toMatchObject(['foo', 1, 2])
+  })
+
+
+  // TODO: provide as external tests for other plugins
+
+  test('json-base', () => {
+    const je = Jsonic.make().use(Expr)
+    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+    expect(j('1')).toEqual(1)
+    expect(j('"a"')).toEqual('a')
+    expect(j('true')).toEqual(true)
+    expect(j('[1,"a",false,[],{},[2],{a:3}]'))
+    [_mo_]([1, "a", false, [], {}, [2], { a: 3 }])
+    expect(j('{ "a": 1, "b": "B", "c": null, "d": [1, 2]' +
+      ', "e": { "f": [{}], "g": { "h": [] } } }'))
+    [_mo_]({
+      "a": 1, "b": "B", "c": null, "d": [1, 2],
+      "e": { "f": [{}], "g": { "h": [] } }
+    })
+  })
+
+  test('jsonic-base', () => {
+    const je = Jsonic.make().use(Expr)
+    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+    expect(j('1 "a" true # foo'))[_mo_]([1, 'a', true])
+    expect(j('x:1 y:"a" z:true // bar'))[_mo_]({ x: 1, y: 'a', z: true })
+    expect(j('a:b:1 \n /* zed */ a:c:{\nd:e:[1 2]}'))
+    [_mo_]({
+      a: {
+        b: 1,
+        c: { d: { e: [1, 2] } }
+      }
+    })
   })
 
 

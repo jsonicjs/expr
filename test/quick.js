@@ -9,9 +9,9 @@ const clean = (v)=>JSON.parse(JSON.stringify(v))
 
 const j = Jsonic.make().use(Debug).use(Expr,{
   op: {
-    // factorial: {
-    //   suffix: true, left: 15000, src: '!'
-    // },
+    factorial: {
+      suffix: true, left: 15000, src: '!'
+    },
     // question: {
     //   suffix: true, left: 13000, src: '?'
     // }
@@ -26,12 +26,29 @@ const j = Jsonic.make().use(Debug).use(Expr,{
   },
   
   paren: {
+    pure: {
+      preval: {},
+    },
     angle: {
       osrc: '<',
       csrc: '>',
-      preval: true,
-      postval: true,
+      preval: {},
+    },
+    square: {
+      osrc: '[',
+      csrc: ']',
+      preval: {
+        required: true
+      },
+    },
+    brace: {
+      osrc: '{',
+      csrc: '}',
+      preval: {
+        required: true
+      },
     }
+
   }
 })
 

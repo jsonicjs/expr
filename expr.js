@@ -12,10 +12,35 @@ exports.prattify = exports.Expr = void 0;
 const jsonic_1 = require("jsonic");
 const { omap, entries } = jsonic_1.util;
 let Expr = function expr(jsonic, options) {
+    // console.log('AAA', jsonic.fixed('['))
+    var _a;
+    // Ensure comment matcher is first to avoid conflicts with
+    // comment markers (//, /*, etc)
+    let lexm = ((_a = jsonic.options.lex) === null || _a === void 0 ? void 0 : _a.match) || [];
+    let cmI = lexm.map(m => m.name).indexOf('makeCommentMatcher');
+    if (0 < cmI) {
+        jsonic.options({
+            lex: {
+                match: [
+                    lexm[cmI],
+                    ...lexm.slice(0, cmI),
+                    ...lexm.slice(cmI + 1),
+                ]
+            }
+        });
+    }
+    let token = jsonic.token.bind(jsonic);
+    let fixed = jsonic.fixed.bind(jsonic);
     // NOTE: operators with same src will generate same token - this is correct.
-    const operatorFixed = omap(options.op, ([_, od]) => ['#E' + od.src, od.src]);
+    const operatorFixed = omap(options.op, ([_, od]) => [
+        fixed(od.src) ? token(fixed(od.src)) : '#E' + od.src, od.src
+    ]);
     // NOTE: parens with same src will generate same token - this is correct.
-    const parenFixed = omap(options.paren, ([_, od]) => ['#E' + od.osrc, od.osrc, '#E' + od.csrc, od.csrc]);
+    const parenFixed = omap(options.paren, ([_, od]) => [
+        fixed(od.osrc) ? token(fixed(od.osrc)) : '#E' + od.osrc, od.osrc,
+        fixed(od.csrc) ? token(fixed(od.csrc)) : '#E' + od.csrc, od.csrc
+    ]);
+    // console.log('parenFixed', parenFixed)
     // Add the operator tokens to the set of fixed tokens.
     jsonic.options({
         fixed: {
@@ -28,13 +53,13 @@ let Expr = function expr(jsonic, options) {
             token: parenFixed
         }
     });
-    let tokenize = jsonic.token.bind(jsonic);
     // Build token maps (TM).
-    const prefixTM = makeOpMap(tokenize, options.op || {}, 'prefix');
-    const suffixTM = makeOpMap(tokenize, options.op || {}, 'suffix');
-    const infixTM = makeOpMap(tokenize, options.op || {}, 'infix');
-    const parenOTM = makeParenMap(tokenize, options.paren || {});
+    const prefixTM = makeOpMap(token, options.op || {}, 'prefix');
+    const suffixTM = makeOpMap(token, options.op || {}, 'suffix');
+    const infixTM = makeOpMap(token, options.op || {}, 'infix');
+    const parenOTM = makeParenMap(token, fixed, options.paren || {});
     const parenCTM = omap(parenOTM, ([_, pdef]) => [undefined, undefined, pdef.ctin, pdef]);
+    // console.log('parenOTM', parenOTM)
     const PREFIX = Object.values(prefixTM).map(opdef => opdef.tin);
     const INFIX = Object.values(infixTM).map(opdef => opdef.tin);
     const SUFFIX = Object.values(suffixTM).map(opdef => opdef.tin);
@@ -69,6 +94,13 @@ let Expr = function expr(jsonic, options) {
                 s: [OP],
                 b: 1,
                 p: 'paren',
+                c: (r) => {
+                    const pdef = parenOTM[r.o0.tin];
+                    if (pdef.preval.active && pdef.preval.required) {
+                        return 'val' === r.prev.name ? r.prev.use.paren_preval : false;
+                    }
+                    return true;
+                },
                 g: 'expr,expr-paren',
             } : NONE,
         ])
@@ -108,6 +140,7 @@ let Expr = function expr(jsonic, options) {
             // TODO: use n.expr to validate actually in an expression?
             hasParen ? {
                 s: [CP],
+                c: (r) => !!r.n.expr_paren,
                 b: 1,
                 a: (r) => {
                     // console.log('VAL CP', r.node)
@@ -119,10 +152,8 @@ let Expr = function expr(jsonic, options) {
             hasParen ? {
                 s: [OP],
                 b: 1,
-                // r: 'paren',
-                // r: 'expr',
                 r: 'val',
-                c: (r) => parenOTM[r.c0.tin].preval,
+                c: (r) => parenOTM[r.c0.tin].preval.active,
                 u: { paren_preval: true },
                 a: (r) => {
                     // console.log('VAL PRE', r.prev.node, r.node)
@@ -143,6 +174,28 @@ let Expr = function expr(jsonic, options) {
             },
         ]);
     });
+    jsonic.rule('list', (rs) => {
+        let orig_bo = rs.def.bo;
+        rs
+            .bo((...rest) => {
+            orig_bo(...rest);
+            rest[0].n.expr = 0;
+            rest[0].n.expr_prefix = 0;
+            rest[0].n.expr_suffix = 0;
+            rest[0].n.expr_paren = 0;
+        });
+    });
+    jsonic.rule('map', (rs) => {
+        let orig_bo = rs.def.bo;
+        rs
+            .bo((...rest) => {
+            orig_bo(...rest);
+            rest[0].n.expr = 0;
+            rest[0].n.expr_prefix = 0;
+            rest[0].n.expr_suffix = 0;
+            rest[0].n.expr_paren = 0;
+        });
+    });
     jsonic
         .rule('elem', (rs) => {
         rs
@@ -151,6 +204,7 @@ let Expr = function expr(jsonic, options) {
             hasParen ? {
                 s: [CP],
                 b: 1,
+                c: (r) => !!r.n.expr_paren,
                 g: 'expr,expr-paren,imp,close,list',
             } : NONE,
             // Following elem is a paren expression.
@@ -170,6 +224,7 @@ let Expr = function expr(jsonic, options) {
             hasParen ? {
                 s: [CP],
                 b: 1,
+                c: (r) => !!r.n.expr_paren || 0 < r.n.pk,
                 g: 'expr,expr-paren,imp,map',
             } : NONE,
         ]);
@@ -269,6 +324,7 @@ let Expr = function expr(jsonic, options) {
             } : NONE,
             hasParen ? {
                 s: [CP],
+                c: (r) => !!r.n.expr_paren,
                 b: 1,
             } : NONE,
             // Implicit list at the top level. 
@@ -336,7 +392,7 @@ let Expr = function expr(jsonic, options) {
                 s: [OP],
                 p: 'val',
                 n: {
-                    expr: 0, expr_prefix: 0, expr_suffix: 0,
+                    expr_paren: 1, expr: 0, expr_prefix: 0, expr_suffix: 0,
                 },
                 g: 'expr,expr-paren,open',
                 a: makeOpenParen(parenOTM),
@@ -503,13 +559,13 @@ function makeOpMap(tokenize, op, anyfix) {
         return odm;
     }, {});
 }
-function makeParenMap(tokenize, paren) {
+function makeParenMap(tokenize, fixed, paren) {
     return entries(paren)
         .reduce((a, [name, pdef]) => {
-        let otkn = '#E' + pdef.osrc;
-        let ctkn = '#E' + pdef.csrc;
-        let otin = tokenize(otkn);
-        let ctin = tokenize(ctkn);
+        let otin = (fixed(pdef.osrc) || tokenize('#E' + pdef.osrc));
+        let otkn = tokenize(otin);
+        let ctin = (fixed(pdef.csrc) || tokenize('#E' + pdef.csrc));
+        let ctkn = tokenize(ctin);
         a[otin] = {
             name,
             osrc: pdef.osrc,
@@ -518,8 +574,22 @@ function makeParenMap(tokenize, paren) {
             otin,
             ctkn,
             ctin,
-            preval: !!pdef.preval,
-            postval: !!pdef.postval,
+            preval: {
+                // True by default if preval specified.
+                active: null == pdef.preval ? false :
+                    null == pdef.preval.active ? true : pdef.preval.active,
+                // False by default.
+                required: null == pdef.preval ? false :
+                    null == pdef.preval.required ? false : pdef.preval.required,
+            },
+            postval: {
+                // True by default if postval specified.
+                active: null == pdef.postval ? false :
+                    null == pdef.postval.active ? true : pdef.postval.active,
+                // False by default.
+                required: null == pdef.postval ? false :
+                    null == pdef.postval.required ? false : pdef.postval.required,
+            },
         };
         return a;
     }, {});
@@ -573,7 +643,6 @@ Expr.defaults = {
     paren: {
         pure: {
             osrc: '(', csrc: ')',
-            // preval: {}
         },
         // TODO: move to test
         // index: {
