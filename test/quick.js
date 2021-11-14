@@ -26,28 +26,29 @@ const j = Jsonic.make().use(Debug).use(Expr,{
   },
   
   paren: {
-    pure: {
-      preval: {},
-    },
+    // pure: {
+    //    preval: {},
+    // },
     angle: {
       osrc: '<',
       csrc: '>',
-      preval: {},
+      // preval: { required: true },
+      postval: {},
     },
-    square: {
-      osrc: '[',
-      csrc: ']',
-      preval: {
-        required: true
-      },
-    },
-    brace: {
-      osrc: '{',
-      csrc: '}',
-      preval: {
-        required: true
-      },
-    }
+    // square: {
+    //   osrc: '[',
+    //   csrc: ']',
+    //   preval: {
+    //     required: true
+    //   },
+    // },
+    // brace: {
+    //   osrc: '{',
+    //   csrc: '}',
+    //   preval: {
+    //     required: true
+    //   },
+    // }
 
   }
 })

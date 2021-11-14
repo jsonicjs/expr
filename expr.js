@@ -79,6 +79,13 @@ let Expr = function expr(jsonic, options) {
     const NONE = null;
     jsonic
         .rule('val', (rs) => {
+        // let orig_bo: any = rs.def.bo
+        // rs
+        //   .bo((...rest: any) => {
+        //     orig_bo(...rest)
+        //     const r = rest[0] as Rule
+        //     console.log('VAL BO', r.use)
+        //   })
         rs
             .open([
             // The prefix operator of the first term of an expression.
@@ -94,12 +101,24 @@ let Expr = function expr(jsonic, options) {
                 s: [OP],
                 b: 1,
                 p: 'paren',
-                c: (r) => {
+                c: (r, ctx) => {
+                    // console.log('VAP OP', r.use, r.prev.use, r.prev.prev.use)
                     const pdef = parenOTM[r.o0.tin];
-                    if (pdef.preval.active && pdef.preval.required) {
-                        return 'val' === r.prev.name ? r.prev.use.paren_preval : false;
+                    let pass = true;
+                    if (pdef.preval) {
+                        if (pdef.preval.required) {
+                            // return 'val' === r.prev.name ? r.prev.use.paren_preval : false
+                            pass = 'val' === r.prev.name && r.prev.use.paren_preval;
+                            console.log('PREVAL', pass);
+                        }
                     }
-                    return true;
+                    // Paren with preval as first term becomes root.
+                    if (pass) {
+                        if (1 === r.prev.id) {
+                            ctx.root = () => r.node;
+                        }
+                    }
+                    return pass;
                 },
                 g: 'expr,expr-paren',
             } : NONE,
@@ -113,6 +132,21 @@ let Expr = function expr(jsonic, options) {
             //   },
             //   g: 'expr,expr-paren,expr-paren-postval',
             // },
+            {
+                c: (r) => {
+                    // console.log('VAL POSTVAL CHECK', r.prev.use, r.node, r.prev.node)
+                    if (r.prev.use.paren_postval) {
+                        r.prev.node.push(r.node);
+                    }
+                    // if (r.prev.prev?.use?.paren_postval) {
+                    //   r.prev.prev.node.push(r.node)
+                    // }
+                    // else if (r.prev.use.paren_postval) {
+                    //   r.prev.node.push(r.node)
+                    // }
+                    return false;
+                },
+            },
             // The infix operator following the first term of an expression.
             hasInfix ? {
                 s: [INFIX],
@@ -406,15 +440,16 @@ let Expr = function expr(jsonic, options) {
                     let pd = 'expr_paren_depth_' + pdef.name;
                     return !!r.n[pd];
                 },
-                // r: (r: Rule) => {
-                //   const pdef = parenCTM[r.c0.tin]
-                //   // console.log('R pdef', pdef)
-                //   if (pdef.postval) {
-                //     r.use.paren_postval = true
-                //     return 'val'
-                //   }
-                //   return ''
-                // },
+                // postval can only be required
+                r: (r) => {
+                    const pdef = parenCTM[r.c0.tin];
+                    // console.log('R pdef', pdef)
+                    if (pdef.postval.active) {
+                        r.use.paren_postval = true;
+                        return 'val';
+                    }
+                    return '';
+                },
                 a: makeCloseParen(parenCTM),
                 g: 'expr,expr-paren,close',
             } : NONE,
@@ -483,7 +518,7 @@ function makeCloseParen(parenCTM) {
             // if (r.prev.use.paren_preval) {
             if (r.parent.prev.use.paren_preval) {
                 // r.node.splice(1, 0, r.parent.prev.node)
-                // console.log('CP PREVAL', r.node)
+                console.log('CP PREVAL', r.node, r.parent.prev.node);
                 // r.node.prefix$ = true
                 // r.node[2] = r.node[1]
                 // r.node[1] = r.prev.node
@@ -494,6 +529,8 @@ function makeCloseParen(parenCTM) {
                     r.parent.prev.node[1] = [...r.parent.prev.node];
                     r.parent.prev.node[1].paren$ = r.parent.prev.node.paren$;
                     r.parent.prev.node[2] = r.node[1];
+                    r.parent.prev.node[0] = r.node.paren$.osrc;
+                    r.parent.prev.node.length = 3;
                     r.parent.prev.node.paren$ = r.node.paren$;
                     r.node = r.parent.prev.node;
                 }
@@ -502,6 +539,9 @@ function makeCloseParen(parenCTM) {
                     r.parent.prev.node = r.node;
                     // r.parent.prev.prev.node = r.parent.prev.node = r.node
                 }
+            }
+            if (pdef.postval.active) {
+                r.use.paren_postval = true;
             }
             // r.node.push('M2')
             // if (r.prev.use.paren_preval && r.prev.prev.use.paren_postval) {

@@ -1748,6 +1748,8 @@ describe('expr', () => {
 
 
     expect(j('(1)'))[_mo_](['(', 1])
+    expect(j('(1),2'))[_mo_]([['(', 1], 2])
+    expect(j('3(1),2'))[_mo_]([['(', 3, 1], 2])
 
     // This has a paren preval.
     expect(j('foo(1,a)'))[_mo_](['(', 'foo', [1, 'a']])
