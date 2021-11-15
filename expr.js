@@ -9,6 +9,7 @@ exports.prattify = exports.Expr = void 0;
 // TODO: error on incomplete expr: 1+2+
 // TODO: disambiguate infix and suffix by val.close r.o1 lookahead
 // TODO: ternary as special rule
+// TODO: TERNARY TEST + OPTIONAL!!!
 const jsonic_1 = require("jsonic");
 const { omap, entries } = jsonic_1.util;
 let Expr = function expr(jsonic, options) {
@@ -73,27 +74,32 @@ let Expr = function expr(jsonic, options) {
     const VL = jsonic.token.VL;
     const VAL = [TX, NR, ST, VL];
     const NONE = null;
-    const QUEST_SRC = '?';
-    const SEMI_SRC = ';';
-    const QUEST_TIN = fixed(QUEST_SRC);
-    const SEMI_TIN = fixed(SEMI_SRC);
-    const QUEST_NAME = token(QUEST_TIN) || 'E#' + QUEST_SRC;
-    const SEMI_NAME = token(SEMI_TIN) || 'E#' + SEMI_SRC;
+    const TQUEST_SRC = '?';
+    const TCOLON_SRC = ':';
+    const TQUEST_TIN = fixed(TQUEST_SRC);
+    const TCOLON_TIN = fixed(TCOLON_SRC);
+    const TQUEST_NAME = token(TQUEST_TIN) || 'E#' + TQUEST_SRC;
+    const TCOLON_NAME = token(TCOLON_TIN) || 'E#' + TCOLON_SRC;
     // console.log('AAA', jsonic.fixed)
-    // console.log('BBB', jsonic.fixed(QUEST_SRC), QUEST_NAME)
+    // console.log('BBB', jsonic.fixed(TQUEST_SRC), TQUEST_NAME)
     jsonic.options({
         fixed: {
             token: {
-                [QUEST_NAME]: QUEST_SRC,
-                [SEMI_NAME]: SEMI_SRC,
+                [TQUEST_NAME]: TQUEST_SRC,
+                [TCOLON_NAME]: TCOLON_SRC,
             }
         }
     });
-    const QUEST = token(QUEST_NAME);
-    const SEMI = token(SEMI_NAME);
+    const TQUEST = token(TQUEST_NAME);
+    const TCOLON = token(TCOLON_NAME);
     // console.log(jsonic.fixed)
     jsonic
         .rule('val', (rs) => {
+        // Implicit pair not allowed inside ternary
+        if (jsonic.fixed[jsonic.token.CL] === TCOLON_SRC) {
+            let pairkeyalt = rs.def.open.find((a) => a.g.includes('pair'));
+            pairkeyalt.c = (r) => !r.n.expr_ternary;
+        }
         rs
             .open([
             // The prefix operator of the first term of an expression.
@@ -179,14 +185,14 @@ let Expr = function expr(jsonic, options) {
                 g: 'expr,expr-paren,expr-paren-prefix',
             } : NONE,
             {
-                s: [QUEST],
+                s: [TQUEST],
                 b: 1,
                 c: (r) => !r.n.expr,
                 r: 'ternary',
                 g: 'expr,expr-ternary',
             },
             {
-                s: [SEMI],
+                s: [TCOLON],
                 c: (r) => !!r.n.expr_ternary,
                 b: 1,
                 g: 'expr,expr-ternary',
@@ -214,6 +220,7 @@ let Expr = function expr(jsonic, options) {
             rest[0].n.expr_prefix = 0;
             rest[0].n.expr_suffix = 0;
             rest[0].n.expr_paren = 0;
+            rest[0].n.expr_ternary = 0;
         });
     });
     jsonic.rule('map', (rs) => {
@@ -225,6 +232,7 @@ let Expr = function expr(jsonic, options) {
             rest[0].n.expr_prefix = 0;
             rest[0].n.expr_suffix = 0;
             rest[0].n.expr_paren = 0;
+            rest[0].n.expr_ternary = 0;
         });
     });
     jsonic
@@ -346,7 +354,7 @@ let Expr = function expr(jsonic, options) {
                 b: 1,
             } : NONE,
             {
-                s: [QUEST],
+                s: [TQUEST],
                 c: (r) => !r.n.expr_prefix,
                 b: 1,
                 r: 'ternary',
@@ -448,7 +456,7 @@ let Expr = function expr(jsonic, options) {
         rs
             .open([
             {
-                s: [QUEST],
+                s: [TQUEST],
                 p: 'val',
                 n: {
                     expr_ternary: 1, expr_paren: 0, expr: 0, expr_prefix: 0, expr_suffix: 0,
@@ -457,7 +465,7 @@ let Expr = function expr(jsonic, options) {
                 g: 'expr,expr-ternary,open',
                 a: (r) => {
                     var _a;
-                    // console.log('TERN QUEST', r.prev.node)
+                    // console.log('TERN TQUEST', r.prev.node)
                     if ((_a = r.prev.node) === null || _a === void 0 ? void 0 : _a.op$) {
                         let node = ['?', [...r.prev.node]];
                         node[1].op$ = r.prev.node.op$;
@@ -485,7 +493,7 @@ let Expr = function expr(jsonic, options) {
         ])
             .close([
             {
-                s: [SEMI],
+                s: [TCOLON],
                 c: (r) => 1 === r.use.expr_ternary_step,
                 r: 'ternary',
                 a: (r) => {

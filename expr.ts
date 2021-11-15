@@ -10,6 +10,8 @@
 // TODO: ternary as special rule
 
 
+// TODO: TERNARY TEST + OPTIONAL!!!
+
 import {
   Jsonic,
   Plugin,
@@ -171,36 +173,42 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
 
 
-  const QUEST_SRC = '?'
-  const SEMI_SRC = ';'
+  const TQUEST_SRC = '?'
+  const TCOLON_SRC = ':'
 
-  const QUEST_TIN = fixed(QUEST_SRC)
-  const SEMI_TIN = fixed(SEMI_SRC)
+  const TQUEST_TIN = fixed(TQUEST_SRC)
+  const TCOLON_TIN = fixed(TCOLON_SRC)
 
-  const QUEST_NAME = token(QUEST_TIN) || 'E#' + QUEST_SRC
-  const SEMI_NAME = token(SEMI_TIN) || 'E#' + SEMI_SRC
+  const TQUEST_NAME = token(TQUEST_TIN) || 'E#' + TQUEST_SRC
+  const TCOLON_NAME = token(TCOLON_TIN) || 'E#' + TCOLON_SRC
 
   // console.log('AAA', jsonic.fixed)
-  // console.log('BBB', jsonic.fixed(QUEST_SRC), QUEST_NAME)
+  // console.log('BBB', jsonic.fixed(TQUEST_SRC), TQUEST_NAME)
 
 
   jsonic.options({
     fixed: {
       token: {
-        [QUEST_NAME]: QUEST_SRC,
-        [SEMI_NAME]: SEMI_SRC,
+        [TQUEST_NAME]: TQUEST_SRC,
+        [TCOLON_NAME]: TCOLON_SRC,
       }
     }
   })
 
 
-  const QUEST = token(QUEST_NAME)
-  const SEMI = token(SEMI_NAME)
+  const TQUEST = token(TQUEST_NAME)
+  const TCOLON = token(TCOLON_NAME)
   // console.log(jsonic.fixed)
 
 
   jsonic
     .rule('val', (rs: RuleSpec) => {
+
+      // Implicit pair not allowed inside ternary
+      if (jsonic.fixed[jsonic.token.CL] === TCOLON_SRC) {
+        let pairkeyalt: any = rs.def.open.find((a: any) => a.g.includes('pair'))
+        pairkeyalt.c = (r: Rule) => !r.n.expr_ternary
+      }
 
       rs
         .open([
@@ -299,7 +307,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           } : NONE,
 
           {
-            s: [QUEST],
+            s: [TQUEST],
             b: 1,
             c: (r: Rule) => !r.n.expr,
             r: 'ternary',
@@ -307,7 +315,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           },
 
           {
-            s: [SEMI],
+            s: [TCOLON],
             c: (r: Rule) => !!r.n.expr_ternary,
             b: 1,
             g: 'expr,expr-ternary',
@@ -340,6 +348,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
         rest[0].n.expr_prefix = 0
         rest[0].n.expr_suffix = 0
         rest[0].n.expr_paren = 0
+        rest[0].n.expr_ternary = 0
       })
   })
 
@@ -353,6 +362,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
         rest[0].n.expr_prefix = 0
         rest[0].n.expr_suffix = 0
         rest[0].n.expr_paren = 0
+        rest[0].n.expr_ternary = 0
       })
   })
 
@@ -487,7 +497,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
 
           {
-            s: [QUEST],
+            s: [TQUEST],
             c: (r: Rule) => !r.n.expr_prefix,
             b: 1,
             r: 'ternary',
@@ -602,7 +612,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
       rs
         .open([
           {
-            s: [QUEST],
+            s: [TQUEST],
             p: 'val',
             n: {
               expr_ternary: 1, expr_paren: 0, expr: 0, expr_prefix: 0, expr_suffix: 0,
@@ -610,7 +620,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             u: { expr_ternary_step: 1 },
             g: 'expr,expr-ternary,open',
             a: (r: Rule) => {
-              // console.log('TERN QUEST', r.prev.node)
+              // console.log('TERN TQUEST', r.prev.node)
               if (r.prev.node?.op$) {
                 let node: any = ['?', [...r.prev.node]]
                 node[1].op$ = r.prev.node.op$
@@ -639,7 +649,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
         .close([
           {
-            s: [SEMI],
+            s: [TCOLON],
             c: (r: Rule) => 1 === r.use.expr_ternary_step,
             r: 'ternary',
             a: (r: Rule) => {
