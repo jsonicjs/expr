@@ -55,6 +55,10 @@ type ParenDef = {
     active?: boolean
     required?: boolean
   }
+  // postval?: {
+  //   active?: boolean
+  //   required?: boolean
+  // }
 }
 
 type ParenFullDef = ParenDef & {
@@ -67,6 +71,10 @@ type ParenFullDef = ParenDef & {
     active: boolean
     required: boolean
   }
+  // postval: {
+  //   active: boolean
+  //   required: boolean
+  // }
 }
 
 
@@ -162,6 +170,35 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   const NONE = (null as unknown as AltSpec)
 
 
+
+  const QUEST_SRC = '?'
+  const SEMI_SRC = ';'
+
+  const QUEST_TIN = fixed(QUEST_SRC)
+  const SEMI_TIN = fixed(SEMI_SRC)
+
+  const QUEST_NAME = token(QUEST_TIN) || 'E#' + QUEST_SRC
+  const SEMI_NAME = token(SEMI_TIN) || 'E#' + SEMI_SRC
+
+  // console.log('AAA', jsonic.fixed)
+  // console.log('BBB', jsonic.fixed(QUEST_SRC), QUEST_NAME)
+
+
+  jsonic.options({
+    fixed: {
+      token: {
+        [QUEST_NAME]: QUEST_SRC,
+        [SEMI_NAME]: SEMI_SRC,
+      }
+    }
+  })
+
+
+  const QUEST = token(QUEST_NAME)
+  const SEMI = token(SEMI_NAME)
+  // console.log(jsonic.fixed)
+
+
   jsonic
     .rule('val', (rs: RuleSpec) => {
 
@@ -205,6 +242,24 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
         ])
 
         .close([
+          // {
+          //   c: (r: Rule) => {
+          //     // console.log('VAL POSTVAL CHECK', r.prev.use, r.node, r.prev.node)
+
+          //     if (r.prev.use.paren_postval) {
+          //       r.prev.node.push(r.node)
+          //     }
+
+          //     // if (r.prev.prev?.use?.paren_postval) {
+          //     //   r.prev.prev.node.push(r.node)
+          //     // }
+          //     // else if (r.prev.use.paren_postval) {
+          //     //   r.prev.node.push(r.node)
+          //     // }
+          //     return false
+          //   },
+          // },
+
           // The infix operator following the first term of an expression.
           hasInfix ? {
             s: [INFIX],
@@ -242,6 +297,21 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             u: { paren_preval: true },
             g: 'expr,expr-paren,expr-paren-prefix',
           } : NONE,
+
+          {
+            s: [QUEST],
+            b: 1,
+            c: (r: Rule) => !r.n.expr,
+            r: 'ternary',
+            g: 'expr,expr-ternary',
+          },
+
+          {
+            s: [SEMI],
+            c: (r: Rule) => !!r.n.expr_ternary,
+            b: 1,
+            g: 'expr,expr-ternary',
+          },
 
           {
             s: [CA],
@@ -352,6 +422,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
               const parent = r.parent
               const op = infixTM[r.o0.tin]
 
+              // console.log('INFIX OPEN', r.node, 'parent', r.parent.node, 'prev', r.prev.node)
+
               // Second and further operators.
               if (parent.node?.op$) {
                 r.node = prattify(parent.node, op)
@@ -392,6 +464,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
         .close([
           hasInfix ? {
             s: [INFIX],
+            // Complete prefix first.
             c: (r: Rule) => !r.n.expr_prefix,
             b: 1,
             r: 'expr',
@@ -411,6 +484,16 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             c: (r: Rule) => !!r.n.expr_paren,
             b: 1,
           } : NONE,
+
+
+          {
+            s: [QUEST],
+            c: (r: Rule) => !r.n.expr_prefix,
+            b: 1,
+            r: 'ternary',
+            g: 'expr,expr-ternary',
+          },
+
 
           // Implicit list at the top level. 
           {
@@ -495,13 +578,86 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
               let pd = 'expr_paren_depth_' + pdef.name
               return !!r.n[pd]
             },
+
+            // // postval can only be required
+            // r: (r: Rule) => {
+            //   const pdef = parenCTM[r.c0.tin]
+            //   // console.log('R pdef', pdef)
+            //   if (pdef.postval.active) {
+            //     r.use.paren_postval = true
+            //     return 'val'
+            //   }
+            //   return ''
+            // },
+
             a: makeCloseParen(parenCTM),
             g: 'expr,expr-paren,close',
           } : NONE,
-
-
         ])
     })
+
+
+  jsonic
+    .rule('ternary', (rs: RuleSpec) => {
+      rs
+        .open([
+          {
+            s: [QUEST],
+            p: 'val',
+            n: {
+              expr_ternary: 1, expr_paren: 0, expr: 0, expr_prefix: 0, expr_suffix: 0,
+            },
+            u: { expr_ternary_step: 1 },
+            g: 'expr,expr-ternary,open',
+            a: (r: Rule) => {
+              // console.log('TERN QUEST', r.prev.node)
+              if (r.prev.node?.op$) {
+                let node: any = ['?', [...r.prev.node]]
+                node[1].op$ = r.prev.node.op$
+                r.prev.node[0] = node[0]
+                r.prev.node[1] = node[1]
+                r.prev.node.length = 2
+                r.node = r.prev.node
+              }
+              else {
+                r.node = ['?', r.prev.node]
+                r.prev.node = r.node
+              }
+              r.prev.node.ternary$ = { src: '?' }
+              delete r.prev.node.op$
+            },
+          },
+          {
+            p: 'val',
+            c: (r: Rule) => 2 === r.prev.use.expr_ternary_step,
+            a: (r: Rule) => {
+              r.use.expr_ternary_step = r.prev.use.expr_ternary_step
+            },
+            g: 'expr,expr-ternary,step',
+          },
+        ])
+
+        .close([
+          {
+            s: [SEMI],
+            c: (r: Rule) => 1 === r.use.expr_ternary_step,
+            r: 'ternary',
+            a: (r: Rule) => {
+              r.use.expr_ternary_step++
+              r.node.push(r.child.node)
+            },
+            g: 'expr,expr-ternary,step',
+          },
+          {
+            c: (r: Rule) => 2 === r.use.expr_ternary_step,
+            a: (r: Rule) => {
+              r.node.push(r.child.node)
+            },
+            g: 'expr,expr-ternary,close',
+          }
+        ])
+    })
+
 }
 
 
@@ -563,7 +719,6 @@ function makeCloseParen(parenCTM: ParenDefMap) {
       }
       r.node.paren$ = pdef
 
-
       if (r.parent.prev.use.paren_preval) {
         if (r.parent.prev.node?.paren$) {
           r.parent.prev.node[1] = [...r.parent.prev.node]
@@ -580,6 +735,9 @@ function makeCloseParen(parenCTM: ParenDefMap) {
         }
       }
 
+      // if (pdef.postval.active) {
+      //   r.use.paren_postval = true
+      // }
     }
   }
 }
@@ -675,6 +833,14 @@ function makeParenMap(
             required: null == pdef.preval ? false :
               null == pdef.preval.required ? false : pdef.preval.required,
           },
+          // postval: {
+          //   // True by default if postval specified.
+          //   active: null == pdef.postval ? false :
+          //     null == pdef.postval.active ? true : pdef.postval.active,
+          //   // False by default.
+          //   required: null == pdef.postval ? false :
+          //     null == pdef.postval.required ? false : pdef.postval.required,
+          // },
         }
         return a
       },
@@ -731,17 +897,19 @@ const jj = (x: any) => JSON.parse(JSON.stringify(x))
 function prattify(expr: any, op?: OpFullDef): any[] {
   let out = expr
 
-  // let log = ''
-  // let in_expr = jj(expr)
+  let log = ''
+  let in_expr = jj(expr)
 
   if (op) {
     if (op.infix) {
-      // log += 'I'
+      log += 'I'
+
+      // let lower = ('?' === op.src && ';' === expr[2]?.op$?.src)
 
       // op is lower
+      // if (lower || expr.op$.suffix || op.left <= expr.op$.right) {
       if (expr.op$.suffix || op.left <= expr.op$.right) {
-        // log += 'L'
-
+        log += 'L'
         expr[1] = [...expr]
         expr[1].op$ = expr.op$
 
@@ -752,14 +920,21 @@ function prattify(expr: any, op?: OpFullDef): any[] {
 
       // op is higher
       else {
-        // log += 'H'
-
+        log += 'H'
         const end = expr.op$.terms
 
+        // let done = true
+        // let done = (';' === op.src && '?' === expr[end]?.op$?.src && ';' === expr[end][2]?.op$?.src)
+        // console.log('TERN', op.src, done, '/', jj(expr), '/', jj(expr[end]))
+
+        //if (!done && expr[end]?.op$?.right < op.left) {
         if (expr[end]?.op$?.right < op.left) {
+          log += 'P'
+
           out = prattify(expr[end], op)
         }
         else {
+          log += 'E'
           expr[end] = [op.src, expr[end]]
           expr[end].op$ = op
           out = expr[end]
