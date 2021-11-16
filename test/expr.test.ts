@@ -1991,10 +1991,9 @@ describe('expr', () => {
           src: '!',
           left: 15000,
         },
-        // TODO: error if op spec invalid
         ternary: {
-          terms: 3,
-          srcs: ['?', ':'],
+          ternary: true,
+          src: ['?', ':'],
         }
       }
     })

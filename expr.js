@@ -8,7 +8,6 @@ exports.prattify = exports.Expr = void 0;
 // TODO: increase infix base binding values
 // TODO: error on incomplete expr: 1+2+
 // TODO: disambiguate infix and suffix by val.close r.o1 lookahead
-// TODO: ternary as special rule
 // TODO: TERNARY TEST + OPTIONAL!!!
 const jsonic_1 = require("jsonic");
 const { omap, entries } = jsonic_1.util;
@@ -31,39 +30,46 @@ let Expr = function expr(jsonic, options) {
     }
     let token = jsonic.token.bind(jsonic);
     let fixed = jsonic.fixed.bind(jsonic);
+    // Build token maps (TM).
+    let optop = options.op || {};
+    const prefixTM = makeOpMap(token, fixed, optop, 'prefix');
+    const suffixTM = makeOpMap(token, fixed, optop, 'suffix');
+    const infixTM = makeOpMap(token, fixed, optop, 'infix');
+    const ternaryTM = makeOpMap(token, fixed, optop, 'ternary');
+    // console.dir(prefixTM, { depth: null })
+    // console.dir(suffixTM, { depth: null })
+    // console.dir(infixTM, { depth: null })
+    // console.dir(ternaryTM, { depth: null })
     // NOTE: operators with same src will generate same token - this is correct.
-    const operatorFixed = omap(options.op, ([_, od]) => [
-        fixed(od.src) ? token(fixed(od.src)) : '#E' + od.src, od.src
-    ]);
-    // NOTE: parens with same src will generate same token - this is correct.
-    const parenFixed = omap(options.paren, ([_, od]) => [
-        fixed(od.osrc) ? token(fixed(od.osrc)) : '#E' + od.osrc, od.osrc,
-        fixed(od.csrc) ? token(fixed(od.csrc)) : '#E' + od.csrc, od.csrc
-    ]);
-    // Add the operator tokens to the set of fixed tokens.
+    let operatorFixed = Object
+        .values({ ...prefixTM, ...suffixTM, ...infixTM, ...ternaryTM })
+        .reduce((a, op) => (a[op.tkn] = op.src, a), {});
     jsonic.options({
         fixed: {
             token: operatorFixed
         }
     });
-    // Add the paren tokens to the set of fixed tokens.
+    const parenOTM = makeParenMap(token, fixed, options.paren || {});
+    const parenCTM = omap(parenOTM, ([_, pdef]) => [undefined, undefined, pdef.ctin, pdef]);
+    let parenFixed = Object
+        .values({ ...parenOTM, ...parenCTM })
+        .reduce((a, p) => (a[p.otkn] = p.osrc, a[p.ctkn] = p.csrc, a), {});
     jsonic.options({
         fixed: {
             token: parenFixed
         }
     });
-    // Build token maps (TM).
-    const prefixTM = makeOpMap(token, options.op || {}, 'prefix');
-    const suffixTM = makeOpMap(token, options.op || {}, 'suffix');
-    const infixTM = makeOpMap(token, options.op || {}, 'infix');
-    const parenOTM = makeParenMap(token, fixed, options.paren || {});
-    const parenCTM = omap(parenOTM, ([_, pdef]) => [undefined, undefined, pdef.ctin, pdef]);
-    const PREFIX = Object.values(prefixTM).map(opdef => opdef.tin);
-    const INFIX = Object.values(infixTM).map(opdef => opdef.tin);
-    const SUFFIX = Object.values(suffixTM).map(opdef => opdef.tin);
+    const PREFIX = Object.values(prefixTM).map(op => op.tin);
+    const INFIX = Object.values(infixTM).map(op => op.tin);
+    const SUFFIX = Object.values(suffixTM).map(op => op.tin);
+    const TERN0 = Object.values(ternaryTM)
+        .filter(op => 0 === op.use.ternary.opI).map(op => op.tin);
+    const TERN1 = Object.values(ternaryTM)
+        .filter(op => 1 === op.use.ternary.opI).map(op => op.tin);
     const hasPrefix = 0 < PREFIX.length;
     const hasInfix = 0 < INFIX.length;
     const hasSuffix = 0 < SUFFIX.length;
+    const hasTernary = 0 < TERN0.length && 0 < TERN1.length;
     const OP = Object.values(parenOTM).map(pdef => pdef.otin);
     const CP = Object.values(parenCTM).map(pdef => pdef.ctin);
     const hasParen = 0 < OP.length && 0 < CP.length;
@@ -74,29 +80,13 @@ let Expr = function expr(jsonic, options) {
     const VL = jsonic.token.VL;
     const VAL = [TX, NR, ST, VL];
     const NONE = null;
-    const TQUEST_SRC = '?';
-    const TCOLON_SRC = ':';
-    const TQUEST_TIN = fixed(TQUEST_SRC);
-    const TCOLON_TIN = fixed(TCOLON_SRC);
-    const TQUEST_NAME = token(TQUEST_TIN) || 'E#' + TQUEST_SRC;
-    const TCOLON_NAME = token(TCOLON_TIN) || 'E#' + TCOLON_SRC;
-    // console.log('AAA', jsonic.fixed)
-    // console.log('BBB', jsonic.fixed(TQUEST_SRC), TQUEST_NAME)
-    jsonic.options({
-        fixed: {
-            token: {
-                [TQUEST_NAME]: TQUEST_SRC,
-                [TCOLON_NAME]: TCOLON_SRC,
-            }
-        }
-    });
-    const TQUEST = token(TQUEST_NAME);
-    const TCOLON = token(TCOLON_NAME);
-    // console.log(jsonic.fixed)
+    // const TQUEST = TERN0[0]
+    // const TCOLON = TERN1[0]
     jsonic
         .rule('val', (rs) => {
         // Implicit pair not allowed inside ternary
-        if (jsonic.fixed[jsonic.token.CL] === TCOLON_SRC) {
+        // if (jsonic.fixed[jsonic.token.CL] === TCOLON_SRC) {
+        if (hasTernary && TERN1.includes(jsonic.token.CL)) {
             let pairkeyalt = rs.def.open.find((a) => a.g.includes('pair'));
             pairkeyalt.c = (r) => !r.n.expr_ternary;
         }
@@ -135,21 +125,6 @@ let Expr = function expr(jsonic, options) {
             } : NONE,
         ])
             .close([
-            // {
-            //   c: (r: Rule) => {
-            //     // console.log('VAL POSTVAL CHECK', r.prev.use, r.node, r.prev.node)
-            //     if (r.prev.use.paren_postval) {
-            //       r.prev.node.push(r.node)
-            //     }
-            //     // if (r.prev.prev?.use?.paren_postval) {
-            //     //   r.prev.prev.node.push(r.node)
-            //     // }
-            //     // else if (r.prev.use.paren_postval) {
-            //     //   r.prev.node.push(r.node)
-            //     // }
-            //     return false
-            //   },
-            // },
             // The infix operator following the first term of an expression.
             hasInfix ? {
                 s: [INFIX],
@@ -184,19 +159,21 @@ let Expr = function expr(jsonic, options) {
                 u: { paren_preval: true },
                 g: 'expr,expr-paren,expr-paren-prefix',
             } : NONE,
-            {
-                s: [TQUEST],
+            hasTernary ? {
+                // s: [TQUEST],
+                s: [TERN0],
                 b: 1,
                 c: (r) => !r.n.expr,
                 r: 'ternary',
                 g: 'expr,expr-ternary',
-            },
-            {
-                s: [TCOLON],
+            } : NONE,
+            hasTernary ? {
+                // s: [TCOLON],
+                s: [TERN1],
                 c: (r) => !!r.n.expr_ternary,
                 b: 1,
                 g: 'expr,expr-ternary',
-            },
+            } : NONE,
             {
                 s: [CA],
                 c: (r) => 1 === r.d && 1 <= r.n.expr,
@@ -353,13 +330,14 @@ let Expr = function expr(jsonic, options) {
                 c: (r) => !!r.n.expr_paren,
                 b: 1,
             } : NONE,
-            {
-                s: [TQUEST],
+            hasTernary ? {
+                // s: [TQUEST],
+                s: [TERN0],
                 c: (r) => !r.n.expr_prefix,
                 b: 1,
                 r: 'ternary',
                 g: 'expr,expr-ternary',
-            },
+            } : NONE,
             // Implicit list at the top level. 
             {
                 s: [CA],
@@ -436,81 +414,78 @@ let Expr = function expr(jsonic, options) {
                     let pd = 'expr_paren_depth_' + pdef.name;
                     return !!r.n[pd];
                 },
-                // // postval can only be required
-                // r: (r: Rule) => {
-                //   const pdef = parenCTM[r.c0.tin]
-                //   // console.log('R pdef', pdef)
-                //   if (pdef.postval.active) {
-                //     r.use.paren_postval = true
-                //     return 'val'
-                //   }
-                //   return ''
-                // },
                 a: makeCloseParen(parenCTM),
                 g: 'expr,expr-paren,close',
             } : NONE,
         ]);
     });
-    jsonic
-        .rule('ternary', (rs) => {
-        rs
-            .open([
-            {
-                s: [TQUEST],
-                p: 'val',
-                n: {
-                    expr_ternary: 1, expr_paren: 0, expr: 0, expr_prefix: 0, expr_suffix: 0,
+    if (hasTernary) {
+        jsonic
+            .rule('ternary', (rs) => {
+            rs
+                .open([
+                {
+                    // s: [TQUEST],
+                    s: [TERN0],
+                    p: 'val',
+                    n: {
+                        expr_ternary: 1,
+                        expr_paren: 0,
+                        expr: 0,
+                        expr_prefix: 0,
+                        expr_suffix: 0,
+                    },
+                    u: { expr_ternary_step: 1 },
+                    g: 'expr,expr-ternary,open',
+                    a: (r) => {
+                        var _a;
+                        if ((_a = r.prev.node) === null || _a === void 0 ? void 0 : _a.op$) {
+                            let node = ['?', [...r.prev.node]];
+                            node[1].op$ = r.prev.node.op$;
+                            r.prev.node[0] = node[0];
+                            r.prev.node[1] = node[1];
+                            r.prev.node.length = 2;
+                            r.node = r.prev.node;
+                        }
+                        else {
+                            r.node = ['?', r.prev.node];
+                            r.prev.node = r.node;
+                        }
+                        r.prev.node.ternary$ = { src: '?' };
+                        delete r.prev.node.op$;
+                    },
                 },
-                u: { expr_ternary_step: 1 },
-                g: 'expr,expr-ternary,open',
-                a: (r) => {
-                    var _a;
-                    // console.log('TERN TQUEST', r.prev.node)
-                    if ((_a = r.prev.node) === null || _a === void 0 ? void 0 : _a.op$) {
-                        let node = ['?', [...r.prev.node]];
-                        node[1].op$ = r.prev.node.op$;
-                        r.prev.node[0] = node[0];
-                        r.prev.node[1] = node[1];
-                        r.prev.node.length = 2;
-                        r.node = r.prev.node;
-                    }
-                    else {
-                        r.node = ['?', r.prev.node];
-                        r.prev.node = r.node;
-                    }
-                    r.prev.node.ternary$ = { src: '?' };
-                    delete r.prev.node.op$;
+                {
+                    p: 'val',
+                    c: (r) => 2 === r.prev.use.expr_ternary_step,
+                    a: (r) => {
+                        r.use.expr_ternary_step = r.prev.use.expr_ternary_step;
+                    },
+                    g: 'expr,expr-ternary,step',
                 },
-            },
-            {
-                p: 'val',
-                c: (r) => 2 === r.prev.use.expr_ternary_step,
-                a: (r) => {
-                    r.use.expr_ternary_step = r.prev.use.expr_ternary_step;
+            ])
+                .close([
+                {
+                    // s: [TCOLON],
+                    s: [TERN1],
+                    c: (r) => 1 === r.use.expr_ternary_step,
+                    r: 'ternary',
+                    a: (r) => {
+                        r.use.expr_ternary_step++;
+                        r.node.push(r.child.node);
+                    },
+                    g: 'expr,expr-ternary,step',
                 },
-                g: 'expr,expr-ternary,step',
-            },
-        ])
-            .close([
-            {
-                s: [TCOLON],
-                c: (r) => 1 === r.use.expr_ternary_step,
-                r: 'ternary',
-                a: (r) => {
-                    r.use.expr_ternary_step++;
-                    r.node.push(r.child.node);
-                },
-                g: 'expr,expr-ternary,step',
-            },
-            {
-                c: (r) => 2 === r.use.expr_ternary_step,
-                a: (r) => {
-                    r.node.push(r.child.node);
-                },
-                g: 'expr,expr-ternary,close',
-            }
-        ]);
-    });
+                {
+                    c: (r) => 2 === r.use.expr_ternary_step,
+                    a: (r) => {
+                        r.node.push(r.child.node);
+                    },
+                    g: 'expr,expr-ternary,close',
+                }
+            ]);
+        });
+    }
 };
 exports.Expr = Expr;
 // Convert prior (parent or previous) rule node into an expression.
@@ -573,9 +548,6 @@ function makeCloseParen(parenCTM) {
                     r.parent.prev.node = r.node;
                 }
             }
-            // if (pdef.postval.active) {
-            //   r.use.paren_postval = true
-            // }
         }
     };
 }
@@ -605,34 +577,66 @@ function implicitList(rule, ctx, a) {
     }
     return a;
 }
-function makeOpMap(tokenize, op, anyfix) {
+function makeOpMap(token, fixed, op, anyfix) {
     return Object.entries(op)
         .filter(([_, opdef]) => opdef[anyfix])
         .reduce((odm, [name, opdef]) => {
-        let tkn = '#E' + opdef.src;
-        let tin = tokenize(tkn);
-        odm[tin] = {
-            src: opdef.src,
-            terms: 'infix' === anyfix ? 2 : 1,
+        let tkn = '';
+        let tin = -1;
+        let src = '';
+        if ('string' === typeof (opdef.src)) {
+            src = opdef.src;
+        }
+        else {
+            src = opdef.src[0];
+        }
+        // tin = fixed(src)
+        // tkn = (null == tin ? '#E' + src : token(tin)) as string
+        // tin = (token(tkn) as Tin)
+        tin = (fixed(src) || token('#E' + src));
+        tkn = token(tin);
+        let op = odm[tin] = {
+            src: src,
             left: opdef.left || 0,
             right: opdef.right || 0,
             name: name + '-' + anyfix,
             infix: 'infix' === anyfix,
             prefix: 'prefix' === anyfix,
             suffix: 'suffix' === anyfix,
+            ternary: 'ternary' === anyfix,
             tkn,
             tin,
+            terms: 'infix' === anyfix ? 2 : 1,
+            use: {},
         };
+        // Handle the second operator if ternary.
+        if (op.ternary) {
+            let srcs = opdef.src;
+            op.src = srcs[0];
+            op.use.ternary = { opI: 0 };
+            let op2 = { ...op };
+            src = opdef.src[1];
+            // tin = fixed(src)
+            // tkn = (null == tin ? '#E' + src : token(tin)) as string
+            // tin = (token(tkn) as Tin)
+            tin = (fixed(src) || token('#E' + src));
+            tkn = token(tin);
+            op2.src = src;
+            op2.use = { ternary: { opI: 1 } };
+            op2.tkn = tkn;
+            op2.tin = tin;
+            odm[tin] = op2;
+        }
         return odm;
     }, {});
 }
-function makeParenMap(tokenize, fixed, paren) {
+function makeParenMap(token, fixed, paren) {
     return entries(paren)
         .reduce((a, [name, pdef]) => {
-        let otin = (fixed(pdef.osrc) || tokenize('#E' + pdef.osrc));
-        let otkn = tokenize(otin);
-        let ctin = (fixed(pdef.csrc) || tokenize('#E' + pdef.csrc));
-        let ctkn = tokenize(ctin);
+        let otin = (fixed(pdef.osrc) || token('#E' + pdef.osrc));
+        let otkn = token(otin);
+        let ctin = (fixed(pdef.csrc) || token('#E' + pdef.csrc));
+        let ctkn = token(ctin);
         a[otin] = {
             name,
             osrc: pdef.osrc,
@@ -649,14 +653,6 @@ function makeParenMap(tokenize, fixed, paren) {
                 required: null == pdef.preval ? false :
                     null == pdef.preval.required ? false : pdef.preval.required,
             },
-            // postval: {
-            //   // True by default if postval specified.
-            //   active: null == pdef.postval ? false :
-            //     null == pdef.postval.active ? true : pdef.postval.active,
-            //   // False by default.
-            //   required: null == pdef.postval ? false :
-            //     null == pdef.postval.required ? false : pdef.postval.required,
-            // },
         };
         return a;
     }, {});

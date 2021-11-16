@@ -2,12 +2,15 @@ import { Plugin } from 'jsonic';
 declare type OpDef = {
     left?: number;
     right?: number;
-    src: string;
+    src?: string | string[];
     prefix?: boolean;
     suffix?: boolean;
     infix?: boolean;
+    ternary?: boolean;
+    use?: any;
 };
 declare type OpFullDef = OpDef & {
+    src: string;
     left: number;
     right: number;
     terms: number;
@@ -16,6 +19,9 @@ declare type OpFullDef = OpDef & {
     tin: number;
     prefix: boolean;
     suffix: boolean;
+    infix: boolean;
+    ternary: boolean;
+    use: any;
 };
 declare let Expr: Plugin;
 declare function prattify(expr: any, op?: OpFullDef): any[];

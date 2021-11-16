@@ -26,6 +26,10 @@ const j = Jsonic.make().use(Debug).use(Expr,{
     //   infix: true, left: 16, right: 17, src: ';'
     // },
 
+    ternary: {
+      ternary: true,
+      src: ['?', ':'],
+    }
   },
   
   paren: {
