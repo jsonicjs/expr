@@ -8,9 +8,8 @@ exports.prattify = exports.Expr = void 0;
 // TODO: increase infix base binding values
 // TODO: error on incomplete expr: 1+2+
 // TODO: disambiguate infix and suffix by val.close r.o1 lookahead
-// TODO: TERNARY TEST + OPTIONAL!!!
 const jsonic_1 = require("jsonic");
-const { omap, entries } = jsonic_1.util;
+const { omap, entries, values } = jsonic_1.util;
 let Expr = function expr(jsonic, options) {
     var _a;
     // Ensure comment matcher is first to avoid conflicts with
@@ -36,42 +35,33 @@ let Expr = function expr(jsonic, options) {
     const suffixTM = makeOpMap(token, fixed, optop, 'suffix');
     const infixTM = makeOpMap(token, fixed, optop, 'infix');
     const ternaryTM = makeOpMap(token, fixed, optop, 'ternary');
-    // console.dir(prefixTM, { depth: null })
-    // console.dir(suffixTM, { depth: null })
-    // console.dir(infixTM, { depth: null })
-    // console.dir(ternaryTM, { depth: null })
+    const parenOTM = makeParenMap(token, fixed, options.paren || {});
+    const parenCTM = omap(parenOTM, ([_, pdef]) => [undefined, undefined, pdef.ctin, pdef]);
+    let parenFixed = Object
+        .values({ ...parenOTM, ...parenCTM })
+        .reduce((a, p) => (a[p.otkn] = p.osrc, a[p.ctkn] = p.csrc, a), {});
     // NOTE: operators with same src will generate same token - this is correct.
     let operatorFixed = Object
         .values({ ...prefixTM, ...suffixTM, ...infixTM, ...ternaryTM })
         .reduce((a, op) => (a[op.tkn] = op.src, a), {});
     jsonic.options({
         fixed: {
-            token: operatorFixed
+            token: { ...operatorFixed, ...parenFixed }
         }
     });
-    const parenOTM = makeParenMap(token, fixed, options.paren || {});
-    const parenCTM = omap(parenOTM, ([_, pdef]) => [undefined, undefined, pdef.ctin, pdef]);
-    let parenFixed = Object
-        .values({ ...parenOTM, ...parenCTM })
-        .reduce((a, p) => (a[p.otkn] = p.osrc, a[p.ctkn] = p.csrc, a), {});
-    jsonic.options({
-        fixed: {
-            token: parenFixed
-        }
-    });
-    const PREFIX = Object.values(prefixTM).map(op => op.tin);
-    const INFIX = Object.values(infixTM).map(op => op.tin);
-    const SUFFIX = Object.values(suffixTM).map(op => op.tin);
-    const TERN0 = Object.values(ternaryTM)
-        .filter(op => 0 === op.use.ternary.opI).map(op => op.tin);
-    const TERN1 = Object.values(ternaryTM)
-        .filter(op => 1 === op.use.ternary.opI).map(op => op.tin);
+    const PREFIX = values(prefixTM).map((op) => op.tin);
+    const INFIX = values(infixTM).map((op) => op.tin);
+    const SUFFIX = values(suffixTM).map((op) => op.tin);
+    const TERN0 = values(ternaryTM)
+        .filter((op) => 0 === op.use.ternary.opI).map((op) => op.tin);
+    const TERN1 = values(ternaryTM)
+        .filter((op) => 1 === op.use.ternary.opI).map((op) => op.tin);
+    const OP = values(parenOTM).map((pdef) => pdef.otin);
+    const CP = values(parenCTM).map((pdef) => pdef.ctin);
     const hasPrefix = 0 < PREFIX.length;
     const hasInfix = 0 < INFIX.length;
     const hasSuffix = 0 < SUFFIX.length;
     const hasTernary = 0 < TERN0.length && 0 < TERN1.length;
-    const OP = Object.values(parenOTM).map(pdef => pdef.otin);
-    const CP = Object.values(parenCTM).map(pdef => pdef.ctin);
     const hasParen = 0 < OP.length && 0 < CP.length;
     const CA = jsonic.token.CA;
     const TX = jsonic.token.TX;
@@ -80,8 +70,6 @@ let Expr = function expr(jsonic, options) {
     const VL = jsonic.token.VL;
     const VAL = [TX, NR, ST, VL];
     const NONE = null;
-    // const TQUEST = TERN0[0]
-    // const TCOLON = TERN1[0]
     jsonic
         .rule('val', (rs) => {
         // Implicit pair not allowed inside ternary

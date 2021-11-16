@@ -8,9 +8,6 @@
 // TODO: error on incomplete expr: 1+2+
 // TODO: disambiguate infix and suffix by val.close r.o1 lookahead
 
-
-// TODO: TERNARY TEST + OPTIONAL!!!
-
 import {
   Jsonic,
   Plugin,
@@ -23,7 +20,7 @@ import {
 } from 'jsonic'
 
 
-const { omap, entries } = util
+const { omap, entries, values } = util
 
 
 type OpDef = {
@@ -115,23 +112,6 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   const infixTM: OpDefMap = makeOpMap(token, fixed, optop, 'infix')
   const ternaryTM: OpDefMap = makeOpMap(token, fixed, optop, 'ternary')
 
-  // console.dir(prefixTM, { depth: null })
-  // console.dir(suffixTM, { depth: null })
-  // console.dir(infixTM, { depth: null })
-  // console.dir(ternaryTM, { depth: null })
-
-  // NOTE: operators with same src will generate same token - this is correct.
-  let operatorFixed = Object
-    .values({ ...prefixTM, ...suffixTM, ...infixTM, ...ternaryTM })
-    .reduce((a, op) => (a[op.tkn] = op.src, a), ({} as any))
-
-  jsonic.options({
-    fixed: {
-      token: operatorFixed
-    }
-  })
-
-
   const parenOTM: ParenDefMap = makeParenMap(token, fixed, options.paren || {})
   const parenCTM: ParenDefMap = omap(parenOTM, ([_, pdef]: [Tin, ParenFullDef]) =>
     [undefined, undefined, pdef.ctin, pdef])
@@ -141,33 +121,38 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
     .values({ ...parenOTM, ...parenCTM })
     .reduce((a, p) => (a[p.otkn] = p.osrc, a[p.ctkn] = p.csrc, a), ({} as any))
 
+  // NOTE: operators with same src will generate same token - this is correct.
+  let operatorFixed = Object
+    .values({ ...prefixTM, ...suffixTM, ...infixTM, ...ternaryTM })
+    .reduce((a, op) => (a[op.tkn] = op.src, a), ({} as any))
+
+
   jsonic.options({
     fixed: {
-      token: parenFixed
+      token: { ...operatorFixed, ...parenFixed }
     }
   })
 
 
-  const PREFIX = Object.values(prefixTM).map(op => op.tin)
-  const INFIX = Object.values(infixTM).map(op => op.tin)
-  const SUFFIX = Object.values(suffixTM).map(op => op.tin)
+  const PREFIX = values(prefixTM).map((op: any) => op.tin)
+  const INFIX = values(infixTM).map((op: any) => op.tin)
+  const SUFFIX = values(suffixTM).map((op: any) => op.tin)
 
-  const TERN0 = Object.values(ternaryTM)
-    .filter(op => 0 === op.use.ternary.opI).map(op => op.tin)
-  const TERN1 = Object.values(ternaryTM)
-    .filter(op => 1 === op.use.ternary.opI).map(op => op.tin)
+  const TERN0 = values(ternaryTM)
+    .filter((op: any) => 0 === op.use.ternary.opI).map((op: any) => op.tin)
+  const TERN1 = values(ternaryTM)
+    .filter((op: any) => 1 === op.use.ternary.opI).map((op: any) => op.tin)
+
+  const OP = values(parenOTM).map((pdef: any) => pdef.otin)
+  const CP = values(parenCTM).map((pdef: any) => pdef.ctin)
 
 
   const hasPrefix = 0 < PREFIX.length
   const hasInfix = 0 < INFIX.length
   const hasSuffix = 0 < SUFFIX.length
   const hasTernary = 0 < TERN0.length && 0 < TERN1.length
-
-
-  const OP = Object.values(parenOTM).map(pdef => pdef.otin)
-  const CP = Object.values(parenCTM).map(pdef => pdef.ctin)
-
   const hasParen = 0 < OP.length && 0 < CP.length
+
 
   const CA = jsonic.token.CA
   const TX = jsonic.token.TX
@@ -177,10 +162,6 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   const VAL = [TX, NR, ST, VL]
 
   const NONE = (null as unknown as AltSpec)
-
-
-  // const TQUEST = TERN0[0]
-  // const TCOLON = TERN1[0]
 
 
   jsonic
