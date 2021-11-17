@@ -1393,7 +1393,7 @@ describe('expr', () => {
             }
         });
     });
-    test('ternary', () => {
+    test('ternary-basic', () => {
         const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
             // TODO: make this work
             op: {
@@ -1539,6 +1539,104 @@ describe('expr', () => {
         expect(j('1? 2? 4? 6?8:9 :7 :5 :-3!'))[_mo_](['?', 1, ['?', 2, ['?', 4, ['?', 6, 8, 9], 7], 5], ['-', ['!', 3]]]);
         expect(j('1? 2?4:5 :-3!?6:7'))[_mo_](['?', 1, ['?', 2, 4, 5], ['?', ['-', ['!', 3]], 6, 7]]);
         expect(j('1? 2?4:5 :-3!?6: 7?8:9'))[_mo_](['?', 1, ['?', 2, 4, 5], ['?', ['-', ['!', 3]], 6, ['?', 7, 8, 9]]]);
+        expect(j('a 1?2:3'))[_mo_](['a', ['?', 1, 2, 3]]);
+        expect(j('1?2:3 b'))[_mo_]([['?', 1, 2, 3], 'b']);
+        expect(j('a 1?2:3 b'))[_mo_](['a', ['?', 1, 2, 3], 'b']);
+        expect(j('a,1?2:3'))[_mo_](['a', ['?', 1, 2, 3]]);
+        expect(j('1?2:3,b'))[_mo_]([['?', 1, 2, 3], 'b']);
+        expect(j('a,1?2:3,b'))[_mo_](['a', ['?', 1, 2, 3], 'b']);
+        expect(j('(a 1?2:3)'))[_mo_](['(', ['a', ['?', 1, 2, 3]]]);
+        expect(j('(1?2:3 b)'))[_mo_](['(', [['?', 1, 2, 3], 'b']]);
+        expect(j('(a 1?2:3 b)'))[_mo_](['(', ['a', ['?', 1, 2, 3], 'b']]);
+        expect(j('(a,1?2:3)'))[_mo_](['(', ['a', ['?', 1, 2, 3]]]);
+        expect(j('(1?2:3,b)'))[_mo_](['(', [['?', 1, 2, 3], 'b']]);
+        expect(j('(a,1?2:3,b)'))[_mo_](['(', ['a', ['?', 1, 2, 3], 'b']]);
+    });
+    test('ternary-paren-preval', () => {
+        const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+            // TODO: make this work
+            op: {
+                ternary: {
+                    ternary: true,
+                    src: ['?', ':'],
+                }
+            },
+            paren: {
+                pure: {
+                    preval: {}
+                }
+            }
+        });
+        const j = mj(je);
+        expect(j('a:1'))[_mo_]({ a: 1 });
+        expect(j('1?2:3'))[_mo_](['?', 1, 2, 3]);
+        expect(j('a 1?2:3'))[_mo_](['a', ['?', 1, 2, 3]]);
+        expect(j('1?2:3 b'))[_mo_]([['?', 1, 2, 3], 'b']);
+        expect(j('a 1?2:3 b'))[_mo_](['a', ['?', 1, 2, 3], 'b']);
+        expect(j('a,1?2:3'))[_mo_](['a', ['?', 1, 2, 3]]);
+        expect(j('1?2:3,b'))[_mo_]([['?', 1, 2, 3], 'b']);
+        expect(j('a,1?2:3,b'))[_mo_](['a', ['?', 1, 2, 3], 'b']);
+        expect(j('(a 1?2:3)'))[_mo_](['(', ['a', ['?', 1, 2, 3]]]);
+        expect(j('(1?2:3 b)'))[_mo_](['(', [['?', 1, 2, 3], 'b']]);
+        expect(j('(a 1?2:3 b)'))[_mo_](['(', ['a', ['?', 1, 2, 3], 'b']]);
+        expect(j('(a,1?2:3)'))[_mo_](['(', ['a', ['?', 1, 2, 3]]]);
+        expect(j('(1?2:3,b)'))[_mo_](['(', [['?', 1, 2, 3], 'b']]);
+        expect(j('(a,1?2:3,b)'))[_mo_](['(', ['a', ['?', 1, 2, 3], 'b']]);
+        expect(j('foo(a 1?2:3)'))[_mo_](['(', 'foo', ['a', ['?', 1, 2, 3]]]);
+        expect(j('foo(1?2:3 b)'))[_mo_](['(', 'foo', [['?', 1, 2, 3], 'b']]);
+        expect(j('foo(a 1?2:3 b)'))[_mo_](['(', 'foo', ['a', ['?', 1, 2, 3], 'b']]);
+        expect(j('foo(a,1?2:3)'))[_mo_](['(', 'foo', ['a', ['?', 1, 2, 3]]]);
+        expect(j('foo(1?2:3,b)'))[_mo_](['(', 'foo', [['?', 1, 2, 3], 'b']]);
+        expect(j('foo(a,1?2:3,b)'))[_mo_](['(', 'foo', ['a', ['?', 1, 2, 3], 'b']]);
+    });
+    test('ternary-many', () => {
+        const je0 = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+            // TODO: make this work
+            op: {
+                foo: {
+                    ternary: true,
+                    src: ['?', ':'],
+                },
+                bar: {
+                    ternary: true,
+                    src: ['QQ', 'CC'],
+                },
+            }
+        });
+        const j0 = mj(je0);
+        expect(j0('a:1'))[_mo_]({ a: 1 });
+        expect(j0('1?2:3'))[_mo_](['?', 1, 2, 3]);
+        expect(j0('1QQ2CC3'))[_mo_](['QQ', 1, 2, 3]);
+        expect(j0('1QQ2?4:5CC3'))[_mo_](['QQ', 1, ['?', 2, 4, 5], 3]);
+        expect(j0('1?2QQ4CC5:3'))[_mo_](['?', 1, ['QQ', 2, 4, 5], 3]);
+        const je1 = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+            // TODO: make this work
+            op: {
+                foo: {
+                    ternary: true,
+                    src: ['?', ':'],
+                },
+                bar: {
+                    ternary: true,
+                    src: ['QQ', 'CC'],
+                },
+                zed: {
+                    ternary: true,
+                    src: ['%%', '@@'],
+                },
+            }
+        });
+        const j1 = mj(je1);
+        expect(j1('a:1'))[_mo_]({ a: 1 });
+        expect(j1('1?2:3'))[_mo_](['?', 1, 2, 3]);
+        expect(j1('1QQ2CC3'))[_mo_](['QQ', 1, 2, 3]);
+        expect(j1('1%%2@@3'))[_mo_](['%%', 1, 2, 3]);
+        expect(j1('1QQ2?4:5CC3'))[_mo_](['QQ', 1, ['?', 2, 4, 5], 3]);
+        expect(j1('1?2QQ4CC5:3'))[_mo_](['?', 1, ['QQ', 2, 4, 5], 3]);
+        expect(j1('1QQ2%%4@@5CC3'))[_mo_](['QQ', 1, ['%%', 2, 4, 5], 3]);
+        expect(j1('1?2%%4@@5:3'))[_mo_](['?', 1, ['%%', 2, 4, 5], 3]);
+        expect(j1('1%%2?4:5@@3'))[_mo_](['%%', 1, ['?', 2, 4, 5], 3]);
+        expect(j1('1%%2QQ4CC5@@3'))[_mo_](['%%', 1, ['QQ', 2, 4, 5], 3]);
     });
     // test('new-existing-token-cs', () => {
     //   const je = Jsonic.make().use(Expr, {

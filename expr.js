@@ -5,9 +5,31 @@ exports.prattify = exports.Expr = void 0;
 // This algorithm is based on Pratt parsing, and draws heavily from
 // the explanation written by Aleksey Kladov here:
 // https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
+// See the `prattify` function for the core implementation.
+//
+// Expressions are encoded as LISP-style S-expressions using
+// arrays. Meta data is attached with array properties (op$, paren$,
+// etc).  To maintain the integrity of the overall JSON AST,
+// expression rules cannot simply re-assign nodes. Instead the
+// existing partial expression nodes are rewritten in-place. This code
+// is as ugly as one would expect.  See the `prattify` function for an
+// example.
+//
+// Parentheses can have preceeding values, which allows for the using function
+// call ("foo(1)") and index ("a[1]") syntax. See the tests for examples and
+// configuration options.
+//
+// Ternary expressions are implemented as special rule that is similar to
+// the parenthesis rule.
+//
+// Standard Jsonic allows for implicit lists and maps (e.g. a,b =>
+// ['a','b']) at the top level. This expression grammar also allows
+// for implicits within parentheses, so that "foo(1,2)" =>
+// ['(','foo',[1,2]]. To support implicits additional counters and
+// flags are needed, as well as context-sensitive edge-case
+// handling. See the ternary rule for a glorious example.
 // TODO: increase infix base binding values
 // TODO: error on incomplete expr: 1+2+
-// TODO: disambiguate infix and suffix by val.close r.o1 lookahead
 const jsonic_1 = require("jsonic");
 const { omap, entries, values } = jsonic_1.util;
 let Expr = function expr(jsonic, options) {
@@ -68,6 +90,7 @@ let Expr = function expr(jsonic, options) {
     const NR = jsonic.token.NR;
     const ST = jsonic.token.ST;
     const VL = jsonic.token.VL;
+    const ZZ = jsonic.token.ZZ;
     const VAL = [TX, NR, ST, VL];
     const NONE = null;
     jsonic
@@ -113,6 +136,13 @@ let Expr = function expr(jsonic, options) {
             } : NONE,
         ])
             .close([
+            hasTernary ? {
+                s: [TERN0],
+                c: (r) => !r.n.expr,
+                b: 1,
+                r: 'ternary',
+                g: 'expr,expr-ternary',
+            } : NONE,
             // The infix operator following the first term of an expression.
             hasInfix ? {
                 s: [INFIX],
@@ -148,29 +178,24 @@ let Expr = function expr(jsonic, options) {
                 g: 'expr,expr-paren,expr-paren-prefix',
             } : NONE,
             hasTernary ? {
-                // s: [TQUEST],
-                s: [TERN0],
-                b: 1,
-                c: (r) => !r.n.expr,
-                r: 'ternary',
-                g: 'expr,expr-ternary',
-            } : NONE,
-            hasTernary ? {
-                // s: [TCOLON],
                 s: [TERN1],
                 c: (r) => !!r.n.expr_ternary,
                 b: 1,
                 g: 'expr,expr-ternary',
             } : NONE,
+            // Don't create implicit list inside expression. 
             {
                 s: [CA],
-                c: (r) => 1 === r.d && 1 <= r.n.expr,
+                c: (r) => (1 === r.d && (1 <= r.n.expr || 1 <= r.n.expr_ternary)) ||
+                    (1 <= r.n.expr_ternary && 1 <= r.n.expr_paren),
                 b: 1,
                 g: 'expr,list,val,imp,comma,top',
             },
+            // Don't create implicit list inside expression. 
             {
                 s: [VAL],
-                c: (r) => 1 === r.d && 1 <= r.n.expr,
+                c: (r) => (1 === r.d && (1 <= r.n.expr || 1 <= r.n.expr_ternary)) ||
+                    (1 <= r.n.expr_ternary && 1 <= r.n.expr_paren),
                 b: 1,
                 g: 'expr,list,val,imp,space,top',
             },
@@ -260,7 +285,6 @@ let Expr = function expr(jsonic, options) {
                     const prev = r.prev;
                     const parent = r.parent;
                     const op = infixTM[r.o0.tin];
-                    // console.log('INFIX OPEN', r.node, 'parent', r.parent.node, 'prev', r.prev.node)
                     // Second and further operators.
                     if ((_a = parent.node) === null || _a === void 0 ? void 0 : _a.op$) {
                         r.node = prattify(parent.node, op);
@@ -319,7 +343,6 @@ let Expr = function expr(jsonic, options) {
                 b: 1,
             } : NONE,
             hasTernary ? {
-                // s: [TQUEST],
                 s: [TERN0],
                 c: (r) => !r.n.expr_prefix,
                 b: 1,
@@ -361,7 +384,7 @@ let Expr = function expr(jsonic, options) {
                 h: implicitList,
                 g: 'expr,list,val,imp,space',
             },
-            // Expression ends with non-expression token.
+            // Expression ends on non-expression token.
             {
                 g: 'expr,expr-end',
             }
@@ -407,18 +430,17 @@ let Expr = function expr(jsonic, options) {
             } : NONE,
         ]);
     });
+    // Ternary operators are like fancy parens.
     if (hasTernary) {
         jsonic
             .rule('ternary', (rs) => {
             rs
                 .open([
                 {
-                    // s: [TQUEST],
                     s: [TERN0],
                     p: 'val',
                     n: {
                         expr_ternary: 1,
-                        expr_paren: 0,
                         expr: 0,
                         expr_prefix: 0,
                         expr_suffix: 0,
@@ -427,8 +449,10 @@ let Expr = function expr(jsonic, options) {
                     g: 'expr,expr-ternary,open',
                     a: (r) => {
                         var _a;
+                        let tdef = ternaryTM[r.o0.tin];
+                        r.use.expr_ternary_name = tdef.name;
                         if ((_a = r.prev.node) === null || _a === void 0 ? void 0 : _a.op$) {
-                            let node = ['?', [...r.prev.node]];
+                            let node = [tdef.src, [...r.prev.node]];
                             node[1].op$ = r.prev.node.op$;
                             r.prev.node[0] = node[0];
                             r.prev.node[1] = node[1];
@@ -436,11 +460,14 @@ let Expr = function expr(jsonic, options) {
                             r.node = r.prev.node;
                         }
                         else {
-                            r.node = ['?', r.prev.node];
+                            r.node = [tdef.src, r.prev.node];
                             r.prev.node = r.node;
                         }
-                        r.prev.node.ternary$ = { src: '?' };
+                        r.prev.node.ternary$ = tdef;
                         delete r.prev.node.op$;
+                        r.use.expr_ternary_paren = r.n.expr_paren ||
+                            r.prev.use.expr_ternary_paren || 0;
+                        r.n.expr_paren = 0;
                     },
                 },
                 {
@@ -448,15 +475,20 @@ let Expr = function expr(jsonic, options) {
                     c: (r) => 2 === r.prev.use.expr_ternary_step,
                     a: (r) => {
                         r.use.expr_ternary_step = r.prev.use.expr_ternary_step;
+                        r.n.expr_paren =
+                            r.use.expr_ternary_paren =
+                                r.prev.use.expr_ternary_paren;
                     },
                     g: 'expr,expr-ternary,step',
                 },
             ])
                 .close([
                 {
-                    // s: [TCOLON],
                     s: [TERN1],
-                    c: (r) => 1 === r.use.expr_ternary_step,
+                    c: (r) => {
+                        return 1 === r.use.expr_ternary_step &&
+                            r.use.expr_ternary_name === ternaryTM[r.c0.tin].name;
+                    },
                     r: 'ternary',
                     a: (r) => {
                         r.use.expr_ternary_step++;
@@ -464,13 +496,72 @@ let Expr = function expr(jsonic, options) {
                     },
                     g: 'expr,expr-ternary,step',
                 },
+                // End of ternary at top level. Implicit list indicated by comma.
                 {
-                    c: (r) => 2 === r.use.expr_ternary_step,
+                    s: [[CA, ...CP]],
+                    c: (r) => {
+                        return (0 === r.d || 1 <= r.n.expr_paren) &&
+                            !r.n.pk &&
+                            2 === r.use.expr_ternary_step;
+                    },
+                    // Handle ternary as first item of imp list inside paren.
+                    b: (r, ctx) => CP.includes(ctx.t0.tin) ? 1 : 0,
+                    r: (r, ctx) => {
+                        var _a;
+                        return !CP.includes(ctx.t0.tin) &&
+                            (0 === r.d || (r.prev.use.expr_ternary_paren &&
+                                !((_a = r.parent.node) === null || _a === void 0 ? void 0 : _a.length))) ? 'elem' : '';
+                    },
+                    a: (r, ctx, a) => {
+                        r.n.expr_paren = r.prev.use.expr_ternary_paren;
+                        r.node.push(r.child.node);
+                        if ('elem' === a.r) {
+                            let tdef = r.node.ternary$;
+                            r.node[0] = [...r.node];
+                            r.node[0].ternary$ = tdef;
+                            r.node.length = 1;
+                        }
+                    },
+                    g: 'expr,expr-ternary,list,val,imp,comma',
+                },
+                // End of ternary at top level.
+                // Implicit list indicated by space separated value.
+                {
+                    c: (r) => {
+                        return (0 === r.d || 1 <= r.n.expr_paren) &&
+                            !r.n.pk &&
+                            2 === r.use.expr_ternary_step;
+                    },
+                    // Handle ternary as first item of imp list inside paren.
+                    r: (r, ctx) => {
+                        var _a;
+                        return (0 === r.d ||
+                            !CP.includes(ctx.t0.tin) ||
+                            r.prev.use.expr_ternary_paren) &&
+                            !((_a = r.parent.node) === null || _a === void 0 ? void 0 : _a.length) &&
+                            ZZ !== ctx.t0.tin
+                            ? 'elem' : '';
+                    },
+                    a: (r, ctx, a) => {
+                        r.n.expr_paren = r.prev.use.expr_ternary_paren;
+                        r.node.push(r.child.node);
+                        if ('elem' === a.r) {
+                            let tdef = r.node.ternary$;
+                            r.node[0] = [...r.node];
+                            r.node[0].ternary$ = tdef;
+                            r.node.length = 1;
+                        }
+                    },
+                    g: 'expr,expr-ternary,list,val,imp,space',
+                },
+                // End of ternary.
+                {
+                    c: (r) => 0 < r.d && 2 === r.use.expr_ternary_step,
                     a: (r) => {
                         r.node.push(r.child.node);
                     },
                     g: 'expr,expr-ternary,close',
-                }
+                },
             ]);
         });
     }
@@ -578,9 +669,6 @@ function makeOpMap(token, fixed, op, anyfix) {
         else {
             src = opdef.src[0];
         }
-        // tin = fixed(src)
-        // tkn = (null == tin ? '#E' + src : token(tin)) as string
-        // tin = (token(tkn) as Tin)
         tin = (fixed(src) || token('#E' + src));
         tkn = token(tin);
         let op = odm[tin] = {
@@ -604,9 +692,6 @@ function makeOpMap(token, fixed, op, anyfix) {
             op.use.ternary = { opI: 0 };
             let op2 = { ...op };
             src = opdef.src[1];
-            // tin = fixed(src)
-            // tkn = (null == tin ? '#E' + src : token(tin)) as string
-            // tin = (token(tkn) as Tin)
             tin = (fixed(src) || token('#E' + src));
             tkn = token(tin);
             op2.src = src;

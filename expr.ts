@@ -3,10 +3,34 @@
 // This algorithm is based on Pratt parsing, and draws heavily from
 // the explanation written by Aleksey Kladov here:
 // https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
+// See the `prattify` function for the core implementation.
+//
+// Expressions are encoded as LISP-style S-expressions using
+// arrays. Meta data is attached with array properties (op$, paren$,
+// etc).  To maintain the integrity of the overall JSON AST,
+// expression rules cannot simply re-assign nodes. Instead the
+// existing partial expression nodes are rewritten in-place. This code
+// is as ugly as one would expect.  See the `prattify` function for an
+// example.
+//
+// Parentheses can have preceeding values, which allows for the using function
+// call ("foo(1)") and index ("a[1]") syntax. See the tests for examples and
+// configuration options.
+//
+// Ternary expressions are implemented as special rule that is similar to
+// the parenthesis rule.
+//
+// Standard Jsonic allows for implicit lists and maps (e.g. a,b =>
+// ['a','b']) at the top level. This expression grammar also allows
+// for implicits within parentheses, so that "foo(1,2)" =>
+// ['(','foo',[1,2]]. To support implicits additional counters and
+// flags are needed, as well as context-sensitive edge-case
+// handling. See the ternary rule for a glorious example.
+
 
 // TODO: increase infix base binding values
 // TODO: error on incomplete expr: 1+2+
-// TODO: disambiguate infix and suffix by val.close r.o1 lookahead
+
 
 import {
   Jsonic,
@@ -14,6 +38,7 @@ import {
   Rule,
   RuleSpec,
   AltSpec,
+  AltMatch,
   Tin,
   Context,
   util,
@@ -159,6 +184,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   const NR = jsonic.token.NR
   const ST = jsonic.token.ST
   const VL = jsonic.token.VL
+  const ZZ = jsonic.token.ZZ
+
   const VAL = [TX, NR, ST, VL]
 
   const NONE = (null as unknown as AltSpec)
@@ -215,6 +242,14 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
         .close([
 
+          hasTernary ? {
+            s: [TERN0],
+            c: (r: Rule) => !r.n.expr,
+            b: 1,
+            r: 'ternary',
+            g: 'expr,expr-ternary',
+          } : NONE,
+
           // The infix operator following the first term of an expression.
           hasInfix ? {
             s: [INFIX],
@@ -254,32 +289,28 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           } : NONE,
 
           hasTernary ? {
-            // s: [TQUEST],
-            s: [TERN0],
-            b: 1,
-            c: (r: Rule) => !r.n.expr,
-            r: 'ternary',
-            g: 'expr,expr-ternary',
-          } : NONE,
-
-          hasTernary ? {
-            // s: [TCOLON],
             s: [TERN1],
             c: (r: Rule) => !!r.n.expr_ternary,
             b: 1,
             g: 'expr,expr-ternary',
           } : NONE,
 
+          // Don't create implicit list inside expression. 
           {
             s: [CA],
-            c: (r: Rule) => 1 === r.d && 1 <= r.n.expr,
+            c: (r: Rule) =>
+              (1 === r.d && (1 <= r.n.expr || 1 <= r.n.expr_ternary)) ||
+              (1 <= r.n.expr_ternary && 1 <= r.n.expr_paren),
             b: 1,
             g: 'expr,list,val,imp,comma,top',
           },
 
+          // Don't create implicit list inside expression. 
           {
             s: [VAL],
-            c: (r: Rule) => 1 === r.d && 1 <= r.n.expr,
+            c: (r: Rule) =>
+              (1 === r.d && (1 <= r.n.expr || 1 <= r.n.expr_ternary)) ||
+              (1 <= r.n.expr_ternary && 1 <= r.n.expr_paren),
             b: 1,
             g: 'expr,list,val,imp,space,top',
           },
@@ -381,8 +412,6 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
               const parent = r.parent
               const op = infixTM[r.o0.tin]
 
-              // console.log('INFIX OPEN', r.node, 'parent', r.parent.node, 'prev', r.prev.node)
-
               // Second and further operators.
               if (parent.node?.op$) {
                 r.node = prattify(parent.node, op)
@@ -414,12 +443,14 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             g: 'expr,expr-suffix',
           } : NONE,
         ])
+
         .bc((r: Rule) => {
           // Append final term to expression.
           if (r.node?.length - 1 < r.node?.op$?.terms) {
             r.node.push(r.child.node)
           }
         })
+
         .close([
           hasInfix ? {
             s: [INFIX],
@@ -446,7 +477,6 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
 
           hasTernary ? {
-            // s: [TQUEST],
             s: [TERN0],
             c: (r: Rule) => !r.n.expr_prefix,
             b: 1,
@@ -494,7 +524,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             g: 'expr,list,val,imp,space',
           },
 
-          // Expression ends with non-expression token.
+          // Expression ends on non-expression token.
           {
             g: 'expr,expr-end',
           }
@@ -511,6 +541,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           r.n.pk = 0
         })
         .open([
+
           hasParen ? {
             s: [OP, CP],
             b: 1,
@@ -546,18 +577,17 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
     })
 
 
+  // Ternary operators are like fancy parens.
   if (hasTernary) {
     jsonic
       .rule('ternary', (rs: RuleSpec) => {
         rs
           .open([
             {
-              // s: [TQUEST],
               s: [TERN0],
               p: 'val',
               n: {
                 expr_ternary: 1,
-                expr_paren: 0,
                 expr: 0,
                 expr_prefix: 0,
                 expr_suffix: 0,
@@ -565,8 +595,11 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
               u: { expr_ternary_step: 1 },
               g: 'expr,expr-ternary,open',
               a: (r: Rule) => {
+                let tdef = ternaryTM[r.o0.tin]
+                r.use.expr_ternary_name = tdef.name
+
                 if (r.prev.node?.op$) {
-                  let node: any = ['?', [...r.prev.node]]
+                  let node: any = [tdef.src, [...r.prev.node]]
                   node[1].op$ = r.prev.node.op$
                   r.prev.node[0] = node[0]
                   r.prev.node[1] = node[1]
@@ -574,11 +607,16 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
                   r.node = r.prev.node
                 }
                 else {
-                  r.node = ['?', r.prev.node]
+                  r.node = [tdef.src, r.prev.node]
                   r.prev.node = r.node
                 }
-                r.prev.node.ternary$ = { src: '?' }
+                r.prev.node.ternary$ = tdef
                 delete r.prev.node.op$
+
+                r.use.expr_ternary_paren = r.n.expr_paren ||
+                  r.prev.use.expr_ternary_paren || 0
+
+                r.n.expr_paren = 0
               },
             },
             {
@@ -586,6 +624,9 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
               c: (r: Rule) => 2 === r.prev.use.expr_ternary_step,
               a: (r: Rule) => {
                 r.use.expr_ternary_step = r.prev.use.expr_ternary_step
+                r.n.expr_paren =
+                  r.use.expr_ternary_paren =
+                  r.prev.use.expr_ternary_paren
               },
               g: 'expr,expr-ternary,step',
             },
@@ -593,9 +634,11 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
           .close([
             {
-              // s: [TCOLON],
               s: [TERN1],
-              c: (r: Rule) => 1 === r.use.expr_ternary_step,
+              c: (r: Rule) => {
+                return 1 === r.use.expr_ternary_step &&
+                  r.use.expr_ternary_name === ternaryTM[r.c0.tin].name
+              },
               r: 'ternary',
               a: (r: Rule) => {
                 r.use.expr_ternary_step++
@@ -603,13 +646,81 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
               },
               g: 'expr,expr-ternary,step',
             },
+
+
+            // End of ternary at top level. Implicit list indicated by comma.
             {
-              c: (r: Rule) => 2 === r.use.expr_ternary_step,
+              s: [[CA, ...CP]],
+              c: (r: Rule) => {
+                return (0 === r.d || 1 <= r.n.expr_paren) &&
+                  !r.n.pk &&
+                  2 === r.use.expr_ternary_step
+              },
+
+              // Handle ternary as first item of imp list inside paren.
+              b: (r: Rule, ctx: Context) => CP.includes(ctx.t0.tin) ? 1 : 0,
+              r: (r: Rule, ctx: Context) =>
+                !CP.includes(ctx.t0.tin) &&
+                  (0 === r.d || (
+                    r.prev.use.expr_ternary_paren &&
+                    !r.parent.node?.length)) ? 'elem' : '',
+              a: (r: Rule, ctx: Context, a: AltMatch) => {
+                r.n.expr_paren = r.prev.use.expr_ternary_paren
+
+                r.node.push(r.child.node)
+
+                if ('elem' === a.r) {
+                  let tdef = r.node.ternary$
+                  r.node[0] = [...r.node]
+                  r.node[0].ternary$ = tdef
+                  r.node.length = 1
+                }
+              },
+
+              g: 'expr,expr-ternary,list,val,imp,comma',
+            },
+
+            // End of ternary at top level.
+            // Implicit list indicated by space separated value.
+            {
+              c: (r: Rule) => {
+                return (0 === r.d || 1 <= r.n.expr_paren) &&
+                  !r.n.pk &&
+                  2 === r.use.expr_ternary_step
+              },
+
+              // Handle ternary as first item of imp list inside paren.
+              r: (r: Rule, ctx: Context) => {
+                return (0 === r.d ||
+                  !CP.includes(ctx.t0.tin) ||
+                  r.prev.use.expr_ternary_paren) &&
+                  !r.parent.node?.length &&
+                  ZZ !== ctx.t0.tin
+                  ? 'elem' : ''
+              },
+              a: (r: Rule, ctx: Context, a: AltMatch) => {
+                r.n.expr_paren = r.prev.use.expr_ternary_paren
+                r.node.push(r.child.node)
+
+                if ('elem' === a.r) {
+                  let tdef = r.node.ternary$
+                  r.node[0] = [...r.node]
+                  r.node[0].ternary$ = tdef
+                  r.node.length = 1
+                }
+              },
+              g: 'expr,expr-ternary,list,val,imp,space',
+            },
+
+            // End of ternary.
+            {
+              c: (r: Rule) => 0 < r.d && 2 === r.use.expr_ternary_step,
               a: (r: Rule) => {
                 r.node.push(r.child.node)
               },
               g: 'expr,expr-ternary,close',
-            }
+            },
+
           ])
       })
   }
@@ -747,13 +858,8 @@ function makeOpMap(
           src = (opdef.src as string[])[0]
         }
 
-        // tin = fixed(src)
-        // tkn = (null == tin ? '#E' + src : token(tin)) as string
-        // tin = (token(tkn) as Tin)
-
         tin = (fixed(src) || token('#E' + src)) as Tin
         tkn = token(tin) as string
-
 
         let op = odm[tin] = {
           src: src,
@@ -779,13 +885,8 @@ function makeOpMap(
           let op2 = { ...op }
           src = (opdef.src as string[])[1]
 
-          // tin = fixed(src)
-          // tkn = (null == tin ? '#E' + src : token(tin)) as string
-          // tin = (token(tkn) as Tin)
-
           tin = (fixed(src) || token('#E' + src)) as Tin
           tkn = token(tin) as string
-
 
           op2.src = src
           op2.use = { ternary: { opI: 1 } }

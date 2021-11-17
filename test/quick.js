@@ -26,10 +26,20 @@ const j = Jsonic.make().use(Debug).use(Expr,{
     //   infix: true, left: 16, right: 17, src: ';'
     // },
 
-    ternary: {
+    foo: {
       ternary: true,
       src: ['?', ':'],
-    }
+    },
+    bar: {
+      ternary: true,
+      src: ['QQ', 'CC'],
+    },
+    zed: {
+      ternary: true,
+      src: ['%%', '@@'],
+    },
+
+
   },
   
   paren: {
