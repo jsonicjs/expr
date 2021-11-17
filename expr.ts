@@ -18,7 +18,7 @@
 // configuration options.
 //
 // Ternary expressions are implemented as special rule that is similar to
-// the parenthesis rule.
+// the parenthesis rule. You can have multiple ternaries.
 //
 // Standard Jsonic allows for implicit lists and maps (e.g. a,b =>
 // ['a','b']) at the top level. This expression grammar also allows
@@ -26,6 +26,10 @@
 // ['(','foo',[1,2]]. To support implicits additional counters and
 // flags are needed, as well as context-sensitive edge-case
 // handling. See the ternary rule for a glorious example.
+//
+// There is a specific recurring edge-case: when expressions are the
+// first item of a list, special care is need not to embed the list
+// inside the expression.
 
 
 // TODO: increase infix base binding values
