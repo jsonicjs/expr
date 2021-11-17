@@ -32,6 +32,7 @@
 // inside the expression.
 
 
+// TODO: include original token type in meta data
 // TODO: increase infix base binding values
 // TODO: error on incomplete expr: 1+2+
 

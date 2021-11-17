@@ -32,6 +32,7 @@ exports.prattify = exports.Expr = void 0;
 // There is a specific recurring edge-case: when expressions are the
 // first item of a list, special care is need not to embed the list
 // inside the expression.
+// TODO: include original token type in meta data
 // TODO: increase infix base binding values
 // TODO: error on incomplete expr: 1+2+
 const jsonic_1 = require("jsonic");
