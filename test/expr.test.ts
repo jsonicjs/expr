@@ -2,7 +2,13 @@
 
 
 import { Jsonic } from 'jsonic'
-import { Expr, prattify, OpFullDef } from '../expr'
+import {
+  Expr,
+  prattify,
+  OpFullDef,
+  ParenFullDef,
+  evaluate,
+} from '../expr'
 
 
 
@@ -20,6 +26,7 @@ function makeOp(opspec: any): OpFullDef {
   const base = { infix: false, prefix: false, suffix: false, left: 0, right: 0 }
   const op = {
     ...base,
+    name: '' + opspec.src,
     terms: opspec.infix ? 2 : 1,
     ...opspec
   }
@@ -2385,6 +2392,51 @@ describe('expr', () => {
 
     expect(j0('$.a.b'))[_mo_](['.', '$', ['.', 'a', 'b']])
     expect(j0('$.a.b.c'))[_mo_](['.', '$', ['.', 'a', ['.', 'b', 'c']]])
+
+  })
+
+
+  test('evaluate-math', () => {
+    let ME = makeExpr
+    let MO = makeOp
+    let PLUS = MO({ name: 'addition-infix', infix: true, src: '+' })
+
+    let MF: any = {
+      'addition-infix': (a: any, b: any) => a + b,
+      'multiplication-infix': (a: any, b: any) => a * b,
+      'pure': (a: any) => a,
+    }
+
+    let mr = (op: OpFullDef | ParenFullDef, ...terms: any) => {
+
+      let mf = MF[op.name]
+      console.log('MR', op, op.name, terms, mf)
+      return mf ? mf(...terms) : NaN
+    }
+
+    const j = Jsonic.make().use(Expr)
+
+
+    expect(evaluate(ME(PLUS, 1, 2), mr)).toEqual(3)
+    expect(evaluate(j('1+2'), mr)).toEqual(3)
+
+    expect(evaluate(ME(PLUS, ME(PLUS, 1, 2), 3), mr)).toEqual(6)
+    expect(evaluate(j('1+2+3'), mr)).toEqual(6)
+
+    expect(evaluate(j('1*2+3'), mr)).toEqual(5)
+    expect(evaluate(j('1+2*3'), mr)).toEqual(7)
+
+
+    expect(evaluate(j('(1)'), mr)).toEqual(1)
+
+    expect(evaluate(j('(1+2)'), mr)).toEqual(3)
+
+    expect(evaluate(j('3+(1+2)'), mr)).toEqual(6)
+    expect(evaluate(j('(1+2)+3'), mr)).toEqual(6)
+
+    expect(evaluate(j('(1+2)*3'), mr)).toEqual(9)
+    expect(evaluate(j('3*(1+2)'), mr)).toEqual(9)
+
 
   })
 

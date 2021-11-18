@@ -23,7 +23,27 @@ declare type OpFullDef = OpDef & {
     ternary: boolean;
     use: any;
 };
+declare type ParenDef = {
+    osrc: string;
+    csrc: string;
+    preval?: {
+        active?: boolean;
+        required?: boolean;
+    };
+};
+declare type ParenFullDef = ParenDef & {
+    name: string;
+    otkn: string;
+    otin: number;
+    ctkn: string;
+    ctin: number;
+    preval: {
+        active: boolean;
+        required: boolean;
+    };
+};
 declare let Expr: Plugin;
 declare function prattify(expr: any, op?: OpFullDef): any[];
-export { Expr, prattify, };
-export type { OpFullDef };
+declare function evaluate(expr: any, resolve: (op: OpFullDef | ParenFullDef, ...terms: any) => any): any;
+export { Expr, prattify, evaluate, };
+export type { OpFullDef, ParenFullDef, };

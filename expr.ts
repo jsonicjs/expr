@@ -32,6 +32,7 @@
 // inside the expression.
 
 
+// TODO: merge OpFullDef and ParenFullDef? easier evaluate
 // TODO: include original token type in meta data
 // TODO: increase infix base binding values
 // TODO: error on incomplete expr: 1+2+
@@ -735,8 +736,17 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 // Convert prior (parent or previous) rule node into an expression.
 function prior(rule: Rule, prior: Rule, op: OpFullDef) {
 
-  let prior_node =
-    (prior.node?.op$ || prior.node?.paren$) ? [...prior.node] : prior.node
+  // let prior_node =
+  //   (prior.node?.op$ || prior.node?.paren$) ? [...prior.node] : prior.node
+
+  let prior_node = prior.node
+  if (prior.node?.op$ || prior.node?.paren$) {
+    prior_node = [...prior.node]
+    prior_node.op$ = prior.node.op$
+    prior_node.paren$ = prior.node.paren$
+    prior_node.ternary$ = prior.node.ternary$
+  }
+
 
   if (null == prior.node || (!prior.node.op$ && !prior.node.paren$)) {
     prior.node = []
@@ -1064,7 +1074,10 @@ function prattify(expr: any, op?: OpFullDef): any[] {
 
       else {
         expr[1] = [...expr]
+
         expr[1].op$ = expr.op$
+        expr[1].paren$ = expr.paren$
+        expr[1].ternary$ = expr.ternary$
 
         expr[0] = op.src
         expr.op$ = op
@@ -1088,13 +1101,37 @@ function prattify(expr: any, op?: OpFullDef): any[] {
 
 
 
+function evaluate(expr: any, resolve: (op: OpFullDef | ParenFullDef, ...terms: any) => any) {
+  if (null == expr) {
+    return expr
+  }
+
+  if (expr.op$) {
+    let terms = expr.slice(1).map((term: any) => evaluate(term, resolve))
+    console.log('EVAL OP terms', terms)
+    return resolve(expr.op$, ...terms)
+  }
+  else if (expr.paren$) {
+    let terms = expr.slice(1).map((term: any) => evaluate(term, resolve))
+    console.log('EVAL PAREN terms', terms)
+    return resolve(expr.paren$, ...terms)
+  }
+
+  return expr
+}
+
+
+
+
 export {
   Expr,
   prattify,
+  evaluate,
 }
 
 export type {
-  OpFullDef
+  OpFullDef,
+  ParenFullDef,
 }
 
 

@@ -10,6 +10,7 @@ function makeOp(opspec) {
     const base = { infix: false, prefix: false, suffix: false, left: 0, right: 0 };
     const op = {
         ...base,
+        name: '' + opspec.src,
         terms: opspec.infix ? 2 : 1,
         ...opspec
     };
@@ -1675,6 +1676,34 @@ describe('expr', () => {
         expect(j0('....a.b.c'))[_mo_](['.', ['.', ['.', ['.', ['.', 'a', ['.', 'b', 'c']]]]]]);
         expect(j0('$.a.b'))[_mo_](['.', '$', ['.', 'a', 'b']]);
         expect(j0('$.a.b.c'))[_mo_](['.', '$', ['.', 'a', ['.', 'b', 'c']]]);
+    });
+    test('evaluate-math', () => {
+        let ME = makeExpr;
+        let MO = makeOp;
+        let PLUS = MO({ name: 'addition-infix', infix: true, src: '+' });
+        let MF = {
+            'addition-infix': (a, b) => a + b,
+            'multiplication-infix': (a, b) => a * b,
+            'pure': (a) => a,
+        };
+        let mr = (op, ...terms) => {
+            let mf = MF[op.name];
+            console.log('MR', op, op.name, terms, mf);
+            return mf ? mf(...terms) : NaN;
+        };
+        const j = jsonic_1.Jsonic.make().use(expr_1.Expr);
+        expect((0, expr_1.evaluate)(ME(PLUS, 1, 2), mr)).toEqual(3);
+        expect((0, expr_1.evaluate)(j('1+2'), mr)).toEqual(3);
+        expect((0, expr_1.evaluate)(ME(PLUS, ME(PLUS, 1, 2), 3), mr)).toEqual(6);
+        expect((0, expr_1.evaluate)(j('1+2+3'), mr)).toEqual(6);
+        expect((0, expr_1.evaluate)(j('1*2+3'), mr)).toEqual(5);
+        expect((0, expr_1.evaluate)(j('1+2*3'), mr)).toEqual(7);
+        expect((0, expr_1.evaluate)(j('(1)'), mr)).toEqual(1);
+        expect((0, expr_1.evaluate)(j('(1+2)'), mr)).toEqual(3);
+        expect((0, expr_1.evaluate)(j('3+(1+2)'), mr)).toEqual(6);
+        expect((0, expr_1.evaluate)(j('(1+2)+3'), mr)).toEqual(6);
+        expect((0, expr_1.evaluate)(j('(1+2)*3'), mr)).toEqual(9);
+        expect((0, expr_1.evaluate)(j('3*(1+2)'), mr)).toEqual(9);
     });
     // test('new-existing-token-cs', () => {
     //   const je = Jsonic.make().use(Expr, {

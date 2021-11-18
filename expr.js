@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2021 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.prattify = exports.Expr = void 0;
+exports.evaluate = exports.prattify = exports.Expr = void 0;
 // This algorithm is based on Pratt parsing, and draws heavily from
 // the explanation written by Aleksey Kladov here:
 // https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
@@ -32,6 +32,7 @@ exports.prattify = exports.Expr = void 0;
 // There is a specific recurring edge-case: when expressions are the
 // first item of a list, special care is need not to embed the list
 // inside the expression.
+// TODO: merge OpFullDef and ParenFullDef? easier evaluate
 // TODO: include original token type in meta data
 // TODO: increase infix base binding values
 // TODO: error on incomplete expr: 1+2+
@@ -574,8 +575,16 @@ let Expr = function expr(jsonic, options) {
 exports.Expr = Expr;
 // Convert prior (parent or previous) rule node into an expression.
 function prior(rule, prior, op) {
+    // let prior_node =
+    //   (prior.node?.op$ || prior.node?.paren$) ? [...prior.node] : prior.node
     var _a, _b;
-    let prior_node = (((_a = prior.node) === null || _a === void 0 ? void 0 : _a.op$) || ((_b = prior.node) === null || _b === void 0 ? void 0 : _b.paren$)) ? [...prior.node] : prior.node;
+    let prior_node = prior.node;
+    if (((_a = prior.node) === null || _a === void 0 ? void 0 : _a.op$) || ((_b = prior.node) === null || _b === void 0 ? void 0 : _b.paren$)) {
+        prior_node = [...prior.node];
+        prior_node.op$ = prior.node.op$;
+        prior_node.paren$ = prior.node.paren$;
+        prior_node.ternary$ = prior.node.ternary$;
+    }
     if (null == prior.node || (!prior.node.op$ && !prior.node.paren$)) {
         prior.node = [];
     }
@@ -834,6 +843,8 @@ function prattify(expr, op) {
             else {
                 expr[1] = [...expr];
                 expr[1].op$ = expr.op$;
+                expr[1].paren$ = expr.paren$;
+                expr[1].ternary$ = expr.ternary$;
                 expr[0] = op.src;
                 expr.op$ = op;
                 expr.length = 2;
@@ -853,4 +864,21 @@ function prattify(expr, op) {
     return out;
 }
 exports.prattify = prattify;
+function evaluate(expr, resolve) {
+    if (null == expr) {
+        return expr;
+    }
+    if (expr.op$) {
+        let terms = expr.slice(1).map((term) => evaluate(term, resolve));
+        console.log('EVAL OP terms', terms);
+        return resolve(expr.op$, ...terms);
+    }
+    else if (expr.paren$) {
+        let terms = expr.slice(1).map((term) => evaluate(term, resolve));
+        console.log('EVAL PAREN terms', terms);
+        return resolve(expr.paren$, ...terms);
+    }
+    return expr;
+}
+exports.evaluate = evaluate;
 //# sourceMappingURL=expr.js.map
