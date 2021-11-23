@@ -30,7 +30,7 @@
 // inside the expression.
 
 
-// TODO: custom ctx.F for Op
+// TODO: custom ctx.F for Op - make this automatic in options
 // TODO: increase infix base binding values
 // TODO: error on incomplete expr: 1+2+
 
@@ -424,12 +424,12 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
               const op = makeOp(r.o0, infixTM)
 
               // Second and further operators.
-              if (isOp(parent.node) && op.terms <= 2) {
+              if (isOp(parent.node) && !isTernaryOp(parent.node)) {
                 r.node = prattify(parent.node, op)
               }
 
               // First term was unary expression.
-              else if (isOp(prev.node) && op.terms <= 2) {
+              else if (isOp(prev.node)) {
                 r.node = prattify(prev.node, op)
                 r.parent = prev
               }
@@ -715,8 +715,6 @@ function prior(rule: Rule, prior: Rule, op: Op) {
     prior.node[1] = prior_node
   }
 
-  // delete prior.node.paren$
-
   // Ensure first term val rule contains final expression.
   rule.parent = prior
 
@@ -732,21 +730,7 @@ function makeOp(t: Token, om: OpMap): Op {
 
 function makeNode(node: any, op: Op, ...terms: any): any {
   let out = node
-  // out[0] = op.src
   out[0] = op
-
-  // if (op.paren) {
-  //   out.paren$ = op
-  //   delete out.ternary$
-  // }
-  // else if (op.ternary) {
-  //   out.ternary$ = op
-  //   delete out.paren$
-  // }
-  // else {
-  //   delete out.paren$
-  //   delete out.ternary$
-  // }
 
   let tI = 0
   for (; tI < terms.length; tI++) {
@@ -760,14 +744,6 @@ function makeNode(node: any, op: Op, ...terms: any): any {
 
 function dupNode(node: any): any {
   let out: any = [...node]
-
-  // if (node.paren$) {
-  //   out.paren$ = node.paren$
-  // }
-  // else if (node.ternary$) {
-  //   out.ternary$ = node.ternary$
-  // }
-
   return out
 }
 
@@ -803,14 +779,11 @@ function makeCloseParen(parenCTM: OpMap) {
       if (undefined !== val) {
         r.node[1] = val
       }
-      // r.node.paren$ = op
 
       if (r.parent.prev.use.paren_preval) {
-        //if (r.parent.prev.node?.paren$) {
         if (isParenOp(r.parent.prev.node)) {
           r.node = makeNode(
             r.parent.prev.node,
-            // r.node.paren$,
             r.node[0],
             dupNode(r.parent.prev.node),
             r.node[1]
@@ -878,6 +851,10 @@ function implicitTernaryAction(r: Rule, _ctx: Context, a: AltMatch) {
 
 function isParenOp(node: any) {
   return isOpKind('paren', node)
+}
+
+function isTernaryOp(node: any) {
+  return isOpKind('ternary', node)
 }
 
 function isOpKind(kind: string, node: any) {

@@ -30,7 +30,7 @@ exports.testing = exports.evaluate = exports.Expr = void 0;
 // There is a specific recurring edge-case: when expressions are the
 // first item of a list, special care is need not to embed the list
 // inside the expression.
-// TODO: custom ctx.F for Op
+// TODO: custom ctx.F for Op - make this automatic in options
 // TODO: increase infix base binding values
 // TODO: error on incomplete expr: 1+2+
 const jsonic_1 = require("jsonic");
@@ -287,11 +287,11 @@ let Expr = function expr(jsonic, options) {
                     const parent = r.parent;
                     const op = makeOp(r.o0, infixTM);
                     // Second and further operators.
-                    if (isOp(parent.node) && op.terms <= 2) {
+                    if (isOp(parent.node) && !isTernaryOp(parent.node)) {
                         r.node = prattify(parent.node, op);
                     }
                     // First term was unary expression.
-                    else if (isOp(prev.node) && op.terms <= 2) {
+                    else if (isOp(prev.node)) {
                         r.node = prattify(prev.node, op);
                         r.parent = prev;
                     }
@@ -545,7 +545,6 @@ function prior(rule, prior, op) {
     if (!op.prefix) {
         prior.node[1] = prior_node;
     }
-    // delete prior.node.paren$
     // Ensure first term val rule contains final expression.
     rule.parent = prior;
     return prior.node;
@@ -556,20 +555,7 @@ function makeOp(t, om) {
 }
 function makeNode(node, op, ...terms) {
     let out = node;
-    // out[0] = op.src
     out[0] = op;
-    // if (op.paren) {
-    //   out.paren$ = op
-    //   delete out.ternary$
-    // }
-    // else if (op.ternary) {
-    //   out.ternary$ = op
-    //   delete out.paren$
-    // }
-    // else {
-    //   delete out.paren$
-    //   delete out.ternary$
-    // }
     let tI = 0;
     for (; tI < terms.length; tI++) {
         out[tI + 1] = terms[tI];
@@ -579,12 +565,6 @@ function makeNode(node, op, ...terms) {
 }
 function dupNode(node) {
     let out = [...node];
-    // if (node.paren$) {
-    //   out.paren$ = node.paren$
-    // }
-    // else if (node.ternary$) {
-    //   out.ternary$ = node.ternary$
-    // }
     return out;
 }
 function makeOpenParen(parenOTM) {
@@ -613,13 +593,9 @@ function makeCloseParen(parenCTM) {
             if (undefined !== val) {
                 r.node[1] = val;
             }
-            // r.node.paren$ = op
             if (r.parent.prev.use.paren_preval) {
-                //if (r.parent.prev.node?.paren$) {
                 if (isParenOp(r.parent.prev.node)) {
-                    r.node = makeNode(r.parent.prev.node, 
-                    // r.node.paren$,
-                    r.node[0], dupNode(r.parent.prev.node), r.node[1]);
+                    r.node = makeNode(r.parent.prev.node, r.node[0], dupNode(r.parent.prev.node), r.node[1]);
                 }
                 else {
                     r.node.splice(1, 0, r.parent.prev.node);
@@ -670,6 +646,9 @@ function implicitTernaryAction(r, _ctx, a) {
 }
 function isParenOp(node) {
     return isOpKind('paren', node);
+}
+function isTernaryOp(node) {
+    return isOpKind('ternary', node);
 }
 function isOpKind(kind, node) {
     return null == node ? false : isOp(node) && true === node[0][kind];

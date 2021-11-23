@@ -47,8 +47,6 @@ function makeOp(opspec: any): Op {
 
 function makeExpr(opspec: any, term0?: any, term1?: any): any[] {
   const op = makeOp(opspec)
-  // const expr: any = [opspec.src]
-  // expr.op$ = op
   const expr: any = [opspec]
   if (term0) {
     expr.push(term0)
@@ -2428,6 +2426,51 @@ describe('expr', () => {
     expect(evaluate(j('(1+2)*3'), mr)).toEqual(9)
     expect(evaluate(j('3*(1+2)'), mr)).toEqual(9)
   })
+
+
+  test('evaluate-sets', () => {
+    let MF: any = {
+      'plain-paren': (a: any) => a,
+      'union-infix': (a: any, b: any) => [...new Set([...a, ...b])].sort(),
+      'intersection-infix': (a: any, b: any) =>
+        Object
+          .entries(
+            b.reduce((s: any, e: any) => (s[e] = 1 + (s[e] || 0), s),
+              a.reduce((s: any, e: any) => (s[e] = 1 + (s[e] || 0), s), {})))
+          .filter((en: any) => 1 < en[1])
+          .map(en => parseInt(en[0]))
+          .sort()
+      ,
+    }
+
+    let mr = (op: Op, terms: any) => {
+      let mf = MF[op.name]
+      return mf ? mf(...terms) : []
+    }
+
+    const j = Jsonic.make().use(Expr, {
+      op: {
+        union: {
+          infix: true, src: 'U', left: 140, right: 150,
+        },
+        intersection: {
+          infix: true, src: 'N', left: 140, right: 150,
+        },
+      }
+    })
+
+
+    // expect(evaluate(j('[1]U[2]'), mr)).toEqual([1, 2])
+    // expect(evaluate(j('[1,3]U[1,2]'), mr)).toEqual([1, 2, 3])
+
+    // expect(evaluate(j('[1,3]N[1,2]'), mr)).toEqual([1])
+    // expect(evaluate(j('[1,3]N[2]'), mr)).toEqual([])
+    // expect(evaluate(j('[1,3]N[2,1]'), mr)).toEqual([1])
+
+    // expect(evaluate(j('[1,3]N[2]U[1,2]'), mr)).toEqual([1, 2])
+    expect(evaluate(j('[1,3]N([2]U[1,2])'), mr)).toEqual([1])
+  })
+
 
 
 })
