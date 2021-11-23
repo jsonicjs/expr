@@ -2,11 +2,15 @@
 
 
 import { Jsonic } from 'jsonic'
+
 import {
   Expr,
-  prattify,
-  Op,
   evaluate,
+  testing,
+} from '../expr'
+
+import type {
+  Op,
 } from '../expr'
 
 
@@ -58,6 +62,8 @@ describe('expr', () => {
 
 
   test('prattify-basic', () => {
+    let prattify = testing.prattify
+
     let T = (expr: any[], opdef?: Op) => C(prattify(expr, opdef))
     let ME = makeExpr
     let MO = makeOp
@@ -185,6 +191,8 @@ describe('expr', () => {
 
 
   test('prattify-assoc', () => {
+    let prattify = testing.prattify
+
     let T = (expr: any[], opdef?: Op) => C(prattify(expr, opdef))
     let ME = makeExpr
     let MO = makeOp
@@ -236,39 +244,6 @@ describe('expr', () => {
 
   })
 
-
-
-  // TODO: reconsider
-  // test('prattify-ternary', () => {
-  //   let T = (expr: any[], opdef?: OpFullDef) => C(prattify(expr, opdef))
-  //   let ME = makeExpr
-  //   let MO = makeOp
-
-  //   let QUEST_RA = MO({ infix: true, src: '?', left: 15, right: 14 })
-  //   let COLON_LA = MO({ infix: true, src: ':', left: 16, right: 17 })
-
-  //   let E: any
-
-
-  //   // 1?2?N => 1?(2?N)
-  //   expect(T(E = ME(QUEST_RA, 1, 2), QUEST_RA))[_mo_](['?', 2])
-  //   expect(C(E))[_mo_](['?', 1, ['?', 2]])
-
-  //   // 1:2:N => (1:2):N
-  //   expect(T(E = ME(COLON_LA, 1, 2), COLON_LA))[_mo_]([':', [':', 1, 2]])
-  //   expect(C(E))[_mo_]([':', [':', 1, 2]])
-
-
-  //   // 1?2:N => 1?(2:N)
-  //   expect(T(E = ME(QUEST_RA, 1, 2), COLON_LA))[_mo_]([':', 2])
-  //   expect(C(E))[_mo_](['?', 1, [':', 2]])
-
-  //   // 1:2?N => (1:2)?N
-  //   expect(T(E = ME(COLON_LA, 1, 2), QUEST_RA))[_mo_](['?', [':', 1, 2]])
-  //   expect(C(E))[_mo_](['?', [':', 1, 2]])
-
-
-  // })
 
 
 

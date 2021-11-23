@@ -32,7 +32,6 @@
 // inside the expression.
 
 
-// TODO: merge OpFullDef and ParenFullDef? easier evaluate
 // TODO: include original token type in meta data
 // TODO: increase infix base binding values
 // TODO: error on incomplete expr: 1+2+
@@ -47,6 +46,7 @@ import {
   AltMatch,
   Tin,
   Context,
+  Token,
   util,
 } from 'jsonic'
 
@@ -54,6 +54,7 @@ import {
 const { omap, entries, values } = util
 
 
+// Operator definition (value of options.op map entry).
 type OpDef = {
   src?: string | string[]
   osrc?: string
@@ -71,6 +72,14 @@ type OpDef = {
     required?: boolean
   }
 }
+
+
+// Options for the plugin.
+type ExprOptions = {
+  op?: { [name: string]: OpDef },
+}
+
+
 
 type Op = {
   name: string
@@ -95,16 +104,12 @@ type Op = {
   preval: {
     active: boolean
     required: boolean
-  }
+  },
+  token: Token
 }
+
 
 type OpMap = { [tin: number]: Op }
-
-
-
-type ExprOptions = {
-  op?: { [name: string]: OpDef },
-}
 
 
 let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
@@ -137,7 +142,6 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   const ternaryTM: OpMap = makeOpMap(token, fixed, optop, 'ternary')
 
   const parenOTM: OpMap = makeParenMap(token, fixed, optop)
-  // const parenCTM: TermMap = omap(parenOTM, ([_, pdef]: [Tin, ParenFullDef]) =>
   const parenCTM: OpMap = omap(parenOTM, ([_, pdef]: [Tin, Op]) =>
     [undefined, undefined, pdef.ctin, pdef])
 
@@ -400,7 +404,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             g: 'expr,expr-prefix',
             a: (r: Rule) => {
               const parent = r.parent
-              const op = prefixTM[r.o0.tin]
+              const op = makeOp(r.o0, prefixTM)
               r.node =
                 parent.node?.op$ ? prattify(parent.node, op) : prior(r, parent, op)
             }
@@ -413,7 +417,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             a: (r: Rule) => {
               const prev = r.prev
               const parent = r.parent
-              const op = infixTM[r.o0.tin]
+              const op = makeOp(r.o0, infixTM)
 
               // Second and further operators.
               if (parent.node?.op$) {
@@ -439,7 +443,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             n: { expr: 1, expr_prefix: 0, il: 1, im: 1 },
             a: (r: Rule) => {
               const prev = r.prev
-              const op = suffixTM[r.o0.tin]
+              const op = makeOp(r.o0, suffixTM)
               r.node =
                 prev.node?.op$ ? prattify(prev.node, op) : prior(r, prev, op)
             },
@@ -598,15 +602,14 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
               u: { expr_ternary_step: 1 },
               g: 'expr,expr-ternary,open',
               a: (r: Rule) => {
-                let tdef = ternaryTM[r.o0.tin]
-                r.use.expr_ternary_name = tdef.name
+                let op = makeOp(r.o0, ternaryTM)
+                r.use.expr_ternary_name = op.name
 
                 if (r.prev.node?.op$) {
-                  let sub = dupNode(r.prev.node)
-                  r.node = makeNode(r.prev.node, tdef, sub)
+                  r.node = makeNode(r.prev.node, op, dupNode(r.prev.node))
                 }
                 else {
-                  r.prev.node = r.node = makeNode([], tdef, r.prev.node)
+                  r.node = r.prev.node = makeNode([], op, r.prev.node)
                 }
 
                 r.use.expr_ternary_paren = r.n.expr_paren ||
@@ -647,12 +650,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             // End of ternary at top level. Implicit list indicated by comma.
             {
               s: [[CA, ...CP]],
-              c: (r: Rule) => {
-                return (0 === r.d || 1 <= r.n.expr_paren) &&
-                  !r.n.pk &&
-                  2 === r.use.expr_ternary_step
-              },
-
+              c: implicitTernaryCond,
               // Handle ternary as first item of imp list inside paren.
               b: (_r: Rule, ctx: Context) => CP.includes(ctx.t0.tin) ? 1 : 0,
               r: (r: Rule, ctx: Context) =>
@@ -660,29 +658,14 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
                   (0 === r.d || (
                     r.prev.use.expr_ternary_paren &&
                     !r.parent.node?.length)) ? 'elem' : '',
-              a: (r: Rule, _ctx: Context, a: AltMatch) => {
-                r.n.expr_paren = r.prev.use.expr_ternary_paren
-
-                r.node.push(r.child.node)
-
-                if ('elem' === a.r) {
-                  r.node[0] = dupNode(r.node)
-                  r.node.length = 1
-                }
-              },
-
+              a: implicitTernaryAction,
               g: 'expr,expr-ternary,list,val,imp,comma',
             },
 
             // End of ternary at top level.
             // Implicit list indicated by space separated value.
             {
-              c: (r: Rule) => {
-                return (0 === r.d || 1 <= r.n.expr_paren) &&
-                  !r.n.pk &&
-                  2 === r.use.expr_ternary_step
-              },
-
+              c: implicitTernaryCond,
               // Handle ternary as first item of imp list inside paren.
               r: (r: Rule, ctx: Context) => {
                 return (0 === r.d ||
@@ -692,15 +675,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
                   ZZ !== ctx.t0.tin
                   ? 'elem' : ''
               },
-              a: (r: Rule, _ctx: Context, a: AltMatch) => {
-                r.n.expr_paren = r.prev.use.expr_ternary_paren
-                r.node.push(r.child.node)
-
-                if ('elem' === a.r) {
-                  r.node[0] = dupNode(r.node)
-                  r.node.length = 1
-                }
-              },
+              a: implicitTernaryAction,
               g: 'expr,expr-ternary,list,val,imp,space',
             },
 
@@ -721,40 +696,33 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
 // Convert prior (parent or previous) rule node into an expression.
 function prior(rule: Rule, prior: Rule, op: Op) {
-
-  // let prior_node =
-  //   (prior.node?.op$ || prior.node?.paren$) ? [...prior.node] : prior.node
-
   let prior_node = prior.node
   if (prior.node?.op$ || prior.node?.paren$) {
-    prior_node = [...prior.node]
-    prior_node.op$ = prior.node.op$
-    prior_node.paren$ = prior.node.paren$
-    prior_node.ternary$ = prior.node.ternary$
+    prior_node = dupNode(prior.node)
   }
-
 
   if (null == prior.node || (!prior.node.op$ && !prior.node.paren$)) {
     prior.node = []
   }
 
-
   makeNode(prior.node, op)
-
-  // prior.node[0] = op.src
-  // prior.node.length = 1
 
   if (!op.prefix) {
     prior.node[1] = prior_node
   }
 
-  // prior.node.op$ = op
   delete prior.node.paren$
 
   // Ensure first term val rule contains final expression.
   rule.parent = prior
 
   return prior.node
+}
+
+
+// Add token so that expression evaluator can reference source locations.
+function makeOp(t: Token, om: OpMap): Op {
+  return { ...om[t.tin], token: t }
 }
 
 
@@ -805,15 +773,15 @@ function dupNode(node: any): any {
 }
 
 
-
 function makeOpenParen(parenOTM: OpMap) {
   return function openParen(r: Rule) {
-    const pdef = parenOTM[r.o0.tin]
-    let pd = 'expr_paren_depth_' + pdef.name
+    const op = makeOp(r.o0, parenOTM)
+    let pd = 'expr_paren_depth_' + op.name
     r.use[pd] = r.n[pd] = 1
     r.node = undefined
   }
 }
+
 
 function makeCloseParen(parenCTM: OpMap) {
   return function closeParen(r: Rule) {
@@ -824,28 +792,27 @@ function makeCloseParen(parenCTM: OpMap) {
       r.node = r.child.node
     }
 
-    const pdef = parenCTM[r.c0.tin]
-    let pd = 'expr_paren_depth_' + pdef.name
+    const op = makeOp(r.c0, parenCTM)
+    let pd = 'expr_paren_depth_' + op.name
 
     // Construct completed paren expression.
     if (r.use[pd] === r.n[pd]) {
       const val = r.node
 
-      r.node = [pdef.osrc]
+      r.node = [op.osrc]
       if (undefined !== val) {
         r.node[1] = val
       }
-      r.node.paren$ = pdef
+      r.node.paren$ = op
 
       if (r.parent.prev.use.paren_preval) {
         if (r.parent.prev.node?.paren$) {
-          r.parent.prev.node[1] = [...r.parent.prev.node]
-          r.parent.prev.node[1].paren$ = r.parent.prev.node.paren$
-          r.parent.prev.node[2] = r.node[1]
-          r.parent.prev.node[0] = r.node.paren$.osrc
-          r.parent.prev.node.length = 3
-          r.parent.prev.node.paren$ = r.node.paren$
-          r.node = r.parent.prev.node
+          r.node = makeNode(
+            r.parent.prev.node,
+            r.node.paren$,
+            dupNode(r.parent.prev.node),
+            r.node[1]
+          )
         }
         else {
           r.node.splice(1, 0, r.parent.prev.node)
@@ -855,6 +822,7 @@ function makeCloseParen(parenCTM: OpMap) {
     }
   }
 }
+
 
 function implicitList(rule: Rule, ctx: Context, a: any) {
   let paren: Rule | null = null
@@ -887,6 +855,23 @@ function implicitList(rule: Rule, ctx: Context, a: any) {
   return a
 }
 
+
+function implicitTernaryCond(r: Rule) {
+  return (0 === r.d || 1 <= r.n.expr_paren) &&
+    !r.n.pk &&
+    2 === r.use.expr_ternary_step
+}
+
+
+function implicitTernaryAction(r: Rule, _ctx: Context, a: AltMatch) {
+  r.n.expr_paren = r.prev.use.expr_ternary_paren
+  r.node.push(r.child.node)
+
+  if ('elem' === a.r) {
+    r.node[0] = dupNode(r.node)
+    r.node.length = 1
+  }
+}
 
 
 function makeOpMap(
@@ -936,7 +921,8 @@ function makeOpMap(
           preval: {
             active: false,
             required: false,
-          }
+          },
+          token: ({} as Token)
         }
 
         // Handle the second operator if ternary.
@@ -1007,6 +993,7 @@ function makeParenMap(
             tkn: '',
             tin: -1,
             terms: -1,
+            token: ({} as Token),
           }
         }
         return a
@@ -1022,12 +1009,11 @@ Expr.defaults = {
     positive: {
       prefix: true, right: 14000, src: '+'
     },
-
     negative: {
       prefix: true, right: 14000, src: '-'
     },
 
-    // NOTE: all these are left-associative as lbp < rbp
+    // NOTE: all these are left-associative as left < right
     // Example: 2+3+4 === (2+3)+4
     addition: {
       infix: true, left: 140, right: 150, src: '+'
@@ -1044,9 +1030,7 @@ Expr.defaults = {
     remainder: {
       infix: true, left: 160, right: 170, src: '%'
     },
-    // },
 
-    // paren: {
     plain: {
       paren: true, osrc: '(', csrc: ')',
     },
@@ -1064,30 +1048,19 @@ Expr.defaults = {
 function prattify(expr: any, op?: Op): any[] {
   let out = expr
 
-  // let log = ''
-  // let in_expr = jj(expr)
-
   if (op) {
     if (op.infix) {
-      // log += 'I'
-
-      // let lower = ('?' === op.src && ';' === expr[2]?.op$?.src)
 
       // op is lower
-      // if (lower || expr.op$.suffix || op.left <= expr.op$.right) {
       if (expr.op$.suffix || op.left <= expr.op$.right) {
-        // log += 'L'
-
         makeNode(expr, op, dupNode(expr))
       }
 
       // op is higher
       else {
-        // log += 'H'
         const end = expr.op$.terms
 
         if (expr[end]?.op$?.right < op.left) {
-          // log += 'P'
           out = prattify(expr[end], op)
         }
         else {
@@ -1104,7 +1077,7 @@ function prattify(expr: any, op?: Op): any[] {
         const end = expr.op$.terms
 
         // NOTE: special case: higher precedence suffix "drills" into
-        // lower precedence prefixes - @@1! => @(@(1!)), not @((@1)!)
+        // lower precedence prefixes: @@1! => @(@(1!)), not @((@1)!)
         if (expr[end].op$ &&
           expr[end].op$.prefix &&
           expr[end].op$.right < op.left) {
@@ -1121,19 +1094,8 @@ function prattify(expr: any, op?: Op): any[] {
     }
   }
 
-  // console.log('PRATT', log,
-  //   // in_expr_op,
-  //   in_expr,
-  //   '::',
-  //   op?.src,
-  //   '/',
-  //   jj(expr),
-  //   '/',
-  //   jj(out),
-  //   '')
   return out
 }
-
 
 
 function evaluate(expr: any, resolve: (op: Op, ...terms: any) => any) {
@@ -1154,13 +1116,17 @@ function evaluate(expr: any, resolve: (op: Op, ...terms: any) => any) {
 }
 
 
+const testing = {
+  prattify
+}
 
 
 export {
   Expr,
-  prattify,
   evaluate,
+  testing,
 }
+
 
 export type {
   ExprOptions,

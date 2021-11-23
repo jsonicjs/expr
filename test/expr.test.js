@@ -35,7 +35,8 @@ describe('expr', () => {
         expect(j('-1+2')).toMatchObject(['+', ['-', 1], 2]);
     });
     test('prattify-basic', () => {
-        let T = (expr, opdef) => C((0, expr_1.prattify)(expr, opdef));
+        let prattify = expr_1.testing.prattify;
+        let T = (expr, opdef) => C(prattify(expr, opdef));
         let ME = makeExpr;
         let MO = makeOp;
         let PLUS_LA = MO({ infix: true, src: '+', left: 140, right: 150 });
@@ -118,7 +119,8 @@ describe('expr', () => {
         expect(C(E))[_mo_](['?', ['@', ['@', 1]]]);
     });
     test('prattify-assoc', () => {
-        let T = (expr, opdef) => C((0, expr_1.prattify)(expr, opdef));
+        let prattify = expr_1.testing.prattify;
+        let T = (expr, opdef) => C(prattify(expr, opdef));
         let ME = makeExpr;
         let MO = makeOp;
         let AT_LA = MO({ infix: true, src: '@', left: 14, right: 15 });
@@ -149,27 +151,6 @@ describe('expr', () => {
         expect(T(E = ME(PER_RA, 1, ME(PER_RA, 2, ME(PER_RA, 3, ME(PER_RA, 4, 5)))), PER_RA))[_mo_](['%', 5]);
         expect(C(E))[_mo_](['%', 1, ['%', 2, ['%', 3, ['%', 4, ['%', 5]]]]]);
     });
-    // TODO: reconsider
-    // test('prattify-ternary', () => {
-    //   let T = (expr: any[], opdef?: OpFullDef) => C(prattify(expr, opdef))
-    //   let ME = makeExpr
-    //   let MO = makeOp
-    //   let QUEST_RA = MO({ infix: true, src: '?', left: 15, right: 14 })
-    //   let COLON_LA = MO({ infix: true, src: ':', left: 16, right: 17 })
-    //   let E: any
-    //   // 1?2?N => 1?(2?N)
-    //   expect(T(E = ME(QUEST_RA, 1, 2), QUEST_RA))[_mo_](['?', 2])
-    //   expect(C(E))[_mo_](['?', 1, ['?', 2]])
-    //   // 1:2:N => (1:2):N
-    //   expect(T(E = ME(COLON_LA, 1, 2), COLON_LA))[_mo_]([':', [':', 1, 2]])
-    //   expect(C(E))[_mo_]([':', [':', 1, 2]])
-    //   // 1?2:N => 1?(2:N)
-    //   expect(T(E = ME(QUEST_RA, 1, 2), COLON_LA))[_mo_]([':', 2])
-    //   expect(C(E))[_mo_](['?', 1, [':', 2]])
-    //   // 1:2?N => (1:2)?N
-    //   expect(T(E = ME(COLON_LA, 1, 2), QUEST_RA))[_mo_](['?', [':', 1, 2]])
-    //   expect(C(E))[_mo_](['?', [':', 1, 2]])
-    // })
     test('binary', () => {
         const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
         expect(j('1+2'))[_mo_](['+', 1, 2]);

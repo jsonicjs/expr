@@ -1,4 +1,4 @@
-import { Plugin } from 'jsonic';
+import { Plugin, Token } from 'jsonic';
 declare type OpDef = {
     src?: string | string[];
     osrc?: string;
@@ -14,6 +14,11 @@ declare type OpDef = {
     preval?: {
         active?: boolean;
         required?: boolean;
+    };
+};
+declare type ExprOptions = {
+    op?: {
+        [name: string]: OpDef;
     };
 };
 declare type Op = {
@@ -40,14 +45,13 @@ declare type Op = {
         active: boolean;
         required: boolean;
     };
-};
-declare type ExprOptions = {
-    op?: {
-        [name: string]: OpDef;
-    };
+    token: Token;
 };
 declare let Expr: Plugin;
 declare function prattify(expr: any, op?: Op): any[];
 declare function evaluate(expr: any, resolve: (op: Op, ...terms: any) => any): any;
-export { Expr, prattify, evaluate, };
+declare const testing: {
+    prattify: typeof prattify;
+};
+export { Expr, evaluate, testing, };
 export type { ExprOptions, OpDef, Op, };
