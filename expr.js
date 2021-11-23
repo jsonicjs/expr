@@ -64,7 +64,7 @@ let Expr = function expr(jsonic, options) {
     const infixTM = makeOpMap(token, fixed, optop, 'infix');
     const ternaryTM = makeOpMap(token, fixed, optop, 'ternary');
     const parenOTM = makeParenMap(token, fixed, optop);
-    // const parenCTM: ParenDefMap = omap(parenOTM, ([_, pdef]: [Tin, ParenFullDef]) =>
+    // const parenCTM: TermMap = omap(parenOTM, ([_, pdef]: [Tin, ParenFullDef]) =>
     const parenCTM = omap(parenOTM, ([_, pdef]) => [undefined, undefined, pdef.ctin, pdef]);
     let parenFixed = Object
         .values({ ...parenOTM, ...parenCTM })
@@ -802,7 +802,7 @@ Expr.defaults = {
         },
     }
 };
-const jj = (x) => JSON.parse(JSON.stringify(x));
+// const jj = (x: any) => JSON.parse(JSON.stringify(x))
 // Pratt algorithm embeds next operator.
 // NOTE: preserves referential integrity of root expression.
 function prattify(expr, op) {

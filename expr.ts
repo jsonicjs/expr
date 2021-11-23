@@ -54,7 +54,7 @@ import {
 const { omap, entries, values } = util
 
 
-type Op = {
+type OpDef = {
   src?: string | string[]
   osrc?: string
   csrc?: string
@@ -72,7 +72,7 @@ type Op = {
   }
 }
 
-type Term = {
+type Op = {
   name: string
   src: string
   left: number
@@ -98,41 +98,12 @@ type Term = {
   }
 }
 
-type TermMap = { [tin: number]: Term }
+type OpMap = { [tin: number]: Op }
 
-
-// type ParenDef = {
-//   osrc: string
-//   csrc: string
-//   preval?: {
-//     active?: boolean
-//     required?: boolean
-//   }
-// }
-
-// type ParenFullDef = {
-//   name: string
-//   osrc: string
-//   csrc: string
-//   otkn: string
-//   otin: number
-//   ctkn: string
-//   ctin: number
-//   preval: {
-//     active: boolean
-//     required: boolean
-//   }
-// }
-
-
-// type ParenDefMap = { [tin: number]: ParenFullDef }
-type ParenDefMap = { [tin: number]: Term }
 
 
 type ExprOptions = {
-  op?: { [name: string]: Op },
-  // paren?: { [name: string]: ParenDef },
-  // paren?: { [name: string]: Op },
+  op?: { [name: string]: OpDef },
 }
 
 
@@ -160,14 +131,14 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
   // Build token maps (TM).
   let optop = options.op || {}
-  const prefixTM: TermMap = makeOpMap(token, fixed, optop, 'prefix')
-  const suffixTM: TermMap = makeOpMap(token, fixed, optop, 'suffix')
-  const infixTM: TermMap = makeOpMap(token, fixed, optop, 'infix')
-  const ternaryTM: TermMap = makeOpMap(token, fixed, optop, 'ternary')
+  const prefixTM: OpMap = makeOpMap(token, fixed, optop, 'prefix')
+  const suffixTM: OpMap = makeOpMap(token, fixed, optop, 'suffix')
+  const infixTM: OpMap = makeOpMap(token, fixed, optop, 'infix')
+  const ternaryTM: OpMap = makeOpMap(token, fixed, optop, 'ternary')
 
-  const parenOTM: ParenDefMap = makeParenMap(token, fixed, optop)
-  // const parenCTM: ParenDefMap = omap(parenOTM, ([_, pdef]: [Tin, ParenFullDef]) =>
-  const parenCTM: ParenDefMap = omap(parenOTM, ([_, pdef]: [Tin, Term]) =>
+  const parenOTM: OpMap = makeParenMap(token, fixed, optop)
+  // const parenCTM: TermMap = omap(parenOTM, ([_, pdef]: [Tin, ParenFullDef]) =>
+  const parenCTM: OpMap = omap(parenOTM, ([_, pdef]: [Tin, Op]) =>
     [undefined, undefined, pdef.ctin, pdef])
 
 
@@ -757,7 +728,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
 
 // Convert prior (parent or previous) rule node into an expression.
-function prior(rule: Rule, prior: Rule, op: Term) {
+function prior(rule: Rule, prior: Rule, op: Op) {
 
   // let prior_node =
   //   (prior.node?.op$ || prior.node?.paren$) ? [...prior.node] : prior.node
@@ -792,7 +763,7 @@ function prior(rule: Rule, prior: Rule, op: Term) {
 }
 
 
-function makeOpenParen(parenOTM: ParenDefMap) {
+function makeOpenParen(parenOTM: OpMap) {
   return function openParen(r: Rule) {
     const pdef = parenOTM[r.o0.tin]
     let pd = 'expr_paren_depth_' + pdef.name
@@ -801,7 +772,7 @@ function makeOpenParen(parenOTM: ParenDefMap) {
   }
 }
 
-function makeCloseParen(parenCTM: ParenDefMap) {
+function makeCloseParen(parenCTM: OpMap) {
   return function closeParen(r: Rule) {
     if (r.child.node?.op$) {
       r.node = r.child.node
@@ -878,13 +849,13 @@ function implicitList(rule: Rule, ctx: Context, a: any) {
 function makeOpMap(
   token: (tkn: string | Tin) => Tin | string,
   fixed: (tkn: string) => Tin,
-  op: { [name: string]: Op },
+  op: { [name: string]: OpDef },
   anyfix: 'prefix' | 'suffix' | 'infix' | 'ternary',
-): TermMap {
+): OpMap {
   return Object.entries(op)
-    .filter(([_, opdef]: [string, Op]) => opdef[anyfix])
+    .filter(([_, opdef]: [string, OpDef]) => opdef[anyfix])
     .reduce(
-      (odm: TermMap, [name, opdef]: [string, Op]) => {
+      (odm: OpMap, [name, opdef]: [string, OpDef]) => {
         let tkn = ''
         let tin = -1
         let src = ''
@@ -954,11 +925,11 @@ function makeOpMap(
 function makeParenMap(
   token: (tkn_tin: string | Tin) => Tin | string,
   fixed: (tkn: string) => Tin,
-  optop: { [name: string]: Op },
-): ParenDefMap {
+  optop: { [name: string]: OpDef },
+): OpMap {
   return entries(optop)
     .reduce(
-      (a: ParenDefMap, [name, pdef]: [string, any]) => {
+      (a: OpMap, [name, pdef]: [string, any]) => {
         if (pdef.paren) {
           let otin = (fixed(pdef.osrc) || token('#E' + pdef.osrc)) as Tin
           let otkn = token(otin) as string
@@ -998,7 +969,7 @@ function makeParenMap(
         return a
       },
       {}
-    ) as ParenDefMap
+    ) as OpMap
 }
 
 
@@ -1042,12 +1013,12 @@ Expr.defaults = {
 
 
 
-const jj = (x: any) => JSON.parse(JSON.stringify(x))
+// const jj = (x: any) => JSON.parse(JSON.stringify(x))
 
 
 // Pratt algorithm embeds next operator.
 // NOTE: preserves referential integrity of root expression.
-function prattify(expr: any, op?: Term): any[] {
+function prattify(expr: any, op?: Op): any[] {
   let out = expr
 
   // let log = ''
@@ -1143,7 +1114,7 @@ function prattify(expr: any, op?: Term): any[] {
 
 
 
-function evaluate(expr: any, resolve: (op: Term, ...terms: any) => any) {
+function evaluate(expr: any, resolve: (op: Op, ...terms: any) => any) {
   if (null == expr) {
     return expr
   }
@@ -1170,7 +1141,9 @@ export {
 }
 
 export type {
-  Term
+  ExprOptions,
+  OpDef,
+  Op,
 }
 
 

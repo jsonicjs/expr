@@ -5,7 +5,7 @@ import { Jsonic } from 'jsonic'
 import {
   Expr,
   prattify,
-  Term,
+  Op,
   evaluate,
 } from '../expr'
 
@@ -21,7 +21,7 @@ const mj =
 const _mo_ = 'toMatchObject'
 
 
-function makeOp(opspec: any): Term {
+function makeOp(opspec: any): Op {
   const base = { infix: false, prefix: false, suffix: false, left: 0, right: 0 }
   const op = {
     ...base,
@@ -29,7 +29,7 @@ function makeOp(opspec: any): Term {
     terms: opspec.infix ? 2 : 1,
     ...opspec
   }
-  return (op as unknown as Term)
+  return (op as unknown as Op)
 }
 
 function makeExpr(opspec: any, term0?: any, term1?: any): any[] {
@@ -58,7 +58,7 @@ describe('expr', () => {
 
 
   test('prattify-basic', () => {
-    let T = (expr: any[], opdef?: Term) => C(prattify(expr, opdef))
+    let T = (expr: any[], opdef?: Op) => C(prattify(expr, opdef))
     let ME = makeExpr
     let MO = makeOp
 
@@ -185,7 +185,7 @@ describe('expr', () => {
 
 
   test('prattify-assoc', () => {
-    let T = (expr: any[], opdef?: Term) => C(prattify(expr, opdef))
+    let T = (expr: any[], opdef?: Op) => C(prattify(expr, opdef))
     let ME = makeExpr
     let MO = makeOp
 
@@ -2409,7 +2409,7 @@ describe('expr', () => {
       'plain-paren': (a: any) => a,
     }
 
-    let mr = (op: Term, ...terms: any) => {
+    let mr = (op: Op, ...terms: any) => {
       let mf = MF[op.name]
       return mf ? mf(...terms) : NaN
     }
