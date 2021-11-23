@@ -46,12 +46,15 @@ declare type Op = {
         required: boolean;
     };
     token: Token;
+    OP_MARK: typeof OP_MARK;
 };
+declare const OP_MARK: {};
 declare let Expr: Plugin;
 declare function prattify(expr: any, op?: Op): any[];
 declare function evaluate(expr: any, resolve: (op: Op, ...terms: any) => any): any;
 declare const testing: {
     prattify: typeof prattify;
+    opify: (x: any) => any;
 };
 export { Expr, evaluate, testing, };
 export type { ExprOptions, OpDef, Op, };

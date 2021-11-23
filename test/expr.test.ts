@@ -36,19 +36,20 @@ const _mo_ = 'toMatchObject'
 
 function makeOp(opspec: any): Op {
   const base = { infix: false, prefix: false, suffix: false, left: 0, right: 0 }
-  const op = {
+  const op = testing.opify({
     ...base,
     name: '' + opspec.src,
     terms: opspec.infix ? 2 : 1,
-    ...opspec
-  }
+    ...opspec,
+  })
   return (op as unknown as Op)
 }
 
 function makeExpr(opspec: any, term0?: any, term1?: any): any[] {
   const op = makeOp(opspec)
-  const expr: any = [opspec.src]
-  expr.op$ = op
+  // const expr: any = [opspec.src]
+  // expr.op$ = op
+  const expr: any = [opspec]
   if (term0) {
     expr.push(term0)
   }
@@ -2398,7 +2399,8 @@ describe('expr', () => {
       'plain-paren': (a: any) => a,
     }
 
-    let mr = (op: Op, ...terms: any) => {
+    let mr = (op: Op, terms: any) => {
+      // console.log('MR', op, terms)
       let mf = MF[op.name]
       return mf ? mf(...terms) : NaN
     }

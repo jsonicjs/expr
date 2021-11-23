@@ -17,18 +17,19 @@ const mj = (je) => (s, m) => C(S(je(s, m)));
 const _mo_ = 'toMatchObject';
 function makeOp(opspec) {
     const base = { infix: false, prefix: false, suffix: false, left: 0, right: 0 };
-    const op = {
+    const op = expr_1.testing.opify({
         ...base,
         name: '' + opspec.src,
         terms: opspec.infix ? 2 : 1,
-        ...opspec
-    };
+        ...opspec,
+    });
     return op;
 }
 function makeExpr(opspec, term0, term1) {
     const op = makeOp(opspec);
-    const expr = [opspec.src];
-    expr.op$ = op;
+    // const expr: any = [opspec.src]
+    // expr.op$ = op
+    const expr = [opspec];
     if (term0) {
         expr.push(term0);
     }
@@ -1654,7 +1655,8 @@ describe('expr', () => {
             'multiplication-infix': (a, b) => a * b,
             'plain-paren': (a) => a,
         };
-        let mr = (op, ...terms) => {
+        let mr = (op, terms) => {
+            // console.log('MR', op, terms)
             let mf = MF[op.name];
             return mf ? mf(...terms) : NaN;
         };

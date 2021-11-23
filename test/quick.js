@@ -7,9 +7,29 @@ const { Debug } = require('jsonic/debug')
 
 const { Expr }  = require('..')
 
+
+// Walk expr tree into simplified form where first element is the op src.
+const S = (x) => 
+  (x && Array.isArray(x)) ?
+    (0 === x.length ? x : [
+      x[0].src || S(x[0]),
+      ...(1 < x.length ? (x.slice(1).map((t) => S(t))) : [])]
+      .filter(t => undefined !== t)) :
+  (null != x && 'object' === typeof (x) ? omap(x, ([n, v]) => [n, S(v)]) : x)
+
+
 const clean = (v)=>JSON.parse(JSON.stringify(v))
 
-const j = Jsonic.make().use(Debug).use(Expr,{
+const j = Jsonic.make({
+  debug:{
+    print:{
+      config:true,
+      src:(x)=>JSON.stringify(S(x))
+    }
+  }
+})
+      .use(Debug)
+      .use(Expr,{
   op: {
     // factorial: {
     //   suffix: true, left: 15000, src: '!'
@@ -30,20 +50,17 @@ const j = Jsonic.make().use(Debug).use(Expr,{
       ternary: true,
       src: ['?', ':'],
     },
-    bar: {
-      ternary: true,
-      src: ['QQ', 'CC'],
-    },
-    zed: {
-      ternary: true,
-      src: ['%%', '@@'],
-    },
+    // bar: {
+    //   ternary: true,
+    //   src: ['QQ', 'CC'],
+    // },
+    // zed: {
+    //   ternary: true,
+    //   src: ['%%', '@@'],
+    // },
 
 
-  },
-  
-  paren: {
-    // pure: {
+    // plain: {
     //    preval: {},
     // },
     // angle: {
@@ -91,5 +108,5 @@ console.log(j.describe())
 const v = j(process.argv[2], { log: -1 })
 // console.log(v)
 //console.log(clean(v), '###', v)
-console.dir(clean(v),{depth:null})
+console.dir(clean(S(v)),{depth:null})
 
