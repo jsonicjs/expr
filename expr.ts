@@ -599,19 +599,12 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
                 r.use.expr_ternary_name = tdef.name
 
                 if (r.prev.node?.op$) {
-                  let node: any = [tdef.src, [...r.prev.node]]
-                  node[1].op$ = r.prev.node.op$
-                  r.prev.node[0] = node[0]
-                  r.prev.node[1] = node[1]
-                  r.prev.node.length = 2
-                  r.node = r.prev.node
+                  let sub = dupNode(r.prev.node)
+                  r.node = makeNode(r.prev.node, tdef, sub)
                 }
                 else {
-                  r.node = [tdef.src, r.prev.node]
-                  r.prev.node = r.node
+                  r.prev.node = r.node = makeNode([], tdef, r.prev.node)
                 }
-                r.prev.node.ternary$ = tdef
-                delete r.prev.node.op$
 
                 r.use.expr_ternary_paren = r.n.expr_paren ||
                   r.prev.use.expr_ternary_paren || 0
@@ -746,14 +739,17 @@ function prior(rule: Rule, prior: Rule, op: Op) {
     prior.node = []
   }
 
-  prior.node[0] = op.src
-  prior.node.length = 1
+
+  makeNode(prior.node, op)
+
+  // prior.node[0] = op.src
+  // prior.node.length = 1
 
   if (!op.prefix) {
     prior.node[1] = prior_node
   }
 
-  prior.node.op$ = op
+  // prior.node.op$ = op
   delete prior.node.paren$
 
   // Ensure first term val rule contains final expression.
@@ -761,6 +757,54 @@ function prior(rule: Rule, prior: Rule, op: Op) {
 
   return prior.node
 }
+
+
+function makeNode(node: any, op: Op, ...terms: any): any {
+  let out = node
+  out[0] = op.src
+
+  if (op.paren) {
+    out.paren$ = op
+    delete out.op$
+    delete out.ternary$
+  }
+  else if (op.ternary) {
+    out.ternary$ = op
+    delete out.op$
+    delete out.paren$
+  }
+  else {
+    out.op$ = op
+    delete out.paren$
+    delete out.ternary$
+  }
+
+  let tI = 0
+  for (; tI < terms.length; tI++) {
+    out[tI + 1] = terms[tI]
+  }
+  out.length = tI + 1
+
+  return out
+}
+
+
+function dupNode(node: any): any {
+  let out: any = [...node]
+
+  if (node.op$) {
+    out.op$ = node.op$
+  }
+  else if (node.paren$) {
+    out.paren$ = node.paren$
+  }
+  else if (node.ternary$) {
+    out.ternary$ = node.ternary$
+  }
+
+  return out
+}
+
 
 
 function makeOpenParen(parenOTM: OpMap) {

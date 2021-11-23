@@ -459,19 +459,12 @@ let Expr = function expr(jsonic, options) {
                         let tdef = ternaryTM[r.o0.tin];
                         r.use.expr_ternary_name = tdef.name;
                         if ((_a = r.prev.node) === null || _a === void 0 ? void 0 : _a.op$) {
-                            let node = [tdef.src, [...r.prev.node]];
-                            node[1].op$ = r.prev.node.op$;
-                            r.prev.node[0] = node[0];
-                            r.prev.node[1] = node[1];
-                            r.prev.node.length = 2;
-                            r.node = r.prev.node;
+                            let sub = dupNode(r.prev.node);
+                            r.node = makeNode(r.prev.node, tdef, sub);
                         }
                         else {
-                            r.node = [tdef.src, r.prev.node];
-                            r.prev.node = r.node;
+                            r.prev.node = r.node = makeNode([], tdef, r.prev.node);
                         }
-                        r.prev.node.ternary$ = tdef;
-                        delete r.prev.node.op$;
                         r.use.expr_ternary_paren = r.n.expr_paren ||
                             r.prev.use.expr_ternary_paren || 0;
                         r.n.expr_paren = 0;
@@ -589,16 +582,55 @@ function prior(rule, prior, op) {
     if (null == prior.node || (!prior.node.op$ && !prior.node.paren$)) {
         prior.node = [];
     }
-    prior.node[0] = op.src;
-    prior.node.length = 1;
+    makeNode(prior.node, op);
+    // prior.node[0] = op.src
+    // prior.node.length = 1
     if (!op.prefix) {
         prior.node[1] = prior_node;
     }
-    prior.node.op$ = op;
+    // prior.node.op$ = op
     delete prior.node.paren$;
     // Ensure first term val rule contains final expression.
     rule.parent = prior;
     return prior.node;
+}
+function makeNode(node, op, ...terms) {
+    let out = node;
+    out[0] = op.src;
+    if (op.paren) {
+        out.paren$ = op;
+        delete out.op$;
+        delete out.ternary$;
+    }
+    else if (op.ternary) {
+        out.ternary$ = op;
+        delete out.op$;
+        delete out.paren$;
+    }
+    else {
+        out.op$ = op;
+        delete out.paren$;
+        delete out.ternary$;
+    }
+    let tI = 0;
+    for (; tI < terms.length; tI++) {
+        out[tI + 1] = terms[tI];
+    }
+    out.length = tI + 1;
+    return out;
+}
+function dupNode(node) {
+    let out = [...node];
+    if (node.op$) {
+        out.op$ = node.op$;
+    }
+    else if (node.paren$) {
+        out.paren$ = node.paren$;
+    }
+    else if (node.ternary$) {
+        out.ternary$ = node.ternary$;
+    }
+    return out;
 }
 function makeOpenParen(parenOTM) {
     return function openParen(r) {
