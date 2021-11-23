@@ -2460,14 +2460,14 @@ describe('expr', () => {
     })
 
 
-    // expect(evaluate(j('[1]U[2]'), mr)).toEqual([1, 2])
-    // expect(evaluate(j('[1,3]U[1,2]'), mr)).toEqual([1, 2, 3])
+    expect(evaluate(j('[1]U[2]'), mr)).toEqual([1, 2])
+    expect(evaluate(j('[1,3]U[1,2]'), mr)).toEqual([1, 2, 3])
 
-    // expect(evaluate(j('[1,3]N[1,2]'), mr)).toEqual([1])
-    // expect(evaluate(j('[1,3]N[2]'), mr)).toEqual([])
-    // expect(evaluate(j('[1,3]N[2,1]'), mr)).toEqual([1])
+    expect(evaluate(j('[1,3]N[1,2]'), mr)).toEqual([1])
+    expect(evaluate(j('[1,3]N[2]'), mr)).toEqual([])
+    expect(evaluate(j('[1,3]N[2,1]'), mr)).toEqual([1])
 
-    // expect(evaluate(j('[1,3]N[2]U[1,2]'), mr)).toEqual([1, 2])
+    expect(evaluate(j('[1,3]N[2]U[1,2]'), mr)).toEqual([1, 2])
     expect(evaluate(j('[1,3]N([2]U[1,2])'), mr)).toEqual([1])
   })
 
