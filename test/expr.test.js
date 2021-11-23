@@ -1160,7 +1160,7 @@ describe('expr', () => {
         expect(j('(1+2 3+4 5)')).toMatchObject(['(', [['+', 1, 2], ['+', 3, 4], 5]]);
         expect(j('(1+2 3+4 5+6)'))
             .toMatchObject(['(', [['+', 1, 2], ['+', 3, 4], ['+', 5, 6]]]);
-        // Default pure paren does not have a prefix, so this is an implicit list.
+        // Default plain paren does not have a prefix, so this is an implicit list.
         expect(j('foo(1,a)')).toMatchObject(['foo', ['(', [1, 'a']]]);
         expect(j('foo,(1,a)')).toMatchObject(['foo', ['(', [1, 'a']]]);
         expect(j('foo (1,a)')).toMatchObject(['foo', ['(', [1, 'a']]]);
@@ -1187,9 +1187,9 @@ describe('expr', () => {
     });
     test('add-paren', () => {
         const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
-            paren: {
+            op: {
                 angle: {
-                    osrc: '<', csrc: '>'
+                    paren: true, osrc: '<', csrc: '>'
                 }
             }
         });
@@ -1204,13 +1204,14 @@ describe('expr', () => {
     });
     test('paren-preval-basic', () => {
         const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
-            paren: {
-                pure: {
+            op: {
+                plain: {
                     preval: {},
                 },
                 angle: {
                     osrc: '<',
                     csrc: '>',
+                    paren: true,
                     preval: { active: true },
                 }
             }
@@ -1266,16 +1267,18 @@ describe('expr', () => {
                 factorial: {
                     suffix: true, left: 15000, src: '!'
                 },
-            },
-            paren: {
+                // },
+                // paren: {
                 square: {
                     osrc: '[',
                     csrc: ']',
+                    paren: true,
                     preval: { required: true },
                 },
                 brace: {
                     osrc: '{',
                     csrc: '}',
+                    paren: true,
                     preval: { required: true },
                 }
             }
@@ -1331,8 +1334,8 @@ describe('expr', () => {
     });
     test('paren-preval-implicit', () => {
         const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
-            paren: {
-                pure: {
+            op: {
+                plain: {
                     preval: true
                 }
             }
@@ -1560,10 +1563,10 @@ describe('expr', () => {
                 ternary: {
                     ternary: true,
                     src: ['?', ':'],
-                }
-            },
-            paren: {
-                pure: {
+                },
+                // },
+                // paren: {
+                plain: {
                     preval: {}
                 }
             }
@@ -1684,11 +1687,10 @@ describe('expr', () => {
         let MF = {
             'addition-infix': (a, b) => a + b,
             'multiplication-infix': (a, b) => a * b,
-            'pure': (a) => a,
+            'plain-paren': (a) => a,
         };
         let mr = (op, ...terms) => {
             let mf = MF[op.name];
-            console.log('MR', op, op.name, terms, mf);
             return mf ? mf(...terms) : NaN;
         };
         const j = jsonic_1.Jsonic.make().use(expr_1.Expr);

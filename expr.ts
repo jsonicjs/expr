@@ -54,46 +54,40 @@ import {
 const { omap, entries, values } = util
 
 
-type OpDef = {
+type Op = {
+  src?: string | string[]
+  osrc?: string
+  csrc?: string
   left?: number
   right?: number
-  src?: string | string[]
+  use?: any // custom op data
   prefix?: boolean
   suffix?: boolean
   infix?: boolean
   ternary?: boolean
-  use?: any // custom
-}
-
-type OpFullDef = OpDef & {
-  src: string
-  left: number
-  right: number
-  terms: number
-  name: string
-  tkn: string
-  tin: number
-  prefix: boolean
-  suffix: boolean
-  infix: boolean
-  ternary: boolean
-  use: any
-}
-
-type OpDefMap = { [tin: number]: OpFullDef }
-
-
-type ParenDef = {
-  osrc: string
-  csrc: string
+  paren?: boolean
   preval?: {
     active?: boolean
     required?: boolean
   }
 }
 
-type ParenFullDef = ParenDef & {
+type Term = {
   name: string
+  src: string
+  left: number
+  right: number
+  use: any
+  prefix: boolean
+  suffix: boolean
+  infix: boolean
+  ternary: boolean
+  paren: boolean
+  terms: number
+  tkn: string
+  tin: number
+  osrc: string
+  csrc: string
   otkn: string
   otin: number
   ctkn: string
@@ -104,13 +98,41 @@ type ParenFullDef = ParenDef & {
   }
 }
 
+type TermMap = { [tin: number]: Term }
 
-type ParenDefMap = { [tin: number]: ParenFullDef }
+
+// type ParenDef = {
+//   osrc: string
+//   csrc: string
+//   preval?: {
+//     active?: boolean
+//     required?: boolean
+//   }
+// }
+
+// type ParenFullDef = {
+//   name: string
+//   osrc: string
+//   csrc: string
+//   otkn: string
+//   otin: number
+//   ctkn: string
+//   ctin: number
+//   preval: {
+//     active: boolean
+//     required: boolean
+//   }
+// }
+
+
+// type ParenDefMap = { [tin: number]: ParenFullDef }
+type ParenDefMap = { [tin: number]: Term }
 
 
 type ExprOptions = {
-  op?: { [name: string]: OpDef },
-  paren?: { [name: string]: ParenDef },
+  op?: { [name: string]: Op },
+  // paren?: { [name: string]: ParenDef },
+  // paren?: { [name: string]: Op },
 }
 
 
@@ -138,13 +160,14 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
   // Build token maps (TM).
   let optop = options.op || {}
-  const prefixTM: OpDefMap = makeOpMap(token, fixed, optop, 'prefix')
-  const suffixTM: OpDefMap = makeOpMap(token, fixed, optop, 'suffix')
-  const infixTM: OpDefMap = makeOpMap(token, fixed, optop, 'infix')
-  const ternaryTM: OpDefMap = makeOpMap(token, fixed, optop, 'ternary')
+  const prefixTM: TermMap = makeOpMap(token, fixed, optop, 'prefix')
+  const suffixTM: TermMap = makeOpMap(token, fixed, optop, 'suffix')
+  const infixTM: TermMap = makeOpMap(token, fixed, optop, 'infix')
+  const ternaryTM: TermMap = makeOpMap(token, fixed, optop, 'ternary')
 
-  const parenOTM: ParenDefMap = makeParenMap(token, fixed, options.paren || {})
-  const parenCTM: ParenDefMap = omap(parenOTM, ([_, pdef]: [Tin, ParenFullDef]) =>
+  const parenOTM: ParenDefMap = makeParenMap(token, fixed, optop)
+  // const parenCTM: ParenDefMap = omap(parenOTM, ([_, pdef]: [Tin, ParenFullDef]) =>
+  const parenCTM: ParenDefMap = omap(parenOTM, ([_, pdef]: [Tin, Term]) =>
     [undefined, undefined, pdef.ctin, pdef])
 
 
@@ -664,13 +687,13 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
               },
 
               // Handle ternary as first item of imp list inside paren.
-              b: (r: Rule, ctx: Context) => CP.includes(ctx.t0.tin) ? 1 : 0,
+              b: (_r: Rule, ctx: Context) => CP.includes(ctx.t0.tin) ? 1 : 0,
               r: (r: Rule, ctx: Context) =>
                 !CP.includes(ctx.t0.tin) &&
                   (0 === r.d || (
                     r.prev.use.expr_ternary_paren &&
                     !r.parent.node?.length)) ? 'elem' : '',
-              a: (r: Rule, ctx: Context, a: AltMatch) => {
+              a: (r: Rule, _ctx: Context, a: AltMatch) => {
                 r.n.expr_paren = r.prev.use.expr_ternary_paren
 
                 r.node.push(r.child.node)
@@ -704,7 +727,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
                   ZZ !== ctx.t0.tin
                   ? 'elem' : ''
               },
-              a: (r: Rule, ctx: Context, a: AltMatch) => {
+              a: (r: Rule, _ctx: Context, a: AltMatch) => {
                 r.n.expr_paren = r.prev.use.expr_ternary_paren
                 r.node.push(r.child.node)
 
@@ -734,7 +757,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
 
 // Convert prior (parent or previous) rule node into an expression.
-function prior(rule: Rule, prior: Rule, op: OpFullDef) {
+function prior(rule: Rule, prior: Rule, op: Term) {
 
   // let prior_node =
   //   (prior.node?.op$ || prior.node?.paren$) ? [...prior.node] : prior.node
@@ -855,13 +878,13 @@ function implicitList(rule: Rule, ctx: Context, a: any) {
 function makeOpMap(
   token: (tkn: string | Tin) => Tin | string,
   fixed: (tkn: string) => Tin,
-  op: { [name: string]: OpDef },
+  op: { [name: string]: Op },
   anyfix: 'prefix' | 'suffix' | 'infix' | 'ternary',
-): OpDefMap {
+): TermMap {
   return Object.entries(op)
-    .filter(([_, opdef]: [string, OpDef]) => opdef[anyfix])
+    .filter(([_, opdef]: [string, Op]) => opdef[anyfix])
     .reduce(
-      (odm: OpDefMap, [name, opdef]: [string, OpDef]) => {
+      (odm: TermMap, [name, opdef]: [string, Op]) => {
         let tkn = ''
         let tin = -1
         let src = ''
@@ -889,6 +912,17 @@ function makeOpMap(
           tin,
           terms: 'infix' === anyfix ? 2 : 1,
           use: ({} as any),
+          paren: false,
+          osrc: '',
+          csrc: '',
+          otkn: '',
+          ctkn: '',
+          otin: -1,
+          ctin: -1,
+          preval: {
+            active: false,
+            required: false,
+          }
         }
 
         // Handle the second operator if ternary.
@@ -920,37 +954,51 @@ function makeOpMap(
 function makeParenMap(
   token: (tkn_tin: string | Tin) => Tin | string,
   fixed: (tkn: string) => Tin,
-  paren: { [name: string]: ParenDef },
+  optop: { [name: string]: Op },
 ): ParenDefMap {
-  return entries(paren)
+  return entries(optop)
     .reduce(
       (a: ParenDefMap, [name, pdef]: [string, any]) => {
-        let otin = (fixed(pdef.osrc) || token('#E' + pdef.osrc)) as Tin
-        let otkn = token(otin) as string
-        let ctin = (fixed(pdef.csrc) || token('#E' + pdef.csrc)) as Tin
-        let ctkn = token(ctin) as string
+        if (pdef.paren) {
+          let otin = (fixed(pdef.osrc) || token('#E' + pdef.osrc)) as Tin
+          let otkn = token(otin) as string
+          let ctin = (fixed(pdef.csrc) || token('#E' + pdef.csrc)) as Tin
+          let ctkn = token(ctin) as string
 
-        a[otin] = {
-          name,
-          osrc: pdef.osrc,
-          csrc: pdef.csrc,
-          otkn,
-          otin,
-          ctkn,
-          ctin,
-          preval: {
-            // True by default if preval specified.
-            active: null == pdef.preval ? false :
-              null == pdef.preval.active ? true : pdef.preval.active,
-            // False by default.
-            required: null == pdef.preval ? false :
-              null == pdef.preval.required ? false : pdef.preval.required,
-          },
+          a[otin] = {
+            name: name + '-paren',
+            osrc: pdef.osrc,
+            csrc: pdef.csrc,
+            otkn,
+            otin,
+            ctkn,
+            ctin,
+            preval: {
+              // True by default if preval specified.
+              active: null == pdef.preval ? false :
+                null == pdef.preval.active ? true : pdef.preval.active,
+              // False by default.
+              required: null == pdef.preval ? false :
+                null == pdef.preval.required ? false : pdef.preval.required,
+            },
+            use: ({} as any),
+            paren: true,
+            src: pdef.osrc,
+            left: -1,
+            right: -1,
+            infix: false,
+            prefix: false,
+            suffix: false,
+            ternary: false,
+            tkn: '',
+            tin: -1,
+            terms: -1,
+          }
         }
         return a
       },
       {}
-    )
+    ) as ParenDefMap
 }
 
 
@@ -982,11 +1030,11 @@ Expr.defaults = {
     remainder: {
       infix: true, left: 160, right: 170, src: '%'
     },
-  },
+    // },
 
-  paren: {
-    pure: {
-      osrc: '(', csrc: ')',
+    // paren: {
+    plain: {
+      paren: true, osrc: '(', csrc: ')',
     },
   }
 
@@ -999,22 +1047,22 @@ const jj = (x: any) => JSON.parse(JSON.stringify(x))
 
 // Pratt algorithm embeds next operator.
 // NOTE: preserves referential integrity of root expression.
-function prattify(expr: any, op?: OpFullDef): any[] {
+function prattify(expr: any, op?: Term): any[] {
   let out = expr
 
-  let log = ''
-  let in_expr = jj(expr)
+  // let log = ''
+  // let in_expr = jj(expr)
 
   if (op) {
     if (op.infix) {
-      log += 'I'
+      // log += 'I'
 
       // let lower = ('?' === op.src && ';' === expr[2]?.op$?.src)
 
       // op is lower
       // if (lower || expr.op$.suffix || op.left <= expr.op$.right) {
       if (expr.op$.suffix || op.left <= expr.op$.right) {
-        log += 'L'
+        // log += 'L'
         expr[1] = [...expr]
         expr[1].op$ = expr.op$
 
@@ -1025,21 +1073,15 @@ function prattify(expr: any, op?: OpFullDef): any[] {
 
       // op is higher
       else {
-        log += 'H'
+        // log += 'H'
         const end = expr.op$.terms
 
-        // let done = true
-        // let done = (';' === op.src && '?' === expr[end]?.op$?.src && ';' === expr[end][2]?.op$?.src)
-        // console.log('TERN', op.src, done, '/', jj(expr), '/', jj(expr[end]))
-
-        //if (!done && expr[end]?.op$?.right < op.left) {
         if (expr[end]?.op$?.right < op.left) {
-          log += 'P'
-
+          // log += 'P'
           out = prattify(expr[end], op)
         }
         else {
-          log += 'E'
+          // log += 'E'
           expr[end] = [op.src, expr[end]]
           expr[end].op$ = op
           out = expr[end]
@@ -1101,19 +1143,17 @@ function prattify(expr: any, op?: OpFullDef): any[] {
 
 
 
-function evaluate(expr: any, resolve: (op: OpFullDef | ParenFullDef, ...terms: any) => any) {
+function evaluate(expr: any, resolve: (op: Term, ...terms: any) => any) {
   if (null == expr) {
     return expr
   }
 
   if (expr.op$) {
     let terms = expr.slice(1).map((term: any) => evaluate(term, resolve))
-    console.log('EVAL OP terms', terms)
     return resolve(expr.op$, ...terms)
   }
   else if (expr.paren$) {
     let terms = expr.slice(1).map((term: any) => evaluate(term, resolve))
-    console.log('EVAL PAREN terms', terms)
     return resolve(expr.paren$, ...terms)
   }
 
@@ -1130,8 +1170,7 @@ export {
 }
 
 export type {
-  OpFullDef,
-  ParenFullDef,
+  Term
 }
 
 

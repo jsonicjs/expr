@@ -5,8 +5,7 @@ import { Jsonic } from 'jsonic'
 import {
   Expr,
   prattify,
-  OpFullDef,
-  ParenFullDef,
+  Term,
   evaluate,
 } from '../expr'
 
@@ -22,7 +21,7 @@ const mj =
 const _mo_ = 'toMatchObject'
 
 
-function makeOp(opspec: any): OpFullDef {
+function makeOp(opspec: any): Term {
   const base = { infix: false, prefix: false, suffix: false, left: 0, right: 0 }
   const op = {
     ...base,
@@ -30,7 +29,7 @@ function makeOp(opspec: any): OpFullDef {
     terms: opspec.infix ? 2 : 1,
     ...opspec
   }
-  return (op as unknown as OpFullDef)
+  return (op as unknown as Term)
 }
 
 function makeExpr(opspec: any, term0?: any, term1?: any): any[] {
@@ -59,7 +58,7 @@ describe('expr', () => {
 
 
   test('prattify-basic', () => {
-    let T = (expr: any[], opdef?: OpFullDef) => C(prattify(expr, opdef))
+    let T = (expr: any[], opdef?: Term) => C(prattify(expr, opdef))
     let ME = makeExpr
     let MO = makeOp
 
@@ -186,7 +185,7 @@ describe('expr', () => {
 
 
   test('prattify-assoc', () => {
-    let T = (expr: any[], opdef?: OpFullDef) => C(prattify(expr, opdef))
+    let T = (expr: any[], opdef?: Term) => C(prattify(expr, opdef))
     let ME = makeExpr
     let MO = makeOp
 
@@ -1682,7 +1681,7 @@ describe('expr', () => {
     expect(j('(1+2 3+4 5+6)'))
       .toMatchObject(['(', [['+', 1, 2], ['+', 3, 4], ['+', 5, 6]]])
 
-    // Default pure paren does not have a prefix, so this is an implicit list.
+    // Default plain paren does not have a prefix, so this is an implicit list.
     expect(j('foo(1,a)')).toMatchObject(['foo', ['(', [1, 'a']]])
     expect(j('foo,(1,a)')).toMatchObject(['foo', ['(', [1, 'a']]])
     expect(j('foo (1,a)')).toMatchObject(['foo', ['(', [1, 'a']]])
@@ -1717,9 +1716,9 @@ describe('expr', () => {
 
   test('add-paren', () => {
     const je = Jsonic.make().use(Expr, {
-      paren: {
+      op: {
         angle: {
-          osrc: '<', csrc: '>'
+          paren: true, osrc: '<', csrc: '>'
         }
       }
     })
@@ -1739,13 +1738,14 @@ describe('expr', () => {
 
   test('paren-preval-basic', () => {
     const je = Jsonic.make().use(Expr, {
-      paren: {
-        pure: {
+      op: {
+        plain: {
           preval: {},
         },
         angle: {
           osrc: '<',
           csrc: '>',
+          paren: true,
           preval: { active: true },
         }
       }
@@ -1821,16 +1821,18 @@ describe('expr', () => {
         factorial: {
           suffix: true, left: 15000, src: '!'
         },
-      },
-      paren: {
+        // },
+        // paren: {
         square: {
           osrc: '[',
           csrc: ']',
+          paren: true,
           preval: { required: true },
         },
         brace: {
           osrc: '{',
           csrc: '}',
+          paren: true,
           preval: { required: true },
         }
       }
@@ -1905,8 +1907,8 @@ describe('expr', () => {
 
   test('paren-preval-implicit', () => {
     const je = Jsonic.make().use(Expr, {
-      paren: {
-        pure: {
+      op: {
+        plain: {
           preval: true
         }
       }
@@ -2242,11 +2244,11 @@ describe('expr', () => {
         ternary: {
           ternary: true,
           src: ['?', ':'],
-        }
-      },
+        },
+        // },
 
-      paren: {
-        pure: {
+        // paren: {
+        plain: {
           preval: {}
         }
       }
@@ -2404,13 +2406,11 @@ describe('expr', () => {
     let MF: any = {
       'addition-infix': (a: any, b: any) => a + b,
       'multiplication-infix': (a: any, b: any) => a * b,
-      'pure': (a: any) => a,
+      'plain-paren': (a: any) => a,
     }
 
-    let mr = (op: OpFullDef | ParenFullDef, ...terms: any) => {
-
+    let mr = (op: Term, ...terms: any) => {
       let mf = MF[op.name]
-      console.log('MR', op, op.name, terms, mf)
       return mf ? mf(...terms) : NaN
     }
 

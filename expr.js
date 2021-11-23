@@ -63,7 +63,8 @@ let Expr = function expr(jsonic, options) {
     const suffixTM = makeOpMap(token, fixed, optop, 'suffix');
     const infixTM = makeOpMap(token, fixed, optop, 'infix');
     const ternaryTM = makeOpMap(token, fixed, optop, 'ternary');
-    const parenOTM = makeParenMap(token, fixed, options.paren || {});
+    const parenOTM = makeParenMap(token, fixed, optop);
+    // const parenCTM: ParenDefMap = omap(parenOTM, ([_, pdef]: [Tin, ParenFullDef]) =>
     const parenCTM = omap(parenOTM, ([_, pdef]) => [undefined, undefined, pdef.ctin, pdef]);
     let parenFixed = Object
         .values({ ...parenOTM, ...parenCTM })
@@ -511,14 +512,14 @@ let Expr = function expr(jsonic, options) {
                             2 === r.use.expr_ternary_step;
                     },
                     // Handle ternary as first item of imp list inside paren.
-                    b: (r, ctx) => CP.includes(ctx.t0.tin) ? 1 : 0,
+                    b: (_r, ctx) => CP.includes(ctx.t0.tin) ? 1 : 0,
                     r: (r, ctx) => {
                         var _a;
                         return !CP.includes(ctx.t0.tin) &&
                             (0 === r.d || (r.prev.use.expr_ternary_paren &&
                                 !((_a = r.parent.node) === null || _a === void 0 ? void 0 : _a.length))) ? 'elem' : '';
                     },
-                    a: (r, ctx, a) => {
+                    a: (r, _ctx, a) => {
                         r.n.expr_paren = r.prev.use.expr_ternary_paren;
                         r.node.push(r.child.node);
                         if ('elem' === a.r) {
@@ -548,7 +549,7 @@ let Expr = function expr(jsonic, options) {
                             ZZ !== ctx.t0.tin
                             ? 'elem' : '';
                     },
-                    a: (r, ctx, a) => {
+                    a: (r, _ctx, a) => {
                         r.n.expr_paren = r.prev.use.expr_ternary_paren;
                         r.node.push(r.child.node);
                         if ('elem' === a.r) {
@@ -698,6 +699,17 @@ function makeOpMap(token, fixed, op, anyfix) {
             tin,
             terms: 'infix' === anyfix ? 2 : 1,
             use: {},
+            paren: false,
+            osrc: '',
+            csrc: '',
+            otkn: '',
+            ctkn: '',
+            otin: -1,
+            ctin: -1,
+            preval: {
+                active: false,
+                required: false,
+            }
         };
         // Handle the second operator if ternary.
         if (op.ternary) {
@@ -717,30 +729,44 @@ function makeOpMap(token, fixed, op, anyfix) {
         return odm;
     }, {});
 }
-function makeParenMap(token, fixed, paren) {
-    return entries(paren)
+function makeParenMap(token, fixed, optop) {
+    return entries(optop)
         .reduce((a, [name, pdef]) => {
-        let otin = (fixed(pdef.osrc) || token('#E' + pdef.osrc));
-        let otkn = token(otin);
-        let ctin = (fixed(pdef.csrc) || token('#E' + pdef.csrc));
-        let ctkn = token(ctin);
-        a[otin] = {
-            name,
-            osrc: pdef.osrc,
-            csrc: pdef.csrc,
-            otkn,
-            otin,
-            ctkn,
-            ctin,
-            preval: {
-                // True by default if preval specified.
-                active: null == pdef.preval ? false :
-                    null == pdef.preval.active ? true : pdef.preval.active,
-                // False by default.
-                required: null == pdef.preval ? false :
-                    null == pdef.preval.required ? false : pdef.preval.required,
-            },
-        };
+        if (pdef.paren) {
+            let otin = (fixed(pdef.osrc) || token('#E' + pdef.osrc));
+            let otkn = token(otin);
+            let ctin = (fixed(pdef.csrc) || token('#E' + pdef.csrc));
+            let ctkn = token(ctin);
+            a[otin] = {
+                name: name + '-paren',
+                osrc: pdef.osrc,
+                csrc: pdef.csrc,
+                otkn,
+                otin,
+                ctkn,
+                ctin,
+                preval: {
+                    // True by default if preval specified.
+                    active: null == pdef.preval ? false :
+                        null == pdef.preval.active ? true : pdef.preval.active,
+                    // False by default.
+                    required: null == pdef.preval ? false :
+                        null == pdef.preval.required ? false : pdef.preval.required,
+                },
+                use: {},
+                paren: true,
+                src: pdef.osrc,
+                left: -1,
+                right: -1,
+                infix: false,
+                prefix: false,
+                suffix: false,
+                ternary: false,
+                tkn: '',
+                tin: -1,
+                terms: -1,
+            };
+        }
         return a;
     }, {});
 }
@@ -769,10 +795,10 @@ Expr.defaults = {
         remainder: {
             infix: true, left: 160, right: 170, src: '%'
         },
-    },
-    paren: {
-        pure: {
-            osrc: '(', csrc: ')',
+        // },
+        // paren: {
+        plain: {
+            paren: true, osrc: '(', csrc: ')',
         },
     }
 };
@@ -782,16 +808,16 @@ const jj = (x) => JSON.parse(JSON.stringify(x));
 function prattify(expr, op) {
     var _a, _b;
     let out = expr;
-    let log = '';
-    let in_expr = jj(expr);
+    // let log = ''
+    // let in_expr = jj(expr)
     if (op) {
         if (op.infix) {
-            log += 'I';
+            // log += 'I'
             // let lower = ('?' === op.src && ';' === expr[2]?.op$?.src)
             // op is lower
             // if (lower || expr.op$.suffix || op.left <= expr.op$.right) {
             if (expr.op$.suffix || op.left <= expr.op$.right) {
-                log += 'L';
+                // log += 'L'
                 expr[1] = [...expr];
                 expr[1].op$ = expr.op$;
                 expr[0] = op.src;
@@ -800,18 +826,14 @@ function prattify(expr, op) {
             }
             // op is higher
             else {
-                log += 'H';
+                // log += 'H'
                 const end = expr.op$.terms;
-                // let done = true
-                // let done = (';' === op.src && '?' === expr[end]?.op$?.src && ';' === expr[end][2]?.op$?.src)
-                // console.log('TERN', op.src, done, '/', jj(expr), '/', jj(expr[end]))
-                //if (!done && expr[end]?.op$?.right < op.left) {
                 if (((_b = (_a = expr[end]) === null || _a === void 0 ? void 0 : _a.op$) === null || _b === void 0 ? void 0 : _b.right) < op.left) {
-                    log += 'P';
+                    // log += 'P'
                     out = prattify(expr[end], op);
                 }
                 else {
-                    log += 'E';
+                    // log += 'E'
                     expr[end] = [op.src, expr[end]];
                     expr[end].op$ = op;
                     out = expr[end];
@@ -870,12 +892,10 @@ function evaluate(expr, resolve) {
     }
     if (expr.op$) {
         let terms = expr.slice(1).map((term) => evaluate(term, resolve));
-        console.log('EVAL OP terms', terms);
         return resolve(expr.op$, ...terms);
     }
     else if (expr.paren$) {
         let terms = expr.slice(1).map((term) => evaluate(term, resolve));
-        console.log('EVAL PAREN terms', terms);
         return resolve(expr.paren$, ...terms);
     }
     return expr;
