@@ -1,7 +1,7 @@
 /* Copyright (c) 2021 Richard Rodger and other contributors, MIT License */
 
 
-import { Jsonic } from 'jsonic'
+import { Jsonic, util } from 'jsonic'
 
 import {
   Expr,
@@ -14,12 +14,21 @@ import type {
 } from '../expr'
 
 
+const { omap } = util
 
-const C =
-  (x: any) => JSON.parse(JSON.stringify(x))
+const C = (x: any) => JSON.parse(JSON.stringify(x))
+
+// Walk expr tree into simplified form where first element is the op src.
+const S = (x: any): any =>
+  (x && Array.isArray(x)) ?
+    (0 === x.length ? x : [
+      x[0].src || S(x[0]),
+      ...(1 < x.length ? (x.slice(1).map((t: any) => S(t))) : [])]
+      .filter(t => undefined !== t)) :
+    (null != x && 'object' === typeof (x) ? omap(x, ([n, v]) => [n, S(v)]) : x)
 
 const mj =
-  (je: Jsonic) => (s: string, m?: any) => C(je(s, m))
+  (je: Jsonic) => (s: string, m?: any) => C(S(je(s, m)))
 
 
 const _mo_ = 'toMatchObject'
@@ -64,7 +73,7 @@ describe('expr', () => {
   test('prattify-basic', () => {
     let prattify = testing.prattify
 
-    let T = (expr: any[], opdef?: Op) => C(prattify(expr, opdef))
+    let T = (expr: any[], opdef?: Op) => C(S(prattify(expr, opdef)))
     let ME = makeExpr
     let MO = makeOp
 
@@ -83,109 +92,113 @@ describe('expr', () => {
 
     let E: any
 
+    // console.log(S(['+', 1, 2]))
+    // console.log(S([{ src: '+' }, 1, 2]))
+    // console.log(S([{ src: '+' }, [{ src: '+' }, 1, 2], 3]))
+
 
     // 1+2+N => (1+2)+N
     expect(T(E = ME(PLUS_LA, 1, 2), PLUS_LA))[_mo_](['+', ['+', 1, 2]])
-    expect(C(E))[_mo_](['+', ['+', 1, 2]])
+    expect(C(S(E)))[_mo_](['+', ['+', 1, 2]])
 
     // 1+2+N => 1+(2+N)
     expect(T(E = ME(PLUS_RA, 1, 2), PLUS_RA))[_mo_](['+', 2])
-    expect(C(E))[_mo_](['+', 1, ['+', 2]])
+    expect(C(S(E)))[_mo_](['+', 1, ['+', 2]])
 
     // 1+2*N => 1+(2*N)
     expect(T(E = ME(PLUS_LA, 1, 2), MUL_LA))[_mo_](['*', 2])
-    expect(C(E))[_mo_](['+', 1, ['*', 2]])
+    expect(C(S(E)))[_mo_](['+', 1, ['*', 2]])
 
     // 1*2+N => (1+2)+N
     expect(T(E = ME(MUL_LA, 1, 2), PLUS_LA))[_mo_](['+', ['*', 1, 2]])
-    expect(C(E))[_mo_](['+', ['*', 1, 2]])
+    expect(C(S(E)))[_mo_](['+', ['*', 1, 2]])
 
 
     // @1+N => (@1)+N
     expect(T(E = ME(AT_P, 1), PLUS_LA))[_mo_](['+', ['@', 1]])
-    expect(C(E))[_mo_](['+', ['@', 1]])
+    expect(C(S(E)))[_mo_](['+', ['@', 1]])
 
     // 1!+N => (!1)+N
     expect(T(E = ME(BANG_S, 1), PLUS_LA))[_mo_](['+', ['!', 1]])
-    expect(C(E))[_mo_](['+', ['!', 1]])
+    expect(C(S(E)))[_mo_](['+', ['!', 1]])
 
 
     // @1|N => @(1|N)
     expect(T(E = ME(AT_P, 1), PIPE_LA))[_mo_](['|', 1])
-    expect(C(E))[_mo_](['@', ['|', 1]])
+    expect(C(S(E)))[_mo_](['@', ['|', 1]])
 
     // 1|@N => 1|(@N)
     expect(T(E = ME(PIPE_LA, 1), AT_P))[_mo_](['@'])
-    expect(C(E))[_mo_](['|', 1, ['@']])
+    expect(C(S(E)))[_mo_](['|', 1, ['@']])
 
 
     // 1!|N => (!1)|N
     expect(T(E = ME(BANG_S, 1), PIPE_LA))[_mo_](['|', ['!', 1]])
-    expect(C(E))[_mo_](['|', ['!', 1]])
+    expect(C(S(E)))[_mo_](['|', ['!', 1]])
 
 
 
     // 1+@N => 1+(@N)
     expect(T(E = ME(PLUS_LA, 1), AT_P))[_mo_](['@'])
-    expect(C(E))[_mo_](['+', 1, ['@']])
+    expect(C(S(E)))[_mo_](['+', 1, ['@']])
 
     // @@N => @(@N)
     expect(T(E = ME(AT_P), AT_P))[_mo_](['@'])
-    expect(C(E))[_mo_](['@', ['@']])
+    expect(C(S(E)))[_mo_](['@', ['@']])
 
 
     // %@N => %(@N)
     expect(T(E = ME(PER_P), AT_P))[_mo_](['@'])
-    expect(C(E))[_mo_](['%', ['@']])
+    expect(C(S(E)))[_mo_](['%', ['@']])
 
     // @%N => @(%N)
     expect(T(E = ME(AT_P), PER_P))[_mo_](['%'])
-    expect(C(E))[_mo_](['@', ['%']])
+    expect(C(S(E)))[_mo_](['@', ['%']])
 
 
 
     // 1+2! => 1+(2!)
     // expect(T(E = ME(PLUS_LA, 1, 2), BANG_S))[_mo_](['!', 2])
     expect(T(E = ME(PLUS_LA, 1, 2), BANG_S))[_mo_](['+', 1, ['!', 2]])
-    expect(C(E))[_mo_](['+', 1, ['!', 2]])
+    expect(C(S(E)))[_mo_](['+', 1, ['!', 2]])
 
     // 1|2! => (1|2)!
     expect(T(E = ME(PIPE_LA, 1, 2), BANG_S))[_mo_](['!', ['|', 1, 2]])
-    expect(C(E))[_mo_](['!', ['|', 1, 2]])
+    expect(C(S(E)))[_mo_](['!', ['|', 1, 2]])
 
 
     // 1!! => !(!1)
     expect(T(E = ME(BANG_S, 1), BANG_S))[_mo_](['!', ['!', 1]])
-    expect(C(E))[_mo_](['!', ['!', 1]])
+    expect(C(S(E)))[_mo_](['!', ['!', 1]])
 
 
     // 1!? => ?(!1)
     expect(T(E = ME(BANG_S, 1), QUEST_S))[_mo_](['?', ['!', 1]])
-    expect(C(E))[_mo_](['?', ['!', 1]])
+    expect(C(S(E)))[_mo_](['?', ['!', 1]])
 
     // 1?! => !(?1)
     expect(T(E = ME(QUEST_S, 1), BANG_S))[_mo_](['!', ['?', 1]])
-    expect(C(E))[_mo_](['!', ['?', 1]])
+    expect(C(S(E)))[_mo_](['!', ['?', 1]])
 
 
     // @1! => @(1!)
     // expect(T(E = ME(AT_P, 1), BANG_S))[_mo_](['!', 1])
     expect(T(E = ME(AT_P, 1), BANG_S))[_mo_](['@', ['!', 1]])
-    expect(C(E))[_mo_](['@', ['!', 1]])
+    expect(C(S(E)))[_mo_](['@', ['!', 1]])
 
     // @1? => (@1)?
     expect(T(E = ME(AT_P, 1), QUEST_S))[_mo_](['?', ['@', 1]])
-    expect(C(E))[_mo_](['?', ['@', 1]])
+    expect(C(S(E)))[_mo_](['?', ['@', 1]])
 
 
     // @@1! => @(@(1!))
     // expect(T(E = ME(AT_P, ME(AT_P, 1)), BANG_S))[_mo_](['!', 1])
     expect(T(E = ME(AT_P, ME(AT_P, 1)), BANG_S))[_mo_](['@', ['@', ['!', 1]]])
-    expect(C(E))[_mo_](['@', ['@', ['!', 1]]])
+    expect(C(S(E)))[_mo_](['@', ['@', ['!', 1]]])
 
     // @@1? => (@(@1))?
     expect(T(E = ME(AT_P, ME(AT_P, 1)), QUEST_S))[_mo_](['?', ['@', ['@', 1]]])
-    expect(C(E))[_mo_](['?', ['@', ['@', 1]]])
+    expect(C(S(E)))[_mo_](['?', ['@', ['@', 1]]])
 
   })
 
@@ -193,7 +206,7 @@ describe('expr', () => {
   test('prattify-assoc', () => {
     let prattify = testing.prattify
 
-    let T = (expr: any[], opdef?: Op) => C(prattify(expr, opdef))
+    let T = (expr: any[], opdef?: Op) => C(S(prattify(expr, opdef)))
     let ME = makeExpr
     let MO = makeOp
 
@@ -205,41 +218,41 @@ describe('expr', () => {
 
     // 1@2@N
     expect(T(E = ME(AT_LA, 1, 2), AT_LA))[_mo_](['@', ['@', 1, 2]])
-    expect(C(E))[_mo_](['@', ['@', 1, 2]])
+    expect(C(S(E)))[_mo_](['@', ['@', 1, 2]])
 
     // 1@2@3@N
     expect(T(E = ME(AT_LA, ME(AT_LA, 1, 2), 3), AT_LA))
     [_mo_](['@', ['@', ['@', 1, 2], 3]])
-    expect(C(E))[_mo_](['@', ['@', ['@', 1, 2], 3]])
+    expect(C(S(E)))[_mo_](['@', ['@', ['@', 1, 2], 3]])
 
     // 1@2@3@4@N
     expect(T(E = ME(AT_LA, ME(AT_LA, ME(AT_LA, 1, 2), 3), 4), AT_LA))
     [_mo_](['@', ['@', ['@', ['@', 1, 2], 3], 4]])
-    expect(C(E))[_mo_](['@', ['@', ['@', ['@', 1, 2], 3], 4]])
+    expect(C(S(E)))[_mo_](['@', ['@', ['@', ['@', 1, 2], 3], 4]])
 
     // 1@2@3@4@5@N
     expect(T(E = ME(AT_LA, ME(AT_LA, ME(AT_LA, ME(AT_LA, 1, 2), 3), 4), 5), AT_LA))
     [_mo_](['@', ['@', ['@', ['@', ['@', 1, 2], 3], 4], 5]])
-    expect(C(E))[_mo_](['@', ['@', ['@', ['@', ['@', 1, 2], 3], 4], 5]])
+    expect(C(S(E)))[_mo_](['@', ['@', ['@', ['@', ['@', 1, 2], 3], 4], 5]])
 
 
     // 1%2%N
     expect(T(E = ME(PER_RA, 1, 2), PER_RA))[_mo_](['%', 2])
-    expect(C(E))[_mo_](['%', 1, ['%', 2]])
+    expect(C(S(E)))[_mo_](['%', 1, ['%', 2]])
 
     // 1%2%3%N
     expect(T(E = ME(PER_RA, 1, ME(PER_RA, 2, 3)), PER_RA))[_mo_](['%', 3])
-    expect(C(E))[_mo_](['%', 1, ['%', 2, ['%', 3]]])
+    expect(C(S(E)))[_mo_](['%', 1, ['%', 2, ['%', 3]]])
 
     // 1%2%3%4%N
     expect(T(E = ME(PER_RA, 1, ME(PER_RA, 2, ME(PER_RA, 3, 4))), PER_RA))
     [_mo_](['%', 4])
-    expect(C(E))[_mo_](['%', 1, ['%', 2, ['%', 3, ['%', 4]]]])
+    expect(C(S(E)))[_mo_](['%', 1, ['%', 2, ['%', 3, ['%', 4]]]])
 
     // 1%2%3%4%5%N
     expect(T(E = ME(PER_RA, 1, ME(PER_RA, 2, ME(PER_RA, 3, ME(PER_RA, 4, 5)))),
       PER_RA))[_mo_](['%', 5])
-    expect(C(E))[_mo_](['%', 1, ['%', 2, ['%', 3, ['%', 4, ['%', 5]]]]])
+    expect(C(S(E)))[_mo_](['%', 1, ['%', 2, ['%', 3, ['%', 4, ['%', 5]]]]])
 
 
   })
@@ -347,24 +360,35 @@ describe('expr', () => {
 
     expect(j('[true,false],1,2,11'))[_mo_]([[true, false], 1, 2, 11])
     expect(j('[true,false],1+2,3,11'))[_mo_]([[true, false], ['+', 1, 2], 3, 11])
-    expect(j('[true,false],1+2+3,4,11'))[_mo_]([[true, false], ['+', ['+', 1, 2], 3], 4, 11])
-    expect(j('[true,false],1+2+3+4,5,11'))[_mo_]([[true, false], ['+', ['+', ['+', 1, 2], 3], 4], 5, 11])
+    expect(j('[true,false],1+2+3,4,11'))
+    [_mo_]([[true, false], ['+', ['+', 1, 2], 3], 4, 11])
+    expect(j('[true,false],1+2+3+4,5,11'))
+    [_mo_]([[true, false], ['+', ['+', ['+', 1, 2], 3], 4], 5, 11])
 
     expect(j('[true,false] 1 2 11'))[_mo_]([[true, false], 1, 2, 11])
     expect(j('[true,false] 1+2 3 11'))[_mo_]([[true, false], ['+', 1, 2], 3, 11])
-    expect(j('[true,false] 1+2+3 4 11'))[_mo_]([[true, false], ['+', ['+', 1, 2], 3], 4, 11])
-    expect(j('[true,false] 1+2+3+4 5 11'))[_mo_]([[true, false], ['+', ['+', ['+', 1, 2], 3], 4], 5, 11])
+    expect(j('[true,false] 1+2+3 4 11'))
+    [_mo_]([[true, false], ['+', ['+', 1, 2], 3], 4, 11])
+    expect(j('[true,false] 1+2+3+4 5 11'))
+    [_mo_]([[true, false], ['+', ['+', ['+', 1, 2], 3], 4], 5, 11])
 
-    expect(j('[true,false],1,2,{x:11,y:22}'))[_mo_]([[true, false], 1, 2, { x: 11, y: 22 }])
-    expect(j('[true,false],1+2,3,{x:11,y:22}'))[_mo_]([[true, false], ['+', 1, 2], 3, { x: 11, y: 22 }])
-    expect(j('[true,false],1+2+3,4,{x:11,y:22}'))[_mo_]([[true, false], ['+', ['+', 1, 2], 3], 4, { x: 11, y: 22 }])
-    expect(j('[true,false],1+2+3+4,5,{x:11,y:22}'))[_mo_]([[true, false], ['+', ['+', ['+', 1, 2], 3], 4], 5, { x: 11, y: 22 }])
+    expect(j('[true,false],1,2,{x:11,y:22}'))
+    [_mo_]([[true, false], 1, 2, { x: 11, y: 22 }])
+    expect(j('[true,false],1+2,3,{x:11,y:22}'))
+    [_mo_]([[true, false], ['+', 1, 2], 3, { x: 11, y: 22 }])
+    expect(j('[true,false],1+2+3,4,{x:11,y:22}'))
+    [_mo_]([[true, false], ['+', ['+', 1, 2], 3], 4, { x: 11, y: 22 }])
+    expect(j('[true,false],1+2+3+4,5,{x:11,y:22}'))
+    [_mo_]([[true, false], ['+', ['+', ['+', 1, 2], 3], 4], 5, { x: 11, y: 22 }])
 
-    expect(j('[true,false] 1 2 {x:11,y:22}'))[_mo_]([[true, false], 1, 2, { x: 11, y: 22 }])
-    expect(j('[true,false] 1+2 3 {x:11,y:22}'))[_mo_]([[true, false], ['+', 1, 2], 3, { x: 11, y: 22 }])
-    expect(j('[true,false] 1+2+3 4 {x:11,y:22}'))[_mo_]([[true, false], ['+', ['+', 1, 2], 3], 4, { x: 11, y: 22 }])
-    expect(j('[true,false] 1+2+3+4 5 {x:11,y:22}'))[_mo_]([[true, false], ['+', ['+', ['+', 1, 2], 3], 4], 5, { x: 11, y: 22 }])
-
+    expect(j('[true,false] 1 2 {x:11,y:22}'))
+    [_mo_]([[true, false], 1, 2, { x: 11, y: 22 }])
+    expect(j('[true,false] 1+2 3 {x:11,y:22}'))
+    [_mo_]([[true, false], ['+', 1, 2], 3, { x: 11, y: 22 }])
+    expect(j('[true,false] 1+2+3 4 {x:11,y:22}'))
+    [_mo_]([[true, false], ['+', ['+', 1, 2], 3], 4, { x: 11, y: 22 }])
+    expect(j('[true,false] 1+2+3+4 5 {x:11,y:22}'))
+    [_mo_]([[true, false], ['+', ['+', ['+', 1, 2], 3], 4], 5, { x: 11, y: 22 }])
 
     expect(j('1+2,3+4'))[_mo_]([['+', 1, 2], ['+', 3, 4]])
     expect(j('1+2,3+4,5+6'))[_mo_]([['+', 1, 2], ['+', 3, 4], ['+', 5, 6]])
@@ -397,32 +421,50 @@ describe('expr', () => {
     expect(j('(22,1,2,11)'))[_mo_](['(', [22, 1, 2, 11]])
     expect(j('(22,1+2,3,11)'))[_mo_](['(', [22, ['+', 1, 2], 3, 11]])
     expect(j('(22,1+2+3,4,11)'))[_mo_](['(', [22, ['+', ['+', 1, 2], 3], 4, 11]])
-    expect(j('(22,1+2+3+4,5,11)'))[_mo_](['(', [22, ['+', ['+', ['+', 1, 2], 3], 4], 5, 11]])
+    expect(j('(22,1+2+3+4,5,11)'))
+    [_mo_](['(', [22, ['+', ['+', ['+', 1, 2], 3], 4], 5, 11]])
 
     expect(j('(22 1 2 11)'))[_mo_](['(', [22, 1, 2, 11]])
     expect(j('(22 1+2 3 11)'))[_mo_](['(', [22, ['+', 1, 2], 3, 11]])
     expect(j('(22 1+2+3 4 11)'))[_mo_](['(', [22, ['+', ['+', 1, 2], 3], 4, 11]])
-    expect(j('(22 1+2+3+4 5 11)'))[_mo_](['(', [22, ['+', ['+', ['+', 1, 2], 3], 4], 5, 11]])
+    expect(j('(22 1+2+3+4 5 11)'))
+    [_mo_](['(', [22, ['+', ['+', ['+', 1, 2], 3], 4], 5, 11]])
 
     expect(j('([true,false],1,2,11)'))[_mo_](['(', [[true, false], 1, 2, 11]])
-    expect(j('([true,false],1+2,3,11)'))[_mo_](['(', [[true, false], ['+', 1, 2], 3, 11]])
-    expect(j('([true,false],1+2+3,4,11)'))[_mo_](['(', [[true, false], ['+', ['+', 1, 2], 3], 4, 11]])
-    expect(j('([true,false],1+2+3+4,5,11)'))[_mo_](['(', [[true, false], ['+', ['+', ['+', 1, 2], 3], 4], 5, 11]])
+    expect(j('([true,false],1+2,3,11)'))
+    [_mo_](['(', [[true, false], ['+', 1, 2], 3, 11]])
+    expect(j('([true,false],1+2+3,4,11)'))
+    [_mo_](['(', [[true, false], ['+', ['+', 1, 2], 3], 4, 11]])
+    expect(j('([true,false],1+2+3+4,5,11)'))
+    [_mo_](['(', [[true, false], ['+', ['+', ['+', 1, 2], 3], 4], 5, 11]])
 
     expect(j('([true,false] 1 2 11)'))[_mo_](['(', [[true, false], 1, 2, 11]])
-    expect(j('([true,false] 1+2 3 11)'))[_mo_](['(', [[true, false], ['+', 1, 2], 3, 11]])
-    expect(j('([true,false] 1+2+3 4 11)'))[_mo_](['(', [[true, false], ['+', ['+', 1, 2], 3], 4, 11]])
-    expect(j('([true,false] 1+2+3+4 5 11)'))[_mo_](['(', [[true, false], ['+', ['+', ['+', 1, 2], 3], 4], 5, 11]])
+    expect(j('([true,false] 1+2 3 11)'))
+    [_mo_](['(', [[true, false], ['+', 1, 2], 3, 11]])
+    expect(j('([true,false] 1+2+3 4 11)'))
+    [_mo_](['(', [[true, false], ['+', ['+', 1, 2], 3], 4, 11]])
+    expect(j('([true,false] 1+2+3+4 5 11)'))
+    [_mo_](['(', [[true, false], ['+', ['+', ['+', 1, 2], 3], 4], 5, 11]])
 
-    expect(j('([true,false],1,2,{x:11,y:22})'))[_mo_](['(', [[true, false], 1, 2, { x: 11, y: 22 }]])
-    expect(j('([true,false],1+2,3,{x:11,y:22})'))[_mo_](['(', [[true, false], ['+', 1, 2], 3, { x: 11, y: 22 }]])
-    expect(j('([true,false],1+2+3,4,{x:11,y:22})'))[_mo_](['(', [[true, false], ['+', ['+', 1, 2], 3], 4, { x: 11, y: 22 }]])
-    expect(j('([true,false],1+2+3+4,5,{x:11,y:22})'))[_mo_](['(', [[true, false], ['+', ['+', ['+', 1, 2], 3], 4], 5, { x: 11, y: 22 }]])
+    expect(j('([true,false],1,2,{x:11,y:22})'))
+    [_mo_](['(', [[true, false], 1, 2, { x: 11, y: 22 }]])
+    expect(j('([true,false],1+2,3,{x:11,y:22})'))
+    [_mo_](['(', [[true, false], ['+', 1, 2], 3, { x: 11, y: 22 }]])
+    expect(j('([true,false],1+2+3,4,{x:11,y:22})'))
+    [_mo_](['(', [[true, false], ['+', ['+', 1, 2], 3], 4, { x: 11, y: 22 }]])
+    expect(j('([true,false],1+2+3+4,5,{x:11,y:22})'))
+    [_mo_](['(', [[true, false],
+    ['+', ['+', ['+', 1, 2], 3], 4], 5, { x: 11, y: 22 }]])
 
-    expect(j('([true,false] 1 2 {x:11,y:22})'))[_mo_](['(', [[true, false], 1, 2, { x: 11, y: 22 }]])
-    expect(j('([true,false] 1+2 3 {x:11,y:22})'))[_mo_](['(', [[true, false], ['+', 1, 2], 3, { x: 11, y: 22 }]])
-    expect(j('([true,false] 1+2+3 4 {x:11,y:22})'))[_mo_](['(', [[true, false], ['+', ['+', 1, 2], 3], 4, { x: 11, y: 22 }]])
-    expect(j('([true,false] 1+2+3+4 5 {x:11,y:22})'))[_mo_](['(', [[true, false], ['+', ['+', ['+', 1, 2], 3], 4], 5, { x: 11, y: 22 }]])
+    expect(j('([true,false] 1 2 {x:11,y:22})'))
+    [_mo_](['(', [[true, false], 1, 2, { x: 11, y: 22 }]])
+    expect(j('([true,false] 1+2 3 {x:11,y:22})'))
+    [_mo_](['(', [[true, false], ['+', 1, 2], 3, { x: 11, y: 22 }]])
+    expect(j('([true,false] 1+2+3 4 {x:11,y:22})'))
+    [_mo_](['(', [[true, false], ['+', ['+', 1, 2], 3], 4, { x: 11, y: 22 }]])
+    expect(j('([true,false] 1+2+3+4 5 {x:11,y:22})'))
+    [_mo_](['(', [[true, false],
+    ['+', ['+', ['+', 1, 2], 3], 4], 5, { x: 11, y: 22 }]])
 
 
     expect(j('(1+2,3+4)'))[_mo_](['(', [['+', 1, 2], ['+', 3, 4]]])
@@ -550,8 +592,7 @@ describe('expr', () => {
 
 
   test('unary-prefix-basic', () => {
-    const je = Jsonic.make().use(Expr)
-    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+    const j = mj(Jsonic.make().use(Expr))
 
     expect(j('1')).toEqual(1)
     expect(j('z')).toEqual('z')
@@ -706,8 +747,7 @@ describe('expr', () => {
         },
       }
     })
-    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
-
+    const j = mj(je)
 
     expect(j('@1')).toEqual(['@', 1])
     expect(j('@@1')).toEqual(['@', ['@', 1]])
@@ -768,7 +808,7 @@ describe('expr', () => {
         },
       }
     })
-    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+    const j = mj(je)
 
     expect(j('1')).toEqual(1)
     expect(j('z')).toEqual('z')
@@ -833,13 +873,11 @@ describe('expr', () => {
         },
       }
     })
-    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
-
+    const j = mj(je)
 
     expect(j('1!')).toEqual(['!', 1])
     expect(j('1!!')).toEqual(['!', ['!', 1]])
     expect(j('1!!!')).toEqual(['!', ['!', ['!', 1]]])
-
 
     // Precedence does not matter within prefix sequences.
     expect(j('1!?')).toEqual(['?', ['!', 1]])
@@ -895,7 +933,8 @@ describe('expr', () => {
         },
       }
     })
-    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+    const j = mj(je)
+
     expect(j('1!,2!')).toMatchObject([['!', 1], ['!', 2]])
     expect(j('1!,2!,3!')).toMatchObject([['!', 1], ['!', 2], ['!', 3]])
     expect(j('1!,2!,3!,4!')).toMatchObject([['!', 1], ['!', 2], ['!', 3], ['!', 4]])
@@ -945,7 +984,8 @@ describe('expr', () => {
         },
       }
     })
-    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+    const j = mj(je)
+
 
     expect(j('-1!')).toEqual(['-', ['!', 1]])
     expect(j('--1!')).toEqual(['-', ['-', ['!', 1]]])
@@ -987,7 +1027,9 @@ describe('expr', () => {
         },
       }
     })
-    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+    const j = mj(je)
+
+
     expect(j('(1)')).toEqual(['(', 1])
     expect(j('(z)')).toEqual(['(', 'z'])
 
@@ -1013,8 +1055,7 @@ describe('expr', () => {
 
 
   test('paren-basic', () => {
-    const je = Jsonic.make().use(Expr)
-    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+    const j = mj(Jsonic.make().use(Expr))
 
     expect(j('()')).toMatchObject(['('])
     expect(j('(),()')).toMatchObject([['('], ['(']])
@@ -1082,610 +1123,604 @@ describe('expr', () => {
 
 
   test('paren-map-implicit-structure-comma', () => {
-    const je = Jsonic.make().use(Expr)
-    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+    const j = mj(Jsonic.make().use(Expr))
 
-    expect(j('{a:(1)}')).toMatchObject({ a: ['(', 1] })
-    expect(j('{a:(1,2)}')).toMatchObject({ a: ['(', [1, 2]] })
-    expect(j('{a:(1,2,3)}')).toMatchObject({ a: ['(', [1, 2, 3]] })
-
-
-    expect(j('{a:(1),b:9}')).toMatchObject({ a: ['(', 1], b: 9 })
-    expect(j('{a:(1,2),b:9}')).toMatchObject({ a: ['(', [1, 2]], b: 9 })
-    expect(j('{a:(1,2,3),b:9}')).toMatchObject({ a: ['(', [1, 2, 3]], b: 9 })
-
-    expect(j('{a:(1),b:9,c:8}')).toMatchObject({ a: ['(', 1], b: 9, c: 8 })
-    expect(j('{a:(1,2),b:9,c:8}')).toMatchObject({ a: ['(', [1, 2]], b: 9, c: 8 })
-    expect(j('{a:(1,2,3),b:9,c:8}')).toMatchObject({ a: ['(', [1, 2, 3]], b: 9, c: 8 })
+    expect(j('{a:(1)}'))[_mo_]({ a: ['(', 1] })
+    expect(j('{a:(1,2)}'))[_mo_]({ a: ['(', [1, 2]] })
+    expect(j('{a:(1,2,3)}'))[_mo_]({ a: ['(', [1, 2, 3]] })
 
 
-    expect(j('{a:(1),b:(9)}')).toMatchObject({ a: ['(', 1], b: ['(', 9] })
-    expect(j('{a:(1,2),b:(9)}')).toMatchObject({ a: ['(', [1, 2]], b: ['(', 9] })
-    expect(j('{a:(1,2,3),b:(9)}')).toMatchObject({ a: ['(', [1, 2, 3]], b: ['(', 9] })
+    expect(j('{a:(1),b:9}'))[_mo_]({ a: ['(', 1], b: 9 })
+    expect(j('{a:(1,2),b:9}'))[_mo_]({ a: ['(', [1, 2]], b: 9 })
+    expect(j('{a:(1,2,3),b:9}'))[_mo_]({ a: ['(', [1, 2, 3]], b: 9 })
 
-    expect(j('{a:(1),b:(9),c:8}')).toMatchObject({ a: ['(', 1], b: ['(', 9], c: 8 })
-    expect(j('{a:(1,2),b:(9),c:8}')).toMatchObject({ a: ['(', [1, 2]], b: ['(', 9], c: 8 })
-    expect(j('{a:(1,2,3),b:(9),c:8}')).toMatchObject({ a: ['(', [1, 2, 3]], b: ['(', 9], c: 8 })
-
-
-    expect(j('{a:(1),b:(8,9)}')).toMatchObject({ a: ['(', 1], b: ['(', [8, 9]] })
-    expect(j('{a:(1,2),b:(8,9)}')).toMatchObject({ a: ['(', [1, 2]], b: ['(', [8, 9]] })
-    expect(j('{a:(1,2,3),b:(8,9)}')).toMatchObject({ a: ['(', [1, 2, 3]], b: ['(', [8, 9]] })
-
-    expect(j('{a:(1),b:(8,9),c:8}')).toMatchObject({ a: ['(', 1], b: ['(', [8, 9]], c: 8 })
-    expect(j('{a:(1,2),b:(8,9),c:8}')).toMatchObject({ a: ['(', [1, 2]], b: ['(', [8, 9]], c: 8 })
-    expect(j('{a:(1,2,3),b:(8,9),c:8}')).toMatchObject({ a: ['(', [1, 2, 3]], b: ['(', [8, 9]], c: 8 })
+    expect(j('{a:(1),b:9,c:8}'))[_mo_]({ a: ['(', 1], b: 9, c: 8 })
+    expect(j('{a:(1,2),b:9,c:8}'))[_mo_]({ a: ['(', [1, 2]], b: 9, c: 8 })
+    expect(j('{a:(1,2,3),b:9,c:8}'))[_mo_]({ a: ['(', [1, 2, 3]], b: 9, c: 8 })
 
 
-    expect(j('{d:0,a:(1)}')).toMatchObject({ d: 0, a: ['(', 1] })
-    expect(j('{d:0,a:(1,2)}')).toMatchObject({ d: 0, a: ['(', [1, 2]] })
-    expect(j('{d:0,a:(1,2,3)}')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]] })
+    expect(j('{a:(1),b:(9)}'))[_mo_]({ a: ['(', 1], b: ['(', 9] })
+    expect(j('{a:(1,2),b:(9)}'))[_mo_]({ a: ['(', [1, 2]], b: ['(', 9] })
+    expect(j('{a:(1,2,3),b:(9)}'))[_mo_]({ a: ['(', [1, 2, 3]], b: ['(', 9] })
+
+    expect(j('{a:(1),b:(9),c:8}'))[_mo_]({ a: ['(', 1], b: ['(', 9], c: 8 })
+    expect(j('{a:(1,2),b:(9),c:8}'))[_mo_]({ a: ['(', [1, 2]], b: ['(', 9], c: 8 })
+    expect(j('{a:(1,2,3),b:(9),c:8}'))[_mo_]({ a: ['(', [1, 2, 3]], b: ['(', 9], c: 8 })
 
 
-    expect(j('{d:0,a:(1),b:9}')).toMatchObject({ d: 0, a: ['(', 1], b: 9 })
-    expect(j('{d:0,a:(1,2),b:9}')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: 9 })
-    expect(j('{d:0,a:(1,2,3),b:9}')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: 9 })
+    expect(j('{a:(1),b:(8,9)}'))[_mo_]({ a: ['(', 1], b: ['(', [8, 9]] })
+    expect(j('{a:(1,2),b:(8,9)}'))[_mo_]({ a: ['(', [1, 2]], b: ['(', [8, 9]] })
+    expect(j('{a:(1,2,3),b:(8,9)}'))[_mo_]({ a: ['(', [1, 2, 3]], b: ['(', [8, 9]] })
 
-    expect(j('{d:0,a:(1),b:9,c:8}')).toMatchObject({ d: 0, a: ['(', 1], b: 9, c: 8 })
-    expect(j('{d:0,a:(1,2),b:9,c:8}')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: 9, c: 8 })
-    expect(j('{d:0,a:(1,2,3),b:9,c:8}')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: 9, c: 8 })
-
-
-    expect(j('{d:0,a:(1),b:(9)}')).toMatchObject({ d: 0, a: ['(', 1], b: ['(', 9] })
-    expect(j('{d:0,a:(1,2),b:(9)}')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', 9] })
-    expect(j('{d:0,a:(1,2,3),b:(9)}')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', 9] })
-
-    expect(j('{d:0,a:(1),b:(9),c:8}')).toMatchObject({ d: 0, a: ['(', 1], b: ['(', 9], c: 8 })
-    expect(j('{d:0,a:(1,2),b:(9),c:8}')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', 9], c: 8 })
-    expect(j('{d:0,a:(1,2,3),b:(9),c:8}')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', 9], c: 8 })
+    expect(j('{a:(1),b:(8,9),c:8}'))[_mo_]({ a: ['(', 1], b: ['(', [8, 9]], c: 8 })
+    expect(j('{a:(1,2),b:(8,9),c:8}'))[_mo_]({ a: ['(', [1, 2]], b: ['(', [8, 9]], c: 8 })
+    expect(j('{a:(1,2,3),b:(8,9),c:8}'))[_mo_]({ a: ['(', [1, 2, 3]], b: ['(', [8, 9]], c: 8 })
 
 
-    expect(j('{d:0,a:(1),b:(8,9)}')).toMatchObject({ d: 0, a: ['(', 1], b: ['(', [8, 9]] })
-    expect(j('{d:0,a:(1,2),b:(8,9)}')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', [8, 9]] })
-    expect(j('{d:0,a:(1,2,3),b:(8,9)}')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', [8, 9]] })
-
-    expect(j('{d:0,a:(1),b:(8,9),c:8}')).toMatchObject({ d: 0, a: ['(', 1], b: ['(', [8, 9]], c: 8 })
-    expect(j('{d:0,a:(1,2),b:(8,9),c:8}')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', [8, 9]], c: 8 })
-    expect(j('{d:0,a:(1,2,3),b:(8,9),c:8}')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', [8, 9]], c: 8 })
+    expect(j('{d:0,a:(1)}'))[_mo_]({ d: 0, a: ['(', 1] })
+    expect(j('{d:0,a:(1,2)}'))[_mo_]({ d: 0, a: ['(', [1, 2]] })
+    expect(j('{d:0,a:(1,2,3)}'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]] })
 
 
+    expect(j('{d:0,a:(1),b:9}'))[_mo_]({ d: 0, a: ['(', 1], b: 9 })
+    expect(j('{d:0,a:(1,2),b:9}'))[_mo_]({ d: 0, a: ['(', [1, 2]], b: 9 })
+    expect(j('{d:0,a:(1,2,3),b:9}'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: 9 })
 
-    expect(j('a:(1)')).toMatchObject({ a: ['(', 1] })
-    expect(j('a:(1,2)')).toMatchObject({ a: ['(', [1, 2]] })
-    expect(j('a:(1,2,3)')).toMatchObject({ a: ['(', [1, 2, 3]] })
-
-
-    expect(j('a:(1),b:9')).toMatchObject({ a: ['(', 1], b: 9 })
-    expect(j('a:(1,2),b:9')).toMatchObject({ a: ['(', [1, 2]], b: 9 })
-    expect(j('a:(1,2,3),b:9')).toMatchObject({ a: ['(', [1, 2, 3]], b: 9 })
-
-    expect(j('a:(1),b:9,c:8')).toMatchObject({ a: ['(', 1], b: 9, c: 8 })
-    expect(j('a:(1,2),b:9,c:8')).toMatchObject({ a: ['(', [1, 2]], b: 9, c: 8 })
-    expect(j('a:(1,2,3),b:9,c:8')).toMatchObject({ a: ['(', [1, 2, 3]], b: 9, c: 8 })
+    expect(j('{d:0,a:(1),b:9,c:8}'))[_mo_]({ d: 0, a: ['(', 1], b: 9, c: 8 })
+    expect(j('{d:0,a:(1,2),b:9,c:8}'))[_mo_]({ d: 0, a: ['(', [1, 2]], b: 9, c: 8 })
+    expect(j('{d:0,a:(1,2,3),b:9,c:8}'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: 9, c: 8 })
 
 
-    expect(j('a:(1),b:(9)')).toMatchObject({ a: ['(', 1], b: ['(', 9] })
-    expect(j('a:(1,2),b:(9)')).toMatchObject({ a: ['(', [1, 2]], b: ['(', 9] })
-    expect(j('a:(1,2,3),b:(9)')).toMatchObject({ a: ['(', [1, 2, 3]], b: ['(', 9] })
+    expect(j('{d:0,a:(1),b:(9)}'))[_mo_]({ d: 0, a: ['(', 1], b: ['(', 9] })
+    expect(j('{d:0,a:(1,2),b:(9)}'))[_mo_]({ d: 0, a: ['(', [1, 2]], b: ['(', 9] })
+    expect(j('{d:0,a:(1,2,3),b:(9)}'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: ['(', 9] })
 
-    expect(j('a:(1),b:(9),c:8')).toMatchObject({ a: ['(', 1], b: ['(', 9], c: 8 })
-    expect(j('a:(1,2),b:(9),c:8')).toMatchObject({ a: ['(', [1, 2]], b: ['(', 9], c: 8 })
-    expect(j('a:(1,2,3),b:(9),c:8')).toMatchObject({ a: ['(', [1, 2, 3]], b: ['(', 9], c: 8 })
-
-
-    expect(j('a:(1),b:(8,9)')).toMatchObject({ a: ['(', 1], b: ['(', [8, 9]] })
-    expect(j('a:(1,2),b:(8,9)')).toMatchObject({ a: ['(', [1, 2]], b: ['(', [8, 9]] })
-    expect(j('a:(1,2,3),b:(8,9)')).toMatchObject({ a: ['(', [1, 2, 3]], b: ['(', [8, 9]] })
-
-    expect(j('a:(1),b:(8,9),c:8')).toMatchObject({ a: ['(', 1], b: ['(', [8, 9]], c: 8 })
-    expect(j('a:(1,2),b:(8,9),c:8')).toMatchObject({ a: ['(', [1, 2]], b: ['(', [8, 9]], c: 8 })
-    expect(j('a:(1,2,3),b:(8,9),c:8')).toMatchObject({ a: ['(', [1, 2, 3]], b: ['(', [8, 9]], c: 8 })
+    expect(j('{d:0,a:(1),b:(9),c:8}'))[_mo_]({ d: 0, a: ['(', 1], b: ['(', 9], c: 8 })
+    expect(j('{d:0,a:(1,2),b:(9),c:8}'))[_mo_]({ d: 0, a: ['(', [1, 2]], b: ['(', 9], c: 8 })
+    expect(j('{d:0,a:(1,2,3),b:(9),c:8}'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: ['(', 9], c: 8 })
 
 
-    expect(j('d:0,a:(1)')).toMatchObject({ d: 0, a: ['(', 1] })
-    expect(j('d:0,a:(1,2)')).toMatchObject({ d: 0, a: ['(', [1, 2]] })
-    expect(j('d:0,a:(1,2,3)')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]] })
+    expect(j('{d:0,a:(1),b:(8,9)}'))[_mo_]({ d: 0, a: ['(', 1], b: ['(', [8, 9]] })
+    expect(j('{d:0,a:(1,2),b:(8,9)}'))[_mo_]({ d: 0, a: ['(', [1, 2]], b: ['(', [8, 9]] })
+    expect(j('{d:0,a:(1,2,3),b:(8,9)}'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: ['(', [8, 9]] })
+
+    expect(j('{d:0,a:(1),b:(8,9),c:8}'))[_mo_]({ d: 0, a: ['(', 1], b: ['(', [8, 9]], c: 8 })
+    expect(j('{d:0,a:(1,2),b:(8,9),c:8}'))[_mo_]({ d: 0, a: ['(', [1, 2]], b: ['(', [8, 9]], c: 8 })
+    expect(j('{d:0,a:(1,2,3),b:(8,9),c:8}'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: ['(', [8, 9]], c: 8 })
 
 
-    expect(j('d:0,a:(1),b:9')).toMatchObject({ d: 0, a: ['(', 1], b: 9 })
-    expect(j('d:0,a:(1,2),b:9')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: 9 })
-    expect(j('d:0,a:(1,2,3),b:9')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: 9 })
 
-    expect(j('d:0,a:(1),b:9,c:8')).toMatchObject({ d: 0, a: ['(', 1], b: 9, c: 8 })
-    expect(j('d:0,a:(1,2),b:9,c:8')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: 9, c: 8 })
-    expect(j('d:0,a:(1,2,3),b:9,c:8')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: 9, c: 8 })
+    expect(j('a:(1)'))[_mo_]({ a: ['(', 1] })
+    expect(j('a:(1,2)'))[_mo_]({ a: ['(', [1, 2]] })
+    expect(j('a:(1,2,3)'))[_mo_]({ a: ['(', [1, 2, 3]] })
 
 
-    expect(j('d:0,a:(1),b:(9)')).toMatchObject({ d: 0, a: ['(', 1], b: ['(', 9] })
-    expect(j('d:0,a:(1,2),b:(9)')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', 9] })
-    expect(j('d:0,a:(1,2,3),b:(9)')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', 9] })
+    expect(j('a:(1),b:9'))[_mo_]({ a: ['(', 1], b: 9 })
+    expect(j('a:(1,2),b:9'))[_mo_]({ a: ['(', [1, 2]], b: 9 })
+    expect(j('a:(1,2,3),b:9'))[_mo_]({ a: ['(', [1, 2, 3]], b: 9 })
 
-    expect(j('d:0,a:(1),b:(9),c:8')).toMatchObject({ d: 0, a: ['(', 1], b: ['(', 9], c: 8 })
-    expect(j('d:0,a:(1,2),b:(9),c:8')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', 9], c: 8 })
-    expect(j('d:0,a:(1,2,3),b:(9),c:8')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', 9], c: 8 })
+    expect(j('a:(1),b:9,c:8'))[_mo_]({ a: ['(', 1], b: 9, c: 8 })
+    expect(j('a:(1,2),b:9,c:8'))[_mo_]({ a: ['(', [1, 2]], b: 9, c: 8 })
+    expect(j('a:(1,2,3),b:9,c:8'))[_mo_]({ a: ['(', [1, 2, 3]], b: 9, c: 8 })
 
 
-    expect(j('d:0,a:(1),b:(8,9)')).toMatchObject({ d: 0, a: ['(', 1], b: ['(', [8, 9]] })
-    expect(j('d:0,a:(1,2),b:(8,9)')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', [8, 9]] })
-    expect(j('d:0,a:(1,2,3),b:(8,9)')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', [8, 9]] })
+    expect(j('a:(1),b:(9)'))[_mo_]({ a: ['(', 1], b: ['(', 9] })
+    expect(j('a:(1,2),b:(9)'))[_mo_]({ a: ['(', [1, 2]], b: ['(', 9] })
+    expect(j('a:(1,2,3),b:(9)'))[_mo_]({ a: ['(', [1, 2, 3]], b: ['(', 9] })
 
-    expect(j('d:0,a:(1),b:(8,9),c:8')).toMatchObject({ d: 0, a: ['(', 1], b: ['(', [8, 9]], c: 8 })
-    expect(j('d:0,a:(1,2),b:(8,9),c:8')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', [8, 9]], c: 8 })
-    expect(j('d:0,a:(1,2,3),b:(8,9),c:8')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', [8, 9]], c: 8 })
+    expect(j('a:(1),b:(9),c:8'))[_mo_]({ a: ['(', 1], b: ['(', 9], c: 8 })
+    expect(j('a:(1,2),b:(9),c:8'))[_mo_]({ a: ['(', [1, 2]], b: ['(', 9], c: 8 })
+    expect(j('a:(1,2,3),b:(9),c:8'))[_mo_]({ a: ['(', [1, 2, 3]], b: ['(', 9], c: 8 })
+
+
+    expect(j('a:(1),b:(8,9)'))[_mo_]({ a: ['(', 1], b: ['(', [8, 9]] })
+    expect(j('a:(1,2),b:(8,9)'))[_mo_]({ a: ['(', [1, 2]], b: ['(', [8, 9]] })
+    expect(j('a:(1,2,3),b:(8,9)'))[_mo_]({ a: ['(', [1, 2, 3]], b: ['(', [8, 9]] })
+
+    expect(j('a:(1),b:(8,9),c:8'))[_mo_]({ a: ['(', 1], b: ['(', [8, 9]], c: 8 })
+    expect(j('a:(1,2),b:(8,9),c:8'))[_mo_]({ a: ['(', [1, 2]], b: ['(', [8, 9]], c: 8 })
+    expect(j('a:(1,2,3),b:(8,9),c:8'))[_mo_]({ a: ['(', [1, 2, 3]], b: ['(', [8, 9]], c: 8 })
+
+
+    expect(j('d:0,a:(1)'))[_mo_]({ d: 0, a: ['(', 1] })
+    expect(j('d:0,a:(1,2)'))[_mo_]({ d: 0, a: ['(', [1, 2]] })
+    expect(j('d:0,a:(1,2,3)'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]] })
+
+
+    expect(j('d:0,a:(1),b:9'))[_mo_]({ d: 0, a: ['(', 1], b: 9 })
+    expect(j('d:0,a:(1,2),b:9'))[_mo_]({ d: 0, a: ['(', [1, 2]], b: 9 })
+    expect(j('d:0,a:(1,2,3),b:9'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: 9 })
+
+    expect(j('d:0,a:(1),b:9,c:8'))[_mo_]({ d: 0, a: ['(', 1], b: 9, c: 8 })
+    expect(j('d:0,a:(1,2),b:9,c:8'))[_mo_]({ d: 0, a: ['(', [1, 2]], b: 9, c: 8 })
+    expect(j('d:0,a:(1,2,3),b:9,c:8'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: 9, c: 8 })
+
+
+    expect(j('d:0,a:(1),b:(9)'))[_mo_]({ d: 0, a: ['(', 1], b: ['(', 9] })
+    expect(j('d:0,a:(1,2),b:(9)'))[_mo_]({ d: 0, a: ['(', [1, 2]], b: ['(', 9] })
+    expect(j('d:0,a:(1,2,3),b:(9)'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: ['(', 9] })
+
+    expect(j('d:0,a:(1),b:(9),c:8'))[_mo_]({ d: 0, a: ['(', 1], b: ['(', 9], c: 8 })
+    expect(j('d:0,a:(1,2),b:(9),c:8'))[_mo_]({ d: 0, a: ['(', [1, 2]], b: ['(', 9], c: 8 })
+    expect(j('d:0,a:(1,2,3),b:(9),c:8'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: ['(', 9], c: 8 })
+
+
+    expect(j('d:0,a:(1),b:(8,9)'))[_mo_]({ d: 0, a: ['(', 1], b: ['(', [8, 9]] })
+    expect(j('d:0,a:(1,2),b:(8,9)'))[_mo_]({ d: 0, a: ['(', [1, 2]], b: ['(', [8, 9]] })
+    expect(j('d:0,a:(1,2,3),b:(8,9)'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: ['(', [8, 9]] })
+
+    expect(j('d:0,a:(1),b:(8,9),c:8'))[_mo_]({ d: 0, a: ['(', 1], b: ['(', [8, 9]], c: 8 })
+    expect(j('d:0,a:(1,2),b:(8,9),c:8'))[_mo_]({ d: 0, a: ['(', [1, 2]], b: ['(', [8, 9]], c: 8 })
+    expect(j('d:0,a:(1,2,3),b:(8,9),c:8'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: ['(', [8, 9]], c: 8 })
 
   })
 
 
   test('paren-map-implicit-structure-space', () => {
-    const je = Jsonic.make().use(Expr)
-    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+    const j = mj(Jsonic.make().use(Expr))
 
-    expect(j('{a:(1)}')).toMatchObject({ a: ['(', 1] })
-    expect(j('{a:(1 2)}')).toMatchObject({ a: ['(', [1, 2]] })
-    expect(j('{a:(1 2 3)}')).toMatchObject({ a: ['(', [1, 2, 3]] })
-
-
-    expect(j('{a:(1) b:9}')).toMatchObject({ a: ['(', 1], b: 9 })
-    expect(j('{a:(1 2) b:9}')).toMatchObject({ a: ['(', [1, 2]], b: 9 })
-    expect(j('{a:(1 2 3) b:9}')).toMatchObject({ a: ['(', [1, 2, 3]], b: 9 })
-
-    expect(j('{a:(1) b:9 c:8}')).toMatchObject({ a: ['(', 1], b: 9, c: 8 })
-    expect(j('{a:(1 2) b:9 c:8}')).toMatchObject({ a: ['(', [1, 2]], b: 9, c: 8 })
-    expect(j('{a:(1 2 3) b:9 c:8}')).toMatchObject({ a: ['(', [1, 2, 3]], b: 9, c: 8 })
+    expect(j('{a:(1)}'))[_mo_]({ a: ['(', 1] })
+    expect(j('{a:(1 2)}'))[_mo_]({ a: ['(', [1, 2]] })
+    expect(j('{a:(1 2 3)}'))[_mo_]({ a: ['(', [1, 2, 3]] })
 
 
-    expect(j('{a:(1) b:(9)}')).toMatchObject({ a: ['(', 1], b: ['(', 9] })
-    expect(j('{a:(1 2) b:(9)}')).toMatchObject({ a: ['(', [1, 2]], b: ['(', 9] })
-    expect(j('{a:(1 2 3) b:(9)}')).toMatchObject({ a: ['(', [1, 2, 3]], b: ['(', 9] })
+    expect(j('{a:(1) b:9}'))[_mo_]({ a: ['(', 1], b: 9 })
+    expect(j('{a:(1 2) b:9}'))[_mo_]({ a: ['(', [1, 2]], b: 9 })
+    expect(j('{a:(1 2 3) b:9}'))[_mo_]({ a: ['(', [1, 2, 3]], b: 9 })
 
-    expect(j('{a:(1) b:(9) c:8}')).toMatchObject({ a: ['(', 1], b: ['(', 9], c: 8 })
-    expect(j('{a:(1 2) b:(9) c:8}')).toMatchObject({ a: ['(', [1, 2]], b: ['(', 9], c: 8 })
-    expect(j('{a:(1 2 3) b:(9) c:8}')).toMatchObject({ a: ['(', [1, 2, 3]], b: ['(', 9], c: 8 })
-
-
-    expect(j('{a:(1) b:(8 9)}')).toMatchObject({ a: ['(', 1], b: ['(', [8, 9]] })
-    expect(j('{a:(1 2) b:(8 9)}')).toMatchObject({ a: ['(', [1, 2]], b: ['(', [8, 9]] })
-    expect(j('{a:(1 2 3) b:(8 9)}')).toMatchObject({ a: ['(', [1, 2, 3]], b: ['(', [8, 9]] })
-
-    expect(j('{a:(1) b:(8 9) c:8}')).toMatchObject({ a: ['(', 1], b: ['(', [8, 9]], c: 8 })
-    expect(j('{a:(1 2) b:(8 9) c:8}')).toMatchObject({ a: ['(', [1, 2]], b: ['(', [8, 9]], c: 8 })
-    expect(j('{a:(1 2 3) b:(8 9) c:8}')).toMatchObject({ a: ['(', [1, 2, 3]], b: ['(', [8, 9]], c: 8 })
+    expect(j('{a:(1) b:9 c:8}'))[_mo_]({ a: ['(', 1], b: 9, c: 8 })
+    expect(j('{a:(1 2) b:9 c:8}'))[_mo_]({ a: ['(', [1, 2]], b: 9, c: 8 })
+    expect(j('{a:(1 2 3) b:9 c:8}'))[_mo_]({ a: ['(', [1, 2, 3]], b: 9, c: 8 })
 
 
-    expect(j('{d:0,a:(1)}')).toMatchObject({ d: 0, a: ['(', 1] })
-    expect(j('{d:0,a:(1 2)}')).toMatchObject({ d: 0, a: ['(', [1, 2]] })
-    expect(j('{d:0,a:(1 2 3)}')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]] })
+    expect(j('{a:(1) b:(9)}'))[_mo_]({ a: ['(', 1], b: ['(', 9] })
+    expect(j('{a:(1 2) b:(9)}'))[_mo_]({ a: ['(', [1, 2]], b: ['(', 9] })
+    expect(j('{a:(1 2 3) b:(9)}'))[_mo_]({ a: ['(', [1, 2, 3]], b: ['(', 9] })
+
+    expect(j('{a:(1) b:(9) c:8}'))[_mo_]({ a: ['(', 1], b: ['(', 9], c: 8 })
+    expect(j('{a:(1 2) b:(9) c:8}'))[_mo_]({ a: ['(', [1, 2]], b: ['(', 9], c: 8 })
+    expect(j('{a:(1 2 3) b:(9) c:8}'))[_mo_]({ a: ['(', [1, 2, 3]], b: ['(', 9], c: 8 })
 
 
-    expect(j('{d:0,a:(1) b:9}')).toMatchObject({ d: 0, a: ['(', 1], b: 9 })
-    expect(j('{d:0,a:(1 2) b:9}')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: 9 })
-    expect(j('{d:0,a:(1 2 3) b:9}')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: 9 })
+    expect(j('{a:(1) b:(8 9)}'))[_mo_]({ a: ['(', 1], b: ['(', [8, 9]] })
+    expect(j('{a:(1 2) b:(8 9)}'))[_mo_]({ a: ['(', [1, 2]], b: ['(', [8, 9]] })
+    expect(j('{a:(1 2 3) b:(8 9)}'))[_mo_]({ a: ['(', [1, 2, 3]], b: ['(', [8, 9]] })
 
-    expect(j('{d:0,a:(1) b:9 c:8}')).toMatchObject({ d: 0, a: ['(', 1], b: 9, c: 8 })
-    expect(j('{d:0,a:(1 2) b:9 c:8}')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: 9, c: 8 })
-    expect(j('{d:0,a:(1 2 3) b:9 c:8}')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: 9, c: 8 })
-
-
-    expect(j('{d:0,a:(1) b:(9)}')).toMatchObject({ d: 0, a: ['(', 1], b: ['(', 9] })
-    expect(j('{d:0,a:(1 2) b:(9)}')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', 9] })
-    expect(j('{d:0,a:(1 2 3) b:(9)}')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', 9] })
-
-    expect(j('{d:0,a:(1) b:(9) c:8}')).toMatchObject({ d: 0, a: ['(', 1], b: ['(', 9], c: 8 })
-    expect(j('{d:0,a:(1 2) b:(9) c:8}')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', 9], c: 8 })
-    expect(j('{d:0,a:(1 2 3) b:(9) c:8}')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', 9], c: 8 })
+    expect(j('{a:(1) b:(8 9) c:8}'))[_mo_]({ a: ['(', 1], b: ['(', [8, 9]], c: 8 })
+    expect(j('{a:(1 2) b:(8 9) c:8}'))[_mo_]({ a: ['(', [1, 2]], b: ['(', [8, 9]], c: 8 })
+    expect(j('{a:(1 2 3) b:(8 9) c:8}'))[_mo_]({ a: ['(', [1, 2, 3]], b: ['(', [8, 9]], c: 8 })
 
 
-    expect(j('{d:0,a:(1) b:(8 9)}')).toMatchObject({ d: 0, a: ['(', 1], b: ['(', [8, 9]] })
-    expect(j('{d:0,a:(1 2) b:(8 9)}')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', [8, 9]] })
-    expect(j('{d:0,a:(1 2 3) b:(8 9)}')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', [8, 9]] })
-
-    expect(j('{d:0,a:(1) b:(8 9) c:8}')).toMatchObject({ d: 0, a: ['(', 1], b: ['(', [8, 9]], c: 8 })
-    expect(j('{d:0,a:(1 2) b:(8 9) c:8}')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', [8, 9]], c: 8 })
-    expect(j('{d:0,a:(1 2 3) b:(8 9) c:8}')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', [8, 9]], c: 8 })
+    expect(j('{d:0,a:(1)}'))[_mo_]({ d: 0, a: ['(', 1] })
+    expect(j('{d:0,a:(1 2)}'))[_mo_]({ d: 0, a: ['(', [1, 2]] })
+    expect(j('{d:0,a:(1 2 3)}'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]] })
 
 
+    expect(j('{d:0,a:(1) b:9}'))[_mo_]({ d: 0, a: ['(', 1], b: 9 })
+    expect(j('{d:0,a:(1 2) b:9}'))[_mo_]({ d: 0, a: ['(', [1, 2]], b: 9 })
+    expect(j('{d:0,a:(1 2 3) b:9}'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: 9 })
 
-    expect(j('a:(1)')).toMatchObject({ a: ['(', 1] })
-    expect(j('a:(1 2)')).toMatchObject({ a: ['(', [1, 2]] })
-    expect(j('a:(1 2 3)')).toMatchObject({ a: ['(', [1, 2, 3]] })
-
-
-    expect(j('a:(1) b:9')).toMatchObject({ a: ['(', 1], b: 9 })
-    expect(j('a:(1 2) b:9')).toMatchObject({ a: ['(', [1, 2]], b: 9 })
-    expect(j('a:(1 2 3) b:9')).toMatchObject({ a: ['(', [1, 2, 3]], b: 9 })
-
-    expect(j('a:(1) b:9 c:8')).toMatchObject({ a: ['(', 1], b: 9, c: 8 })
-    expect(j('a:(1 2) b:9 c:8')).toMatchObject({ a: ['(', [1, 2]], b: 9, c: 8 })
-    expect(j('a:(1 2 3) b:9 c:8')).toMatchObject({ a: ['(', [1, 2, 3]], b: 9, c: 8 })
+    expect(j('{d:0,a:(1) b:9 c:8}'))[_mo_]({ d: 0, a: ['(', 1], b: 9, c: 8 })
+    expect(j('{d:0,a:(1 2) b:9 c:8}'))[_mo_]({ d: 0, a: ['(', [1, 2]], b: 9, c: 8 })
+    expect(j('{d:0,a:(1 2 3) b:9 c:8}'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: 9, c: 8 })
 
 
-    expect(j('a:(1) b:(9)')).toMatchObject({ a: ['(', 1], b: ['(', 9] })
-    expect(j('a:(1 2) b:(9)')).toMatchObject({ a: ['(', [1, 2]], b: ['(', 9] })
-    expect(j('a:(1 2 3) b:(9)')).toMatchObject({ a: ['(', [1, 2, 3]], b: ['(', 9] })
+    expect(j('{d:0,a:(1) b:(9)}'))[_mo_]({ d: 0, a: ['(', 1], b: ['(', 9] })
+    expect(j('{d:0,a:(1 2) b:(9)}'))[_mo_]({ d: 0, a: ['(', [1, 2]], b: ['(', 9] })
+    expect(j('{d:0,a:(1 2 3) b:(9)}'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: ['(', 9] })
 
-    expect(j('a:(1) b:(9) c:8')).toMatchObject({ a: ['(', 1], b: ['(', 9], c: 8 })
-    expect(j('a:(1 2) b:(9) c:8')).toMatchObject({ a: ['(', [1, 2]], b: ['(', 9], c: 8 })
-    expect(j('a:(1 2 3) b:(9) c:8')).toMatchObject({ a: ['(', [1, 2, 3]], b: ['(', 9], c: 8 })
-
-
-    expect(j('a:(1) b:(8 9)')).toMatchObject({ a: ['(', 1], b: ['(', [8, 9]] })
-    expect(j('a:(1 2) b:(8 9)')).toMatchObject({ a: ['(', [1, 2]], b: ['(', [8, 9]] })
-    expect(j('a:(1 2 3) b:(8 9)')).toMatchObject({ a: ['(', [1, 2, 3]], b: ['(', [8, 9]] })
-
-    expect(j('a:(1) b:(8 9) c:8')).toMatchObject({ a: ['(', 1], b: ['(', [8, 9]], c: 8 })
-    expect(j('a:(1 2) b:(8 9) c:8')).toMatchObject({ a: ['(', [1, 2]], b: ['(', [8, 9]], c: 8 })
-    expect(j('a:(1 2 3) b:(8 9) c:8')).toMatchObject({ a: ['(', [1, 2, 3]], b: ['(', [8, 9]], c: 8 })
+    expect(j('{d:0,a:(1) b:(9) c:8}'))[_mo_]({ d: 0, a: ['(', 1], b: ['(', 9], c: 8 })
+    expect(j('{d:0,a:(1 2) b:(9) c:8}'))[_mo_]({ d: 0, a: ['(', [1, 2]], b: ['(', 9], c: 8 })
+    expect(j('{d:0,a:(1 2 3) b:(9) c:8}'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: ['(', 9], c: 8 })
 
 
-    expect(j('d:0,a:(1)')).toMatchObject({ d: 0, a: ['(', 1] })
-    expect(j('d:0,a:(1 2)')).toMatchObject({ d: 0, a: ['(', [1, 2]] })
-    expect(j('d:0,a:(1 2 3)')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]] })
+    expect(j('{d:0,a:(1) b:(8 9)}'))[_mo_]({ d: 0, a: ['(', 1], b: ['(', [8, 9]] })
+    expect(j('{d:0,a:(1 2) b:(8 9)}'))[_mo_]({ d: 0, a: ['(', [1, 2]], b: ['(', [8, 9]] })
+    expect(j('{d:0,a:(1 2 3) b:(8 9)}'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: ['(', [8, 9]] })
+
+    expect(j('{d:0,a:(1) b:(8 9) c:8}'))[_mo_]({ d: 0, a: ['(', 1], b: ['(', [8, 9]], c: 8 })
+    expect(j('{d:0,a:(1 2) b:(8 9) c:8}'))[_mo_]({ d: 0, a: ['(', [1, 2]], b: ['(', [8, 9]], c: 8 })
+    expect(j('{d:0,a:(1 2 3) b:(8 9) c:8}'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: ['(', [8, 9]], c: 8 })
 
 
-    expect(j('d:0,a:(1) b:9')).toMatchObject({ d: 0, a: ['(', 1], b: 9 })
-    expect(j('d:0,a:(1 2) b:9')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: 9 })
-    expect(j('d:0,a:(1 2 3) b:9')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: 9 })
 
-    expect(j('d:0,a:(1) b:9 c:8')).toMatchObject({ d: 0, a: ['(', 1], b: 9, c: 8 })
-    expect(j('d:0,a:(1 2) b:9 c:8')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: 9, c: 8 })
-    expect(j('d:0,a:(1 2 3) b:9 c:8')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: 9, c: 8 })
+    expect(j('a:(1)'))[_mo_]({ a: ['(', 1] })
+    expect(j('a:(1 2)'))[_mo_]({ a: ['(', [1, 2]] })
+    expect(j('a:(1 2 3)'))[_mo_]({ a: ['(', [1, 2, 3]] })
 
 
-    expect(j('d:0,a:(1) b:(9)')).toMatchObject({ d: 0, a: ['(', 1], b: ['(', 9] })
-    expect(j('d:0,a:(1 2) b:(9)')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', 9] })
-    expect(j('d:0,a:(1 2 3) b:(9)')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', 9] })
+    expect(j('a:(1) b:9'))[_mo_]({ a: ['(', 1], b: 9 })
+    expect(j('a:(1 2) b:9'))[_mo_]({ a: ['(', [1, 2]], b: 9 })
+    expect(j('a:(1 2 3) b:9'))[_mo_]({ a: ['(', [1, 2, 3]], b: 9 })
 
-    expect(j('d:0,a:(1) b:(9) c:8')).toMatchObject({ d: 0, a: ['(', 1], b: ['(', 9], c: 8 })
-    expect(j('d:0,a:(1 2) b:(9) c:8')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', 9], c: 8 })
-    expect(j('d:0,a:(1 2 3) b:(9) c:8')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', 9], c: 8 })
+    expect(j('a:(1) b:9 c:8'))[_mo_]({ a: ['(', 1], b: 9, c: 8 })
+    expect(j('a:(1 2) b:9 c:8'))[_mo_]({ a: ['(', [1, 2]], b: 9, c: 8 })
+    expect(j('a:(1 2 3) b:9 c:8'))[_mo_]({ a: ['(', [1, 2, 3]], b: 9, c: 8 })
 
 
-    expect(j('d:0,a:(1) b:(8 9)')).toMatchObject({ d: 0, a: ['(', 1], b: ['(', [8, 9]] })
-    expect(j('d:0,a:(1 2) b:(8 9)')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', [8, 9]] })
-    expect(j('d:0,a:(1 2 3) b:(8 9)')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', [8, 9]] })
+    expect(j('a:(1) b:(9)'))[_mo_]({ a: ['(', 1], b: ['(', 9] })
+    expect(j('a:(1 2) b:(9)'))[_mo_]({ a: ['(', [1, 2]], b: ['(', 9] })
+    expect(j('a:(1 2 3) b:(9)'))[_mo_]({ a: ['(', [1, 2, 3]], b: ['(', 9] })
 
-    expect(j('d:0,a:(1) b:(8 9) c:8')).toMatchObject({ d: 0, a: ['(', 1], b: ['(', [8, 9]], c: 8 })
-    expect(j('d:0,a:(1 2) b:(8 9) c:8')).toMatchObject({ d: 0, a: ['(', [1, 2]], b: ['(', [8, 9]], c: 8 })
-    expect(j('d:0,a:(1 2 3) b:(8 9) c:8')).toMatchObject({ d: 0, a: ['(', [1, 2, 3]], b: ['(', [8, 9]], c: 8 })
+    expect(j('a:(1) b:(9) c:8'))[_mo_]({ a: ['(', 1], b: ['(', 9], c: 8 })
+    expect(j('a:(1 2) b:(9) c:8'))[_mo_]({ a: ['(', [1, 2]], b: ['(', 9], c: 8 })
+    expect(j('a:(1 2 3) b:(9) c:8'))[_mo_]({ a: ['(', [1, 2, 3]], b: ['(', 9], c: 8 })
+
+
+    expect(j('a:(1) b:(8 9)'))[_mo_]({ a: ['(', 1], b: ['(', [8, 9]] })
+    expect(j('a:(1 2) b:(8 9)'))[_mo_]({ a: ['(', [1, 2]], b: ['(', [8, 9]] })
+    expect(j('a:(1 2 3) b:(8 9)'))[_mo_]({ a: ['(', [1, 2, 3]], b: ['(', [8, 9]] })
+
+    expect(j('a:(1) b:(8 9) c:8'))[_mo_]({ a: ['(', 1], b: ['(', [8, 9]], c: 8 })
+    expect(j('a:(1 2) b:(8 9) c:8'))[_mo_]({ a: ['(', [1, 2]], b: ['(', [8, 9]], c: 8 })
+    expect(j('a:(1 2 3) b:(8 9) c:8'))[_mo_]({ a: ['(', [1, 2, 3]], b: ['(', [8, 9]], c: 8 })
+
+
+    expect(j('d:0,a:(1)'))[_mo_]({ d: 0, a: ['(', 1] })
+    expect(j('d:0,a:(1 2)'))[_mo_]({ d: 0, a: ['(', [1, 2]] })
+    expect(j('d:0,a:(1 2 3)'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]] })
+
+
+    expect(j('d:0,a:(1) b:9'))[_mo_]({ d: 0, a: ['(', 1], b: 9 })
+    expect(j('d:0,a:(1 2) b:9'))[_mo_]({ d: 0, a: ['(', [1, 2]], b: 9 })
+    expect(j('d:0,a:(1 2 3) b:9'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: 9 })
+
+    expect(j('d:0,a:(1) b:9 c:8'))[_mo_]({ d: 0, a: ['(', 1], b: 9, c: 8 })
+    expect(j('d:0,a:(1 2) b:9 c:8'))[_mo_]({ d: 0, a: ['(', [1, 2]], b: 9, c: 8 })
+    expect(j('d:0,a:(1 2 3) b:9 c:8'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: 9, c: 8 })
+
+
+    expect(j('d:0,a:(1) b:(9)'))[_mo_]({ d: 0, a: ['(', 1], b: ['(', 9] })
+    expect(j('d:0,a:(1 2) b:(9)'))[_mo_]({ d: 0, a: ['(', [1, 2]], b: ['(', 9] })
+    expect(j('d:0,a:(1 2 3) b:(9)'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: ['(', 9] })
+
+    expect(j('d:0,a:(1) b:(9) c:8'))[_mo_]({ d: 0, a: ['(', 1], b: ['(', 9], c: 8 })
+    expect(j('d:0,a:(1 2) b:(9) c:8'))[_mo_]({ d: 0, a: ['(', [1, 2]], b: ['(', 9], c: 8 })
+    expect(j('d:0,a:(1 2 3) b:(9) c:8'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: ['(', 9], c: 8 })
+
+
+    expect(j('d:0,a:(1) b:(8 9)'))[_mo_]({ d: 0, a: ['(', 1], b: ['(', [8, 9]] })
+    expect(j('d:0,a:(1 2) b:(8 9)'))[_mo_]({ d: 0, a: ['(', [1, 2]], b: ['(', [8, 9]] })
+    expect(j('d:0,a:(1 2 3) b:(8 9)'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: ['(', [8, 9]] })
+
+    expect(j('d:0,a:(1) b:(8 9) c:8'))[_mo_]({ d: 0, a: ['(', 1], b: ['(', [8, 9]], c: 8 })
+    expect(j('d:0,a:(1 2) b:(8 9) c:8'))[_mo_]({ d: 0, a: ['(', [1, 2]], b: ['(', [8, 9]], c: 8 })
+    expect(j('d:0,a:(1 2 3) b:(8 9) c:8'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: ['(', [8, 9]], c: 8 })
 
   })
 
 
   test('paren-list-implicit-structure-comma', () => {
-    const je = Jsonic.make().use(Expr)
-    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+    const j = mj(Jsonic.make().use(Expr))
 
-    expect(j('[(1)]')).toMatchObject([['(', 1]])
-    expect(j('[(1,2)]')).toMatchObject([['(', [1, 2]]])
-    expect(j('[(1,2,3)]')).toMatchObject([['(', [1, 2, 3]]])
-
-
-    expect(j('[(1),9]')).toMatchObject([['(', 1], 9])
-    expect(j('[(1,2),9]')).toMatchObject([['(', [1, 2]], 9])
-    expect(j('[(1,2,3),9]')).toMatchObject([['(', [1, 2, 3]], 9])
-
-    expect(j('[(1),9,8]')).toMatchObject([['(', 1], 9, 8])
-    expect(j('[(1,2),9,8]')).toMatchObject([['(', [1, 2]], 9, 8])
-    expect(j('[(1,2,3),9,8]')).toMatchObject([['(', [1, 2, 3]], 9, 8])
+    expect(j('[(1)]'))[_mo_]([['(', 1]])
+    expect(j('[(1,2)]'))[_mo_]([['(', [1, 2]]])
+    expect(j('[(1,2,3)]'))[_mo_]([['(', [1, 2, 3]]])
 
 
-    expect(j('[(1),(9)]')).toMatchObject([['(', 1], ['(', 9]])
-    expect(j('[(1,2),(9)]')).toMatchObject([['(', [1, 2]], ['(', 9]])
-    expect(j('[(1,2,3),(9)]')).toMatchObject([['(', [1, 2, 3]], ['(', 9]])
+    expect(j('[(1),9]'))[_mo_]([['(', 1], 9])
+    expect(j('[(1,2),9]'))[_mo_]([['(', [1, 2]], 9])
+    expect(j('[(1,2,3),9]'))[_mo_]([['(', [1, 2, 3]], 9])
 
-    expect(j('[(1),(9),8]')).toMatchObject([['(', 1], ['(', 9], 8])
-    expect(j('[(1,2),(9),8]')).toMatchObject([['(', [1, 2]], ['(', 9], 8])
-    expect(j('[(1,2,3),(9),8]')).toMatchObject([['(', [1, 2, 3]], ['(', 9], 8])
-
-    expect(j('[(1),(9),(8)]')).toMatchObject([['(', 1], ['(', 9], ['(', 8]])
-
-    expect(j('[(1),(8,9)]')).toMatchObject([['(', 1], ['(', [8, 9]]])
-    expect(j('[(1,2),(8,9)]')).toMatchObject([['(', [1, 2]], ['(', [8, 9]]])
-    expect(j('[(1,2,3),(8,9)]')).toMatchObject([['(', [1, 2, 3]], ['(', [8, 9]]])
-
-    expect(j('[(1),(8,9),8]')).toMatchObject([['(', 1], ['(', [8, 9]], 8])
-    expect(j('[(1,2),(8,9),8]')).toMatchObject([['(', [1, 2]], ['(', [8, 9]], 8])
-    expect(j('[(1,2,3),(8,9),8]')).toMatchObject([['(', [1, 2, 3]], ['(', [8, 9]], 8])
+    expect(j('[(1),9,8]'))[_mo_]([['(', 1], 9, 8])
+    expect(j('[(1,2),9,8]'))[_mo_]([['(', [1, 2]], 9, 8])
+    expect(j('[(1,2,3),9,8]'))[_mo_]([['(', [1, 2, 3]], 9, 8])
 
 
-    expect(j('[0,(1)]')).toMatchObject([0, ['(', 1]])
-    expect(j('[0,(1,2)]')).toMatchObject([0, ['(', [1, 2]]])
-    expect(j('[0,(1,2,3)]')).toMatchObject([0, ['(', [1, 2, 3]]])
+    expect(j('[(1),(9)]'))[_mo_]([['(', 1], ['(', 9]])
+    expect(j('[(1,2),(9)]'))[_mo_]([['(', [1, 2]], ['(', 9]])
+    expect(j('[(1,2,3),(9)]'))[_mo_]([['(', [1, 2, 3]], ['(', 9]])
+
+    expect(j('[(1),(9),8]'))[_mo_]([['(', 1], ['(', 9], 8])
+    expect(j('[(1,2),(9),8]'))[_mo_]([['(', [1, 2]], ['(', 9], 8])
+    expect(j('[(1,2,3),(9),8]'))[_mo_]([['(', [1, 2, 3]], ['(', 9], 8])
+
+    expect(j('[(1),(9),(8)]'))[_mo_]([['(', 1], ['(', 9], ['(', 8]])
+
+    expect(j('[(1),(8,9)]'))[_mo_]([['(', 1], ['(', [8, 9]]])
+    expect(j('[(1,2),(8,9)]'))[_mo_]([['(', [1, 2]], ['(', [8, 9]]])
+    expect(j('[(1,2,3),(8,9)]'))[_mo_]([['(', [1, 2, 3]], ['(', [8, 9]]])
+
+    expect(j('[(1),(8,9),8]'))[_mo_]([['(', 1], ['(', [8, 9]], 8])
+    expect(j('[(1,2),(8,9),8]'))[_mo_]([['(', [1, 2]], ['(', [8, 9]], 8])
+    expect(j('[(1,2,3),(8,9),8]'))[_mo_]([['(', [1, 2, 3]], ['(', [8, 9]], 8])
 
 
-    expect(j('[0,(1),9]')).toMatchObject([0, ['(', 1], 9])
-    expect(j('[0,(1,2),9]')).toMatchObject([0, ['(', [1, 2]], 9])
-    expect(j('[0,(1,2,3),9]')).toMatchObject([0, ['(', [1, 2, 3]], 9])
-
-    expect(j('[0,(1),9,8]')).toMatchObject([0, ['(', 1], 9, 8])
-    expect(j('[0,(1,2),9,8]')).toMatchObject([0, ['(', [1, 2]], 9, 8])
-    expect(j('[0,(1,2,3),9,8]')).toMatchObject([0, ['(', [1, 2, 3]], 9, 8])
+    expect(j('[0,(1)]'))[_mo_]([0, ['(', 1]])
+    expect(j('[0,(1,2)]'))[_mo_]([0, ['(', [1, 2]]])
+    expect(j('[0,(1,2,3)]'))[_mo_]([0, ['(', [1, 2, 3]]])
 
 
-    expect(j('[0,(1),(9)]')).toMatchObject([0, ['(', 1], ['(', 9]])
-    expect(j('[0,(1,2),(9)]')).toMatchObject([0, ['(', [1, 2]], ['(', 9]])
-    expect(j('[0,(1,2,3),(9)]')).toMatchObject([0, ['(', [1, 2, 3]], ['(', 9]])
+    expect(j('[0,(1),9]'))[_mo_]([0, ['(', 1], 9])
+    expect(j('[0,(1,2),9]'))[_mo_]([0, ['(', [1, 2]], 9])
+    expect(j('[0,(1,2,3),9]'))[_mo_]([0, ['(', [1, 2, 3]], 9])
 
-    expect(j('[0,(1),(9),8]')).toMatchObject([0, ['(', 1], ['(', 9], 8])
-    expect(j('[0,(1,2),(9),8]')).toMatchObject([0, ['(', [1, 2]], ['(', 9], 8])
-    expect(j('[0,(1,2,3),(9),8]')).toMatchObject([0, ['(', [1, 2, 3]], ['(', 9], 8])
-
-
-    expect(j('[0,(1),(8,9)]')).toMatchObject([0, ['(', 1], ['(', [8, 9]]])
-    expect(j('[0,(1,2),(8,9)]')).toMatchObject([0, ['(', [1, 2]], ['(', [8, 9]]])
-    expect(j('[0,(1,2,3),(8,9)]')).toMatchObject([0, ['(', [1, 2, 3]], ['(', [8, 9]]])
-
-    expect(j('[0,(1),(8,9),8]')).toMatchObject([0, ['(', 1], ['(', [8, 9]], 8])
-    expect(j('[0,(1,2),(8,9),8]')).toMatchObject([0, ['(', [1, 2]], ['(', [8, 9]], 8])
-    expect(j('[0,(1,2,3),(8,9),8]')).toMatchObject([0, ['(', [1, 2, 3]], ['(', [8, 9]], 8])
+    expect(j('[0,(1),9,8]'))[_mo_]([0, ['(', 1], 9, 8])
+    expect(j('[0,(1,2),9,8]'))[_mo_]([0, ['(', [1, 2]], 9, 8])
+    expect(j('[0,(1,2,3),9,8]'))[_mo_]([0, ['(', [1, 2, 3]], 9, 8])
 
 
+    expect(j('[0,(1),(9)]'))[_mo_]([0, ['(', 1], ['(', 9]])
+    expect(j('[0,(1,2),(9)]'))[_mo_]([0, ['(', [1, 2]], ['(', 9]])
+    expect(j('[0,(1,2,3),(9)]'))[_mo_]([0, ['(', [1, 2, 3]], ['(', 9]])
 
-    expect(j('(1)')).toMatchObject(['(', 1])
-    expect(j('(1,2)')).toMatchObject(['(', [1, 2]])
-    expect(j('(1,2,3)')).toMatchObject(['(', [1, 2, 3]])
-
-
-    expect(j('(1),9')).toMatchObject([['(', 1], 9])
-    expect(j('(1,2),9')).toMatchObject([['(', [1, 2]], 9])
-    expect(j('(1,2,3),9')).toMatchObject([['(', [1, 2, 3]], 9])
-
-    expect(j('(1),9,8')).toMatchObject([['(', 1], 9, 8])
-    expect(j('(1,2),9,8')).toMatchObject([['(', [1, 2]], 9, 8])
-    expect(j('(1,2,3),9,8')).toMatchObject([['(', [1, 2, 3]], 9, 8])
+    expect(j('[0,(1),(9),8]'))[_mo_]([0, ['(', 1], ['(', 9], 8])
+    expect(j('[0,(1,2),(9),8]'))[_mo_]([0, ['(', [1, 2]], ['(', 9], 8])
+    expect(j('[0,(1,2,3),(9),8]'))[_mo_]([0, ['(', [1, 2, 3]], ['(', 9], 8])
 
 
-    expect(j('(1),(9)')).toMatchObject([['(', 1], ['(', 9]])
-    expect(j('(1,2),(9)')).toMatchObject([['(', [1, 2]], ['(', 9]])
-    expect(j('(1,2,3),(9)')).toMatchObject([['(', [1, 2, 3]], ['(', 9]])
+    expect(j('[0,(1),(8,9)]'))[_mo_]([0, ['(', 1], ['(', [8, 9]]])
+    expect(j('[0,(1,2),(8,9)]'))[_mo_]([0, ['(', [1, 2]], ['(', [8, 9]]])
+    expect(j('[0,(1,2,3),(8,9)]'))[_mo_]([0, ['(', [1, 2, 3]], ['(', [8, 9]]])
 
-    expect(j('(1),(9),(8)')).toMatchObject([['(', 1], ['(', 9], ['(', 8]])
-
-    expect(j('(1),(9),8')).toMatchObject([['(', 1], ['(', 9], 8])
-    expect(j('(1,2),(9),8')).toMatchObject([['(', [1, 2]], ['(', 9], 8])
-    expect(j('(1,2,3),(9),8')).toMatchObject([['(', [1, 2, 3]], ['(', 9], 8])
+    expect(j('[0,(1),(8,9),8]'))[_mo_]([0, ['(', 1], ['(', [8, 9]], 8])
+    expect(j('[0,(1,2),(8,9),8]'))[_mo_]([0, ['(', [1, 2]], ['(', [8, 9]], 8])
+    expect(j('[0,(1,2,3),(8,9),8]'))[_mo_]([0, ['(', [1, 2, 3]], ['(', [8, 9]], 8])
 
 
-    expect(j('(1),(8,9)')).toMatchObject([['(', 1], ['(', [8, 9]]])
-    expect(j('(1,2),(8,9)')).toMatchObject([['(', [1, 2]], ['(', [8, 9]]])
-    expect(j('(1,2,3),(8,9)')).toMatchObject([['(', [1, 2, 3]], ['(', [8, 9]]])
 
-    expect(j('(1),(8,9),8')).toMatchObject([['(', 1], ['(', [8, 9]], 8])
-    expect(j('(1,2),(8,9),8')).toMatchObject([['(', [1, 2]], ['(', [8, 9]], 8])
-    expect(j('(1,2,3),(8,9),8')).toMatchObject([['(', [1, 2, 3]], ['(', [8, 9]], 8])
+    expect(j('(1)'))[_mo_](['(', 1])
+    expect(j('(1,2)'))[_mo_](['(', [1, 2]])
+    expect(j('(1,2,3)'))[_mo_](['(', [1, 2, 3]])
 
 
-    expect(j('0,(1)')).toMatchObject([0, ['(', 1]])
-    expect(j('0,(1,2)')).toMatchObject([0, ['(', [1, 2]]])
-    expect(j('0,(1,2,3)')).toMatchObject([0, ['(', [1, 2, 3]]])
+    expect(j('(1),9'))[_mo_]([['(', 1], 9])
+    expect(j('(1,2),9'))[_mo_]([['(', [1, 2]], 9])
+    expect(j('(1,2,3),9'))[_mo_]([['(', [1, 2, 3]], 9])
+
+    expect(j('(1),9,8'))[_mo_]([['(', 1], 9, 8])
+    expect(j('(1,2),9,8'))[_mo_]([['(', [1, 2]], 9, 8])
+    expect(j('(1,2,3),9,8'))[_mo_]([['(', [1, 2, 3]], 9, 8])
 
 
-    expect(j('0,(1),9')).toMatchObject([0, ['(', 1], 9])
-    expect(j('0,(1,2),9')).toMatchObject([0, ['(', [1, 2]], 9])
-    expect(j('0,(1,2,3),9')).toMatchObject([0, ['(', [1, 2, 3]], 9])
+    expect(j('(1),(9)'))[_mo_]([['(', 1], ['(', 9]])
+    expect(j('(1,2),(9)'))[_mo_]([['(', [1, 2]], ['(', 9]])
+    expect(j('(1,2,3),(9)'))[_mo_]([['(', [1, 2, 3]], ['(', 9]])
 
-    expect(j('0,(1),9,8')).toMatchObject([0, ['(', 1], 9, 8])
-    expect(j('0,(1,2),9,8')).toMatchObject([0, ['(', [1, 2]], 9, 8])
-    expect(j('0,(1,2,3),9,8')).toMatchObject([0, ['(', [1, 2, 3]], 9, 8])
+    expect(j('(1),(9),(8)'))[_mo_]([['(', 1], ['(', 9], ['(', 8]])
 
-
-    expect(j('0,(1),(9)')).toMatchObject([0, ['(', 1], ['(', 9]])
-    expect(j('0,(1,2),(9)')).toMatchObject([0, ['(', [1, 2]], ['(', 9]])
-    expect(j('0,(1,2,3),(9)')).toMatchObject([0, ['(', [1, 2, 3]], ['(', 9]])
-
-    expect(j('0,(1),(9),8')).toMatchObject([0, ['(', 1], ['(', 9], 8])
-    expect(j('0,(1,2),(9),8')).toMatchObject([0, ['(', [1, 2]], ['(', 9], 8])
-    expect(j('0,(1,2,3),(9),8')).toMatchObject([0, ['(', [1, 2, 3]], ['(', 9], 8])
+    expect(j('(1),(9),8'))[_mo_]([['(', 1], ['(', 9], 8])
+    expect(j('(1,2),(9),8'))[_mo_]([['(', [1, 2]], ['(', 9], 8])
+    expect(j('(1,2,3),(9),8'))[_mo_]([['(', [1, 2, 3]], ['(', 9], 8])
 
 
-    expect(j('0,(1),(8,9)')).toMatchObject([0, ['(', 1], ['(', [8, 9]]])
-    expect(j('0,(1,2),(8,9)')).toMatchObject([0, ['(', [1, 2]], ['(', [8, 9]]])
-    expect(j('0,(1,2,3),(8,9)')).toMatchObject([0, ['(', [1, 2, 3]], ['(', [8, 9]]])
+    expect(j('(1),(8,9)'))[_mo_]([['(', 1], ['(', [8, 9]]])
+    expect(j('(1,2),(8,9)'))[_mo_]([['(', [1, 2]], ['(', [8, 9]]])
+    expect(j('(1,2,3),(8,9)'))[_mo_]([['(', [1, 2, 3]], ['(', [8, 9]]])
 
-    expect(j('0,(1),(8,9),8')).toMatchObject([0, ['(', 1], ['(', [8, 9]], 8])
-    expect(j('0,(1,2),(8,9),8')).toMatchObject([0, ['(', [1, 2]], ['(', [8, 9]], 8])
-    expect(j('0,(1,2,3),(8,9),8')).toMatchObject([0, ['(', [1, 2, 3]], ['(', [8, 9]], 8])
+    expect(j('(1),(8,9),8'))[_mo_]([['(', 1], ['(', [8, 9]], 8])
+    expect(j('(1,2),(8,9),8'))[_mo_]([['(', [1, 2]], ['(', [8, 9]], 8])
+    expect(j('(1,2,3),(8,9),8'))[_mo_]([['(', [1, 2, 3]], ['(', [8, 9]], 8])
+
+
+    expect(j('0,(1)'))[_mo_]([0, ['(', 1]])
+    expect(j('0,(1,2)'))[_mo_]([0, ['(', [1, 2]]])
+    expect(j('0,(1,2,3)'))[_mo_]([0, ['(', [1, 2, 3]]])
+
+
+    expect(j('0,(1),9'))[_mo_]([0, ['(', 1], 9])
+    expect(j('0,(1,2),9'))[_mo_]([0, ['(', [1, 2]], 9])
+    expect(j('0,(1,2,3),9'))[_mo_]([0, ['(', [1, 2, 3]], 9])
+
+    expect(j('0,(1),9,8'))[_mo_]([0, ['(', 1], 9, 8])
+    expect(j('0,(1,2),9,8'))[_mo_]([0, ['(', [1, 2]], 9, 8])
+    expect(j('0,(1,2,3),9,8'))[_mo_]([0, ['(', [1, 2, 3]], 9, 8])
+
+
+    expect(j('0,(1),(9)'))[_mo_]([0, ['(', 1], ['(', 9]])
+    expect(j('0,(1,2),(9)'))[_mo_]([0, ['(', [1, 2]], ['(', 9]])
+    expect(j('0,(1,2,3),(9)'))[_mo_]([0, ['(', [1, 2, 3]], ['(', 9]])
+
+    expect(j('0,(1),(9),8'))[_mo_]([0, ['(', 1], ['(', 9], 8])
+    expect(j('0,(1,2),(9),8'))[_mo_]([0, ['(', [1, 2]], ['(', 9], 8])
+    expect(j('0,(1,2,3),(9),8'))[_mo_]([0, ['(', [1, 2, 3]], ['(', 9], 8])
+
+
+    expect(j('0,(1),(8,9)'))[_mo_]([0, ['(', 1], ['(', [8, 9]]])
+    expect(j('0,(1,2),(8,9)'))[_mo_]([0, ['(', [1, 2]], ['(', [8, 9]]])
+    expect(j('0,(1,2,3),(8,9)'))[_mo_]([0, ['(', [1, 2, 3]], ['(', [8, 9]]])
+
+    expect(j('0,(1),(8,9),8'))[_mo_]([0, ['(', 1], ['(', [8, 9]], 8])
+    expect(j('0,(1,2),(8,9),8'))[_mo_]([0, ['(', [1, 2]], ['(', [8, 9]], 8])
+    expect(j('0,(1,2,3),(8,9),8'))[_mo_]([0, ['(', [1, 2, 3]], ['(', [8, 9]], 8])
 
   })
 
 
   test('paren-list-implicit-structure-space', () => {
-    const je = Jsonic.make().use(Expr)
-    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+    const j = mj(Jsonic.make().use(Expr))
 
-    expect(j('[(1)]')).toMatchObject([['(', 1]])
-    expect(j('[(1 2)]')).toMatchObject([['(', [1, 2]]])
-    expect(j('[(1 2 3)]')).toMatchObject([['(', [1, 2, 3]]])
-
-
-    expect(j('[(1) 9]')).toMatchObject([['(', 1], 9])
-    expect(j('[(1 2) 9]')).toMatchObject([['(', [1, 2]], 9])
-    expect(j('[(1 2 3) 9]')).toMatchObject([['(', [1, 2, 3]], 9])
-
-    expect(j('[(1) 9 8]')).toMatchObject([['(', 1], 9, 8])
-    expect(j('[(1 2) 9 8]')).toMatchObject([['(', [1, 2]], 9, 8])
-    expect(j('[(1 2 3) 9 8]')).toMatchObject([['(', [1, 2, 3]], 9, 8])
+    expect(j('[(1)]'))[_mo_]([['(', 1]])
+    expect(j('[(1 2)]'))[_mo_]([['(', [1, 2]]])
+    expect(j('[(1 2 3)]'))[_mo_]([['(', [1, 2, 3]]])
 
 
-    expect(j('[(1) (9)]')).toMatchObject([['(', 1], ['(', 9]])
-    expect(j('[(1 2) (9)]')).toMatchObject([['(', [1, 2]], ['(', 9]])
-    expect(j('[(1 2 3) (9)]')).toMatchObject([['(', [1, 2, 3]], ['(', 9]])
+    expect(j('[(1) 9]'))[_mo_]([['(', 1], 9])
+    expect(j('[(1 2) 9]'))[_mo_]([['(', [1, 2]], 9])
+    expect(j('[(1 2 3) 9]'))[_mo_]([['(', [1, 2, 3]], 9])
 
-    expect(j('[(1) (9) (8)]')).toMatchObject([['(', 1], ['(', 9], ['(', 8]])
-
-    expect(j('[(1) (9) 8]')).toMatchObject([['(', 1], ['(', 9], 8])
-    expect(j('[(1 2) (9) 8]')).toMatchObject([['(', [1, 2]], ['(', 9], 8])
-    expect(j('[(1 2 3) (9) 8]')).toMatchObject([['(', [1, 2, 3]], ['(', 9], 8])
+    expect(j('[(1) 9 8]'))[_mo_]([['(', 1], 9, 8])
+    expect(j('[(1 2) 9 8]'))[_mo_]([['(', [1, 2]], 9, 8])
+    expect(j('[(1 2 3) 9 8]'))[_mo_]([['(', [1, 2, 3]], 9, 8])
 
 
-    expect(j('[(1) (8,9)]')).toMatchObject([['(', 1], ['(', [8, 9]]])
-    expect(j('[(1 2) (8,9)]')).toMatchObject([['(', [1, 2]], ['(', [8, 9]]])
-    expect(j('[(1 2 3) (8,9)]')).toMatchObject([['(', [1, 2, 3]], ['(', [8, 9]]])
+    expect(j('[(1) (9)]'))[_mo_]([['(', 1], ['(', 9]])
+    expect(j('[(1 2) (9)]'))[_mo_]([['(', [1, 2]], ['(', 9]])
+    expect(j('[(1 2 3) (9)]'))[_mo_]([['(', [1, 2, 3]], ['(', 9]])
 
-    expect(j('[(1) (8,9),8]')).toMatchObject([['(', 1], ['(', [8, 9]], 8])
-    expect(j('[(1 2) (8,9),8]')).toMatchObject([['(', [1, 2]], ['(', [8, 9]], 8])
-    expect(j('[(1 2 3) (8,9),8]')).toMatchObject([['(', [1, 2, 3]], ['(', [8, 9]], 8])
+    expect(j('[(1) (9) (8)]'))[_mo_]([['(', 1], ['(', 9], ['(', 8]])
 
-
-    expect(j('[0 (1)]')).toMatchObject([0, ['(', 1]])
-    expect(j('[0 (1 2)]')).toMatchObject([0, ['(', [1, 2]]])
-    expect(j('[0 (1 2 3)]')).toMatchObject([0, ['(', [1, 2, 3]]])
+    expect(j('[(1) (9) 8]'))[_mo_]([['(', 1], ['(', 9], 8])
+    expect(j('[(1 2) (9) 8]'))[_mo_]([['(', [1, 2]], ['(', 9], 8])
+    expect(j('[(1 2 3) (9) 8]'))[_mo_]([['(', [1, 2, 3]], ['(', 9], 8])
 
 
-    expect(j('[0 (1) 9]')).toMatchObject([0, ['(', 1], 9])
-    expect(j('[0 (1 2) 9]')).toMatchObject([0, ['(', [1, 2]], 9])
-    expect(j('[0 (1 2 3) 9]')).toMatchObject([0, ['(', [1, 2, 3]], 9])
+    expect(j('[(1) (8,9)]'))[_mo_]([['(', 1], ['(', [8, 9]]])
+    expect(j('[(1 2) (8,9)]'))[_mo_]([['(', [1, 2]], ['(', [8, 9]]])
+    expect(j('[(1 2 3) (8,9)]'))[_mo_]([['(', [1, 2, 3]], ['(', [8, 9]]])
 
-    expect(j('[0 (1) 9 8]')).toMatchObject([0, ['(', 1], 9, 8])
-    expect(j('[0 (1 2) 9 8]')).toMatchObject([0, ['(', [1, 2]], 9, 8])
-    expect(j('[0 (1 2 3) 9 8]')).toMatchObject([0, ['(', [1, 2, 3]], 9, 8])
-
-
-    expect(j('[0 (1) (9)]')).toMatchObject([0, ['(', 1], ['(', 9]])
-    expect(j('[0 (1 2) (9)]')).toMatchObject([0, ['(', [1, 2]], ['(', 9]])
-    expect(j('[0 (1 2 3) (9)]')).toMatchObject([0, ['(', [1, 2, 3]], ['(', 9]])
-
-    expect(j('[0 (1) (9) 8]')).toMatchObject([0, ['(', 1], ['(', 9], 8])
-    expect(j('[0 (1 2) (9) 8]')).toMatchObject([0, ['(', [1, 2]], ['(', 9], 8])
-    expect(j('[0 (1 2 3) (9) 8]')).toMatchObject([0, ['(', [1, 2, 3]], ['(', 9], 8])
+    expect(j('[(1) (8,9),8]'))[_mo_]([['(', 1], ['(', [8, 9]], 8])
+    expect(j('[(1 2) (8,9),8]'))[_mo_]([['(', [1, 2]], ['(', [8, 9]], 8])
+    expect(j('[(1 2 3) (8,9),8]'))[_mo_]([['(', [1, 2, 3]], ['(', [8, 9]], 8])
 
 
-    expect(j('[0 (1) (8 9)]')).toMatchObject([0, ['(', 1], ['(', [8, 9]]])
-    expect(j('[0 (1 2) (8 9)]')).toMatchObject([0, ['(', [1, 2]], ['(', [8, 9]]])
-    expect(j('[0 (1 2 3) (8 9)]')).toMatchObject([0, ['(', [1, 2, 3]], ['(', [8, 9]]])
-
-    expect(j('[0 (1) (8 9) 8]')).toMatchObject([0, ['(', 1], ['(', [8, 9]], 8])
-    expect(j('[0 (1 2) (8 9) 8]')).toMatchObject([0, ['(', [1, 2]], ['(', [8, 9]], 8])
-    expect(j('[0 (1 2 3) (8 9) 8]')).toMatchObject([0, ['(', [1, 2, 3]], ['(', [8, 9]], 8])
+    expect(j('[0 (1)]'))[_mo_]([0, ['(', 1]])
+    expect(j('[0 (1 2)]'))[_mo_]([0, ['(', [1, 2]]])
+    expect(j('[0 (1 2 3)]'))[_mo_]([0, ['(', [1, 2, 3]]])
 
 
+    expect(j('[0 (1) 9]'))[_mo_]([0, ['(', 1], 9])
+    expect(j('[0 (1 2) 9]'))[_mo_]([0, ['(', [1, 2]], 9])
+    expect(j('[0 (1 2 3) 9]'))[_mo_]([0, ['(', [1, 2, 3]], 9])
 
-    expect(j('(1)')).toMatchObject(['(', 1])
-    expect(j('(1 2)')).toMatchObject(['(', [1, 2]])
-    expect(j('(1 2 3)')).toMatchObject(['(', [1, 2, 3]])
-
-
-    expect(j('(1) 9')).toMatchObject([['(', 1], 9])
-    expect(j('(1 2) 9')).toMatchObject([['(', [1, 2]], 9])
-    expect(j('(1 2 3) 9')).toMatchObject([['(', [1, 2, 3]], 9])
-
-    expect(j('(1) 9 8')).toMatchObject([['(', 1], 9, 8])
-    expect(j('(1 2) 9 8')).toMatchObject([['(', [1, 2]], 9, 8])
-    expect(j('(1 2 3) 9 8')).toMatchObject([['(', [1, 2, 3]], 9, 8])
+    expect(j('[0 (1) 9 8]'))[_mo_]([0, ['(', 1], 9, 8])
+    expect(j('[0 (1 2) 9 8]'))[_mo_]([0, ['(', [1, 2]], 9, 8])
+    expect(j('[0 (1 2 3) 9 8]'))[_mo_]([0, ['(', [1, 2, 3]], 9, 8])
 
 
-    expect(j('(1) (9)')).toMatchObject([['(', 1], ['(', 9]])
-    expect(j('(1 2) (9)')).toMatchObject([['(', [1, 2]], ['(', 9]])
-    expect(j('(1 2 3) (9)')).toMatchObject([['(', [1, 2, 3]], ['(', 9]])
+    expect(j('[0 (1) (9)]'))[_mo_]([0, ['(', 1], ['(', 9]])
+    expect(j('[0 (1 2) (9)]'))[_mo_]([0, ['(', [1, 2]], ['(', 9]])
+    expect(j('[0 (1 2 3) (9)]'))[_mo_]([0, ['(', [1, 2, 3]], ['(', 9]])
 
-    expect(j('(1) (9) 8')).toMatchObject([['(', 1], ['(', 9], 8])
-    expect(j('(1 2) (9) 8')).toMatchObject([['(', [1, 2]], ['(', 9], 8])
-    expect(j('(1 2 3) (9) 8')).toMatchObject([['(', [1, 2, 3]], ['(', 9], 8])
-
-    expect(j('(1) (9) (8)')).toMatchObject([['(', 1], ['(', 9], ['(', 8]])
-
-    expect(j('(1) (8 9)')).toMatchObject([['(', 1], ['(', [8, 9]]])
-    expect(j('(1 2) (8 9)')).toMatchObject([['(', [1, 2]], ['(', [8, 9]]])
-    expect(j('(1 2 3) (8 9)')).toMatchObject([['(', [1, 2, 3]], ['(', [8, 9]]])
-
-    expect(j('(1) (8 9) 8')).toMatchObject([['(', 1], ['(', [8, 9]], 8])
-    expect(j('(1 2) (8 9) 8')).toMatchObject([['(', [1, 2]], ['(', [8, 9]], 8])
-    expect(j('(1 2 3) (8 9) 8')).toMatchObject([['(', [1, 2, 3]], ['(', [8, 9]], 8])
+    expect(j('[0 (1) (9) 8]'))[_mo_]([0, ['(', 1], ['(', 9], 8])
+    expect(j('[0 (1 2) (9) 8]'))[_mo_]([0, ['(', [1, 2]], ['(', 9], 8])
+    expect(j('[0 (1 2 3) (9) 8]'))[_mo_]([0, ['(', [1, 2, 3]], ['(', 9], 8])
 
 
-    expect(j('0 (1)')).toMatchObject([0, ['(', 1]])
-    expect(j('0 (1 2)')).toMatchObject([0, ['(', [1, 2]]])
-    expect(j('0 (1 2 3)')).toMatchObject([0, ['(', [1, 2, 3]]])
+    expect(j('[0 (1) (8 9)]'))[_mo_]([0, ['(', 1], ['(', [8, 9]]])
+    expect(j('[0 (1 2) (8 9)]'))[_mo_]([0, ['(', [1, 2]], ['(', [8, 9]]])
+    expect(j('[0 (1 2 3) (8 9)]'))[_mo_]([0, ['(', [1, 2, 3]], ['(', [8, 9]]])
+
+    expect(j('[0 (1) (8 9) 8]'))[_mo_]([0, ['(', 1], ['(', [8, 9]], 8])
+    expect(j('[0 (1 2) (8 9) 8]'))[_mo_]([0, ['(', [1, 2]], ['(', [8, 9]], 8])
+    expect(j('[0 (1 2 3) (8 9) 8]'))[_mo_]([0, ['(', [1, 2, 3]], ['(', [8, 9]], 8])
 
 
-    expect(j('0 (1) 9')).toMatchObject([0, ['(', 1], 9])
-    expect(j('0 (1 2) 9')).toMatchObject([0, ['(', [1, 2]], 9])
-    expect(j('0 (1 2 3) 9')).toMatchObject([0, ['(', [1, 2, 3]], 9])
 
-    expect(j('0 (1) 9 8')).toMatchObject([0, ['(', 1], 9, 8])
-    expect(j('0 (1 2) 9 8')).toMatchObject([0, ['(', [1, 2]], 9, 8])
-    expect(j('0 (1 2 3) 9 8')).toMatchObject([0, ['(', [1, 2, 3]], 9, 8])
+    expect(j('(1)'))[_mo_](['(', 1])
+    expect(j('(1 2)'))[_mo_](['(', [1, 2]])
+    expect(j('(1 2 3)'))[_mo_](['(', [1, 2, 3]])
 
 
-    expect(j('0 (1) (9)')).toMatchObject([0, ['(', 1], ['(', 9]])
-    expect(j('0 (1 2) (9)')).toMatchObject([0, ['(', [1, 2]], ['(', 9]])
-    expect(j('0 (1 2 3) (9)')).toMatchObject([0, ['(', [1, 2, 3]], ['(', 9]])
+    expect(j('(1) 9'))[_mo_]([['(', 1], 9])
+    expect(j('(1 2) 9'))[_mo_]([['(', [1, 2]], 9])
+    expect(j('(1 2 3) 9'))[_mo_]([['(', [1, 2, 3]], 9])
 
-    expect(j('0 (1) (9) 8')).toMatchObject([0, ['(', 1], ['(', 9], 8])
-    expect(j('0 (1 2) (9) 8')).toMatchObject([0, ['(', [1, 2]], ['(', 9], 8])
-    expect(j('0 (1 2 3) (9) 8')).toMatchObject([0, ['(', [1, 2, 3]], ['(', 9], 8])
+    expect(j('(1) 9 8'))[_mo_]([['(', 1], 9, 8])
+    expect(j('(1 2) 9 8'))[_mo_]([['(', [1, 2]], 9, 8])
+    expect(j('(1 2 3) 9 8'))[_mo_]([['(', [1, 2, 3]], 9, 8])
 
 
-    expect(j('0 (1) (8 9)')).toMatchObject([0, ['(', 1], ['(', [8, 9]]])
-    expect(j('0 (1 2) (8 9)')).toMatchObject([0, ['(', [1, 2]], ['(', [8, 9]]])
-    expect(j('0 (1 2 3) (8 9)')).toMatchObject([0, ['(', [1, 2, 3]], ['(', [8, 9]]])
+    expect(j('(1) (9)'))[_mo_]([['(', 1], ['(', 9]])
+    expect(j('(1 2) (9)'))[_mo_]([['(', [1, 2]], ['(', 9]])
+    expect(j('(1 2 3) (9)'))[_mo_]([['(', [1, 2, 3]], ['(', 9]])
 
-    expect(j('0 (1) (8 9) 8')).toMatchObject([0, ['(', 1], ['(', [8, 9]], 8])
-    expect(j('0 (1 2) (8 9) 8')).toMatchObject([0, ['(', [1, 2]], ['(', [8, 9]], 8])
-    expect(j('0 (1 2 3) (8 9) 8')).toMatchObject([0, ['(', [1, 2, 3]], ['(', [8, 9]], 8])
+    expect(j('(1) (9) 8'))[_mo_]([['(', 1], ['(', 9], 8])
+    expect(j('(1 2) (9) 8'))[_mo_]([['(', [1, 2]], ['(', 9], 8])
+    expect(j('(1 2 3) (9) 8'))[_mo_]([['(', [1, 2, 3]], ['(', 9], 8])
+
+    expect(j('(1) (9) (8)'))[_mo_]([['(', 1], ['(', 9], ['(', 8]])
+
+    expect(j('(1) (8 9)'))[_mo_]([['(', 1], ['(', [8, 9]]])
+    expect(j('(1 2) (8 9)'))[_mo_]([['(', [1, 2]], ['(', [8, 9]]])
+    expect(j('(1 2 3) (8 9)'))[_mo_]([['(', [1, 2, 3]], ['(', [8, 9]]])
+
+    expect(j('(1) (8 9) 8'))[_mo_]([['(', 1], ['(', [8, 9]], 8])
+    expect(j('(1 2) (8 9) 8'))[_mo_]([['(', [1, 2]], ['(', [8, 9]], 8])
+    expect(j('(1 2 3) (8 9) 8'))[_mo_]([['(', [1, 2, 3]], ['(', [8, 9]], 8])
+
+
+    expect(j('0 (1)'))[_mo_]([0, ['(', 1]])
+    expect(j('0 (1 2)'))[_mo_]([0, ['(', [1, 2]]])
+    expect(j('0 (1 2 3)'))[_mo_]([0, ['(', [1, 2, 3]]])
+
+
+    expect(j('0 (1) 9'))[_mo_]([0, ['(', 1], 9])
+    expect(j('0 (1 2) 9'))[_mo_]([0, ['(', [1, 2]], 9])
+    expect(j('0 (1 2 3) 9'))[_mo_]([0, ['(', [1, 2, 3]], 9])
+
+    expect(j('0 (1) 9 8'))[_mo_]([0, ['(', 1], 9, 8])
+    expect(j('0 (1 2) 9 8'))[_mo_]([0, ['(', [1, 2]], 9, 8])
+    expect(j('0 (1 2 3) 9 8'))[_mo_]([0, ['(', [1, 2, 3]], 9, 8])
+
+
+    expect(j('0 (1) (9)'))[_mo_]([0, ['(', 1], ['(', 9]])
+    expect(j('0 (1 2) (9)'))[_mo_]([0, ['(', [1, 2]], ['(', 9]])
+    expect(j('0 (1 2 3) (9)'))[_mo_]([0, ['(', [1, 2, 3]], ['(', 9]])
+
+    expect(j('0 (1) (9) 8'))[_mo_]([0, ['(', 1], ['(', 9], 8])
+    expect(j('0 (1 2) (9) 8'))[_mo_]([0, ['(', [1, 2]], ['(', 9], 8])
+    expect(j('0 (1 2 3) (9) 8'))[_mo_]([0, ['(', [1, 2, 3]], ['(', 9], 8])
+
+
+    expect(j('0 (1) (8 9)'))[_mo_]([0, ['(', 1], ['(', [8, 9]]])
+    expect(j('0 (1 2) (8 9)'))[_mo_]([0, ['(', [1, 2]], ['(', [8, 9]]])
+    expect(j('0 (1 2 3) (8 9)'))[_mo_]([0, ['(', [1, 2, 3]], ['(', [8, 9]]])
+
+    expect(j('0 (1) (8 9) 8'))[_mo_]([0, ['(', 1], ['(', [8, 9]], 8])
+    expect(j('0 (1 2) (8 9) 8'))[_mo_]([0, ['(', [1, 2]], ['(', [8, 9]], 8])
+    expect(j('0 (1 2 3) (8 9) 8'))[_mo_]([0, ['(', [1, 2, 3]], ['(', [8, 9]], 8])
 
   })
 
 
 
   test('paren-implicit-list', () => {
-    const je = Jsonic.make().use(Expr)
-    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+    const j = mj(Jsonic.make().use(Expr))
 
-    expect(j('(a)')).toMatchObject(['(', 'a'])
-    expect(j('(a,b)')).toMatchObject(['(', ['a', 'b']])
-    expect(j('(a,b,c)')).toMatchObject(['(', ['a', 'b', 'c']])
-    expect(j('(a,b,c,d)')).toMatchObject(['(', ['a', 'b', 'c', 'd']])
+    expect(j('(a)'))[_mo_](['(', 'a'])
+    expect(j('(a,b)'))[_mo_](['(', ['a', 'b']])
+    expect(j('(a,b,c)'))[_mo_](['(', ['a', 'b', 'c']])
+    expect(j('(a,b,c,d)'))[_mo_](['(', ['a', 'b', 'c', 'd']])
 
-    expect(j('(1,2)')).toMatchObject(['(', [1, 2]])
-    expect(j('(1+2,3)')).toMatchObject(['(', [['+', 1, 2], 3]])
-    expect(j('(1+2+3,4)')).toMatchObject(['(', [['+', ['+', 1, 2], 3], 4]])
-    expect(j('(1+2+3+4,5)')).toMatchObject(['(', [['+', ['+', ['+', 1, 2], 3], 4], 5]])
+    expect(j('(1,2)'))[_mo_](['(', [1, 2]])
+    expect(j('(1+2,3)'))[_mo_](['(', [['+', 1, 2], 3]])
+    expect(j('(1+2+3,4)'))[_mo_](['(', [['+', ['+', 1, 2], 3], 4]])
+    expect(j('(1+2+3+4,5)'))[_mo_](['(', [['+', ['+', ['+', 1, 2], 3], 4], 5]])
 
-    expect(j('(1+2,3,4)')).toMatchObject(['(', [['+', 1, 2], 3, 4]])
-    expect(j('(1+2,3+4,5)')).toMatchObject(['(', [['+', 1, 2], ['+', 3, 4], 5]])
+    expect(j('(1+2,3,4)'))[_mo_](['(', [['+', 1, 2], 3, 4]])
+    expect(j('(1+2,3+4,5)'))[_mo_](['(', [['+', 1, 2], ['+', 3, 4], 5]])
     expect(j('(1+2,3+4,5+6)'))
-      .toMatchObject(['(', [['+', 1, 2], ['+', 3, 4], ['+', 5, 6]]])
+    [_mo_](['(', [['+', 1, 2], ['+', 3, 4], ['+', 5, 6]]])
 
-    expect(j('(a b)')).toMatchObject(['(', ['a', 'b']])
-    expect(j('(a b c)')).toMatchObject(['(', ['a', 'b', 'c']])
+    expect(j('(a b)'))[_mo_](['(', ['a', 'b']])
+    expect(j('(a b c)'))[_mo_](['(', ['a', 'b', 'c']])
 
-    expect(j('(1+2 3)')).toMatchObject(['(', [['+', 1, 2], 3]])
-    expect(j('(1+2 3 4)')).toMatchObject(['(', [['+', 1, 2], 3, 4]])
-    expect(j('(1+2 3+4 5)')).toMatchObject(['(', [['+', 1, 2], ['+', 3, 4], 5]])
+    expect(j('(1+2 3)'))[_mo_](['(', [['+', 1, 2], 3]])
+    expect(j('(1+2 3 4)'))[_mo_](['(', [['+', 1, 2], 3, 4]])
+    expect(j('(1+2 3+4 5)'))[_mo_](['(', [['+', 1, 2], ['+', 3, 4], 5]])
     expect(j('(1+2 3+4 5+6)'))
-      .toMatchObject(['(', [['+', 1, 2], ['+', 3, 4], ['+', 5, 6]]])
+    [_mo_](['(', [['+', 1, 2], ['+', 3, 4], ['+', 5, 6]]])
 
     // Default plain paren does not have a prefix, so this is an implicit list.
-    expect(j('foo(1,a)')).toMatchObject(['foo', ['(', [1, 'a']]])
-    expect(j('foo,(1,a)')).toMatchObject(['foo', ['(', [1, 'a']]])
-    expect(j('foo (1,a)')).toMatchObject(['foo', ['(', [1, 'a']]])
+    expect(j('foo(1,a)'))[_mo_](['foo', ['(', [1, 'a']]])
+    expect(j('foo,(1,a)'))[_mo_](['foo', ['(', [1, 'a']]])
+    expect(j('foo (1,a)'))[_mo_](['foo', ['(', [1, 'a']]])
 
   })
 
 
   test('paren-implicit-map', () => {
-    const je = Jsonic.make().use(Expr)
-    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+    const j = mj(Jsonic.make().use(Expr))
 
-    expect(j('(a:1,b:2)')).toMatchObject(['(', { a: 1, b: 2 }])
-    expect(j('(a:1 b:2)')).toMatchObject(['(', { a: 1, b: 2 }])
-    expect(j('(a:1,b:2,c:3)')).toMatchObject(['(', { a: 1, b: 2, c: 3 }])
-    expect(j('(a:1 b:2 c:3)')).toMatchObject(['(', { a: 1, b: 2, c: 3 }])
+    expect(j('(a:1,b:2)'))[_mo_](['(', { a: 1, b: 2 }])
+    expect(j('(a:1 b:2)'))[_mo_](['(', { a: 1, b: 2 }])
+    expect(j('(a:1,b:2,c:3)'))[_mo_](['(', { a: 1, b: 2, c: 3 }])
+    expect(j('(a:1 b:2 c:3)'))[_mo_](['(', { a: 1, b: 2, c: 3 }])
 
-    expect(j('(a:1+2,b:3)')).toMatchObject(['(', { a: ['+', 1, 2], b: 3 }])
-    expect(j('(a:1+2,b:3,c:4)')).toMatchObject(['(', { a: ['+', 1, 2], b: 3, c: 4 }])
+    expect(j('(a:1+2,b:3)'))[_mo_](['(', { a: ['+', 1, 2], b: 3 }])
+    expect(j('(a:1+2,b:3,c:4)'))[_mo_](['(', { a: ['+', 1, 2], b: 3, c: 4 }])
     expect(j('(a:1+2,b:3+4,c:5)'))
-      .toMatchObject(['(', { a: ['+', 1, 2], b: ['+', 3, 4], c: 5 }])
+    [_mo_](['(', { a: ['+', 1, 2], b: ['+', 3, 4], c: 5 }])
     expect(j('(a:1+2,b:3+4,c:5+6)'))
-      .toMatchObject(['(', { a: ['+', 1, 2], b: ['+', 3, 4], c: ['+', 5, 6] }])
+    [_mo_](['(', { a: ['+', 1, 2], b: ['+', 3, 4], c: ['+', 5, 6] }])
 
-    expect(j('(a:1+2 b:3)')).toMatchObject(['(', { a: ['+', 1, 2], b: 3 }])
-    expect(j('(a:1+2 b:3 c:4)')).toMatchObject(['(', { a: ['+', 1, 2], b: 3, c: 4 }])
+    expect(j('(a:1+2 b:3)'))[_mo_](['(', { a: ['+', 1, 2], b: 3 }])
+    expect(j('(a:1+2 b:3 c:4)'))[_mo_](['(', { a: ['+', 1, 2], b: 3, c: 4 }])
     expect(j('(a:1+2 b:3+4 c:5)'))
-      .toMatchObject(['(', { a: ['+', 1, 2], b: ['+', 3, 4], c: 5 }])
+    [_mo_](['(', { a: ['+', 1, 2], b: ['+', 3, 4], c: 5 }])
     expect(j('(a:1+2 b:3+4 c:5+6)'))
-      .toMatchObject(['(', { a: ['+', 1, 2], b: ['+', 3, 4], c: ['+', 5, 6] }])
+    [_mo_](['(', { a: ['+', 1, 2], b: ['+', 3, 4], c: ['+', 5, 6] }])
   })
 
 
@@ -1697,17 +1732,18 @@ describe('expr', () => {
         }
       }
     })
-    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+    const j = mj(je)
 
-    expect(j('<1>')).toMatchObject(['<', 1])
-    expect(j('<<1>>')).toMatchObject(['<', ['<', 1]])
-    expect(j('(<1>)')).toMatchObject(['(', ['<', 1]])
-    expect(j('<(1)>')).toMatchObject(['<', ['(', 1]])
+
+    expect(j('<1>'))[_mo_](['<', 1])
+    expect(j('<<1>>'))[_mo_](['<', ['<', 1]])
+    expect(j('(<1>)'))[_mo_](['(', ['<', 1]])
+    expect(j('<(1)>'))[_mo_](['<', ['(', 1]])
 
     expect(() => j('<1)')).toThrow('unexpected')
 
-    expect(j('1*(2+3)')).toMatchObject(['*', 1, ['(', ['+', 2, 3]]])
-    expect(j('1*<2+3>')).toMatchObject(['*', 1, ['<', ['+', 2, 3]]])
+    expect(j('1*(2+3)'))[_mo_](['*', 1, ['(', ['+', 2, 3]]])
+    expect(j('1*<2+3>'))[_mo_](['*', 1, ['<', ['+', 2, 3]]])
   })
 
 
@@ -1725,8 +1761,7 @@ describe('expr', () => {
         }
       }
     })
-    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
-
+    const j = mj(je)
 
     expect(j('(1)'))[_mo_](['(', 1])
     expect(j('(1),2'))[_mo_]([['(', 1], 2])
@@ -1812,7 +1847,7 @@ describe('expr', () => {
         }
       }
     })
-    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+    const j = mj(je)
 
     expect(j('[1]'))[_mo_]([1])
     expect(j('a[1]'))[_mo_](['[', 'a', 1])
@@ -1888,35 +1923,14 @@ describe('expr', () => {
         }
       }
     })
-    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+    const j = mj(je)
 
     // But this is an implicit list.
-    expect(j('foo,(1,a)')).toMatchObject(['foo', ['(', [1, 'a']]])
-    expect(j('foo,(1+2,a)')).toMatchObject(['foo', ['(', [['+', 1, 2], 'a']]])
+    expect(j('foo,(1,a)'))[_mo_](['foo', ['(', [1, 'a']]])
+    expect(j('foo,(1+2,a)'))[_mo_](['foo', ['(', [['+', 1, 2], 'a']]])
     expect(j('foo,(1+2+3,a)'))
-      .toMatchObject(['foo', ['(', [['+', ['+', 1, 2], 3], 'a']]])
+    [_mo_](['foo', ['(', [['+', ['+', 1, 2], 3], 'a']]])
   })
-
-
-
-  // test('paren-postval-basic', () => {
-  //   const je = Jsonic.make().use(Expr, {
-  //     paren: {
-  //       angle: {
-  //         osrc: '<',
-  //         csrc: '>',
-  //         postval: true,
-  //       }
-  //     }
-  //   })
-  //   const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
-
-
-  //   expect(j('<1>2')).toMatchObject(['<', 1, 2])
-
-
-  // })
-
 
 
   test('add-infix', () => {
@@ -1927,17 +1941,17 @@ describe('expr', () => {
         }
       }
     })
-    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+    const j = mj(je)
 
-    expect(j('1 foo 2')).toMatchObject(['foo', 1, 2])
+    expect(j('1 foo 2'))[_mo_](['foo', 1, 2])
   })
 
 
   // TODO: provide as external tests for other plugins
 
   test('json-base', () => {
-    const je = Jsonic.make().use(Expr)
-    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+    const j = mj(Jsonic.make().use(Expr))
+
     expect(j('1')).toEqual(1)
     expect(j('"a"')).toEqual('a')
     expect(j('true')).toEqual(true)
@@ -1952,8 +1966,8 @@ describe('expr', () => {
   })
 
   test('jsonic-base', () => {
-    const je = Jsonic.make().use(Expr)
-    const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
+    const j = mj(Jsonic.make().use(Expr))
+
     expect(j('1 "a" true # foo'))[_mo_]([1, 'a', true])
     expect(j('x:1 y:"a" z:true // bar'))[_mo_]({ x: 1, y: 'a', z: true })
     expect(j('a:b:1 \n /* zed */ a:c:{\nd:e:[1 2]}'))
@@ -2411,40 +2425,7 @@ describe('expr', () => {
 
     expect(evaluate(j('(1+2)*3'), mr)).toEqual(9)
     expect(evaluate(j('3*(1+2)'), mr)).toEqual(9)
-
-
   })
-
-
-  // test('new-existing-token-cs', () => {
-  //   const je = Jsonic.make().use(Expr, {
-  //     op: {
-  //       cs: {
-  //         order: 2, bp: [160, 170], src: ']'
-  //       }
-  //     }
-  //   })
-  //   const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
-
-  //   expect(j('1 ] 2')).toMatchObject([']', 1, 2])
-  //   expect(j('a: 1 ] 2')).toMatchObject({ "a": ["]", 1, 2] })
-  // })
-
-
-  // test('new-existing-token-os', () => {
-  //   const je = Jsonic.make().use(Expr, {
-  //     op: {
-  //       cs: {
-  //         order: 2, bp: [160, 170], src: '['
-  //       }
-  //     }
-  //   })
-  //   const j = (s: string, m?: any) => JSON.parse(JSON.stringify(je(s, m)))
-
-  //   expect(j('1 [ 2')).toMatchObject(['[', 1, 2])
-  //   expect(j('a: 1 [ 2')).toMatchObject({ "a": ["[", 1, 2] })
-  // })
-
 
 
 })

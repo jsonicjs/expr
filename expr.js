@@ -8,12 +8,10 @@ exports.testing = exports.evaluate = exports.Expr = void 0;
 // See the `prattify` function for the core implementation.
 //
 // Expressions are encoded as LISP-style S-expressions using
-// arrays. Meta data is attached with array properties (op$, paren$,
-// etc).  To maintain the integrity of the overall JSON AST,
+// arrays. The operation meta data is provided as the first array
+// element.  To maintain the integrity of the overall JSON AST,
 // expression rules cannot simply re-assign nodes. Instead the
-// existing partial expression nodes are rewritten in-place. This code
-// is as ugly as one would expect.  See the `prattify` function for an
-// example.
+// existing partial expression nodes are rewritten in-place.
 //
 // Parentheses can have preceeding values, which allows for the using function
 // call ("foo(1)") and index ("a[1]") syntax. See the tests for examples and
@@ -32,11 +30,11 @@ exports.testing = exports.evaluate = exports.Expr = void 0;
 // There is a specific recurring edge-case: when expressions are the
 // first item of a list, special care is need not to embed the list
 // inside the expression.
-// TODO: include original token type in meta data
 // TODO: increase infix base binding values
 // TODO: error on incomplete expr: 1+2+
 const jsonic_1 = require("jsonic");
 const { omap, entries, values } = jsonic_1.util;
+// The plugin itself.
 let Expr = function expr(jsonic, options) {
     var _a;
     // Ensure comment matcher is first to avoid conflicts with
@@ -272,11 +270,12 @@ let Expr = function expr(jsonic, options) {
                 p: 'val',
                 g: 'expr,expr-prefix',
                 a: (r) => {
-                    var _a;
                     const parent = r.parent;
                     const op = makeOp(r.o0, prefixTM);
                     r.node =
-                        ((_a = parent.node) === null || _a === void 0 ? void 0 : _a.op$) ? prattify(parent.node, op) : prior(r, parent, op);
+                        isInfixOp(parent.node) ?
+                            // parent.node?.op$ ?
+                            prattify(parent.node, op) : prior(r, parent, op);
                 }
             } : NONE,
             hasInfix ? {
@@ -561,7 +560,8 @@ function makeOp(t, om) {
 }
 function makeNode(node, op, ...terms) {
     let out = node;
-    out[0] = op.src;
+    // out[0] = op.src
+    out[0] = op;
     if (op.paren) {
         out.paren$ = op;
         delete out.op$;
@@ -674,6 +674,9 @@ function implicitTernaryAction(r, _ctx, a) {
         r.node[0] = dupNode(r.node);
         r.node.length = 1;
     }
+}
+function isInfixOp(node) {
+    return null == node ? false : node[0] && node[0].infix;
 }
 function makeOpMap(token, fixed, op, anyfix) {
     return Object.entries(op)
