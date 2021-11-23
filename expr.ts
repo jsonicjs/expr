@@ -195,7 +195,6 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
     .rule('val', (rs: RuleSpec) => {
 
       // Implicit pair not allowed inside ternary
-      // if (jsonic.fixed[jsonic.token.CL] === TCOLON_SRC) {
       if (hasTernary && TERN1.includes(jsonic.token.CL)) {
         let pairkeyalt: any = rs.def.open.find((a: any) => a.g.includes('pair'))
         pairkeyalt.c = (r: Rule) => !r.n.expr_ternary
@@ -222,10 +221,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
               const pdef = parenOTM[r.o0.tin]
               let pass = true
 
-              if (pdef.preval) {
-                if (pdef.preval.required) {
-                  pass = 'val' === r.prev.name && r.prev.use.paren_preval
-                }
+              if (pdef.preval.required) {
+                pass = 'val' === r.prev.name && r.prev.use.paren_preval
               }
 
               // Paren with preval as first term becomes root.
@@ -234,6 +231,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
                   ctx.root = () => r.node
                 }
               }
+
               return pass
             },
             g: 'expr,expr-paren',
@@ -269,7 +267,6 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           } : NONE,
 
           // The closing parenthesis of an expression.
-          // TODO: use n.expr to validate actually in an expression?
           hasParen ? {
             s: [CP],
             c: (r: Rule) => !!r.n.expr_paren,
@@ -278,14 +275,14 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           } : NONE,
 
           // The opening parenthesis of an expression with a preceding value.
-          // foo(1) => preval='foo', expr=['(',1]
+          // foo(1) => ['(','foo',1]
           hasParen ? {
             s: [OP],
             b: 1,
             r: 'val',
             c: (r: Rule) => parenOTM[r.c0.tin].preval.active,
             u: { paren_preval: true },
-            g: 'expr,expr-paren,expr-paren-prefix',
+            g: 'expr,expr-paren,expr-paren-preval',
           } : NONE,
 
           hasTernary ? {
@@ -295,7 +292,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             g: 'expr,expr-ternary',
           } : NONE,
 
-          // Don't create implicit list inside expression. 
+          // Don't create implicit list inside expression (comma separator). 
           {
             s: [CA],
             c: (r: Rule) =>
@@ -305,7 +302,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             g: 'expr,list,val,imp,comma,top',
           },
 
-          // Don't create implicit list inside expression. 
+          // Don't create implicit list inside expression (space separator). 
           {
             s: [VAL],
             c: (r: Rule) =>
@@ -324,6 +321,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
     rs
       .bo((...rest: any) => {
         orig_bo(...rest)
+
+        // List elements are new expressions.
         rest[0].n.expr = 0
         rest[0].n.expr_prefix = 0
         rest[0].n.expr_suffix = 0
@@ -338,6 +337,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
     rs
       .bo((...rest: any) => {
         orig_bo(...rest)
+
+        // Map values are new expressions.
         rest[0].n.expr = 0
         rest[0].n.expr_prefix = 0
         rest[0].n.expr_suffix = 0
@@ -370,6 +371,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
         ])
     })
 
+
   jsonic
     .rule('pair', (rs: RuleSpec) => {
       rs
@@ -384,6 +386,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           } : NONE,
         ])
     })
+
 
   jsonic
     .rule('expr', (rs: RuleSpec) => {
@@ -663,9 +666,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
                 r.node.push(r.child.node)
 
                 if ('elem' === a.r) {
-                  let tdef = r.node.ternary$
-                  r.node[0] = [...r.node]
-                  r.node[0].ternary$ = tdef
+                  r.node[0] = dupNode(r.node)
                   r.node.length = 1
                 }
               },
@@ -696,9 +697,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
                 r.node.push(r.child.node)
 
                 if ('elem' === a.r) {
-                  let tdef = r.node.ternary$
-                  r.node[0] = [...r.node]
-                  r.node[0].ternary$ = tdef
+                  r.node[0] = dupNode(r.node)
                   r.node.length = 1
                 }
               },
@@ -1078,12 +1077,8 @@ function prattify(expr: any, op?: Op): any[] {
       // if (lower || expr.op$.suffix || op.left <= expr.op$.right) {
       if (expr.op$.suffix || op.left <= expr.op$.right) {
         // log += 'L'
-        expr[1] = [...expr]
-        expr[1].op$ = expr.op$
 
-        expr[0] = op.src
-        expr.op$ = op
-        expr.length = 2
+        makeNode(expr, op, dupNode(expr))
       }
 
       // op is higher
@@ -1096,21 +1091,13 @@ function prattify(expr: any, op?: Op): any[] {
           out = prattify(expr[end], op)
         }
         else {
-          // log += 'E'
-          expr[end] = [op.src, expr[end]]
-          expr[end].op$ = op
-          out = expr[end]
+          out = expr[end] = makeNode([], op, expr[end])
         }
       }
     }
 
     else if (op.prefix) {
-      // expr.op$ MUST be infix or prefix
-      const end = expr.op$.terms
-      expr[end] = [op.src]
-      expr[end].op$ = op
-      out = expr[end]
-
+      out = expr[expr.op$.terms] = makeNode([], op)
     }
     else if (op.suffix) {
       if (!expr.op$.suffix && expr.op$.right <= op.left) {
@@ -1124,21 +1111,12 @@ function prattify(expr: any, op?: Op): any[] {
           prattify(expr[end], op)
         }
         else {
-          expr[end] = [op.src, expr[end]]
-          expr[end].op$ = op
+          expr[end] = makeNode([], op, expr[end])
         }
       }
 
       else {
-        expr[1] = [...expr]
-
-        expr[1].op$ = expr.op$
-        expr[1].paren$ = expr.paren$
-        expr[1].ternary$ = expr.ternary$
-
-        expr[0] = op.src
-        expr.op$ = op
-        expr.length = 2
+        makeNode(expr, op, dupNode(expr))
       }
     }
   }
