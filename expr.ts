@@ -75,6 +75,9 @@ type OpDef = {
 // Options for the plugin.
 type ExprOptions = {
   op?: { [name: string]: OpDef },
+
+  // TODO: define Evalute type
+  evaluate?: typeof evaluate,
 }
 
 
@@ -540,6 +543,14 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             g: 'expr,expr-end',
           }
         ])
+
+        .ac((r: Rule) => {
+          if (options.evaluate) {
+            // console.log('EXPR', evaluate(r.node, options.evaluate))
+            r.parent.node = evaluate(r.node, options.evaluate)
+            // console.log('EVAL', r.parent.node)
+          }
+        })
     })
 
   jsonic

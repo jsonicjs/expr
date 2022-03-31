@@ -20,6 +20,7 @@ declare type ExprOptions = {
     op?: {
         [name: string]: OpDef;
     };
+    evaluate?: typeof evaluate;
 };
 declare type Op = {
     name: string;

@@ -2425,6 +2425,15 @@ describe('expr', () => {
 
     expect(evaluate(j('(1+2)*3'), mr)).toEqual(9)
     expect(evaluate(j('3*(1+2)'), mr)).toEqual(9)
+
+
+    const je = Jsonic.make().use(Expr, {
+      evaluate: mr
+    })
+
+    expect(je('11+22', { xlog: -1 })).toEqual(33)
+    expect(je('a:11+22', { xlog: -1 })).toEqual({ a: 33 })
+    expect(je('[11+22]', { xlog: -1 })).toEqual([33])
   })
 
 

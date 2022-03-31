@@ -388,7 +388,14 @@ let Expr = function expr(jsonic, options) {
             {
                 g: 'expr,expr-end',
             }
-        ]);
+        ])
+            .ac((r) => {
+            if (options.evaluate) {
+                // console.log('EXPR', evaluate(r.node, options.evaluate))
+                r.parent.node = evaluate(r.node, options.evaluate);
+                // console.log('EVAL', r.parent.node)
+            }
+        });
     });
     jsonic
         .rule('paren', (rs) => {
