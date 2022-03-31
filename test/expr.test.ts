@@ -2337,7 +2337,7 @@ describe('expr', () => {
 
 
   test('example-dotpath', () => {
-    const je0 = Jsonic.make().use(Expr, {
+    let opts: any = {
       op: {
         indot: {
           src: '.',
@@ -2351,7 +2351,9 @@ describe('expr', () => {
           right: 14_000_000,
         }
       }
-    })
+    }
+
+    const je0 = Jsonic.make().use(Expr, opts)
     const j0 = mj(je0)
 
     expect(j0('a.b'))[_mo_](['.', 'a', 'b'])
@@ -2382,6 +2384,33 @@ describe('expr', () => {
 
     expect(j0('$.a.b'))[_mo_](['.', '$', ['.', 'a', 'b']])
     expect(j0('$.a.b.c'))[_mo_](['.', '$', ['.', 'a', ['.', 'b', 'c']]])
+
+
+    let resolve = (op: Op, terms: any[]) => {
+      return terms.join('/')
+    }
+
+
+    expect(evaluate(je0('a.b'), resolve)).toEqual('a/b')
+    expect(evaluate(je0('a.b.c'), resolve)).toEqual('a/b/c')
+    expect(evaluate(je0('a.b.c.d'), resolve)).toEqual('a/b/c/d')
+
+    const je1 = Jsonic.make().use(Expr, { ...opts, evaluate: resolve })
+    // expect(je1('{x:a.b}', { log: -1 })).toEqual({ x: 'a/b' })
+    // expect(je1('x:a.b', { log: -1 })).toEqual({ x: 'a/b' })
+
+
+    expect(je1('{x:a.b}')).toEqual({ x: 'a/b' })
+    expect(je1('{x:a.b.c}')).toEqual({ x: 'a/b/c' })
+    expect(je1('{x:a.b.c.d}')).toEqual({ x: 'a/b/c/d' })
+
+    expect(je1('x:a.b')).toEqual({ x: 'a/b' })
+    expect(je1('x:a.b.c')).toEqual({ x: 'a/b/c' })
+    expect(je1('x:a.b.c.d')).toEqual({ x: 'a/b/c/d' })
+
+    expect(je1('a.b')).toEqual('a/b')
+    expect(je1('a.b.c')).toEqual('a/b/c')
+    expect(je1('a.b.c.d')).toEqual('a/b/c/d')
 
   })
 

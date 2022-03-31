@@ -386,14 +386,15 @@ let Expr = function expr(jsonic, options) {
             },
             // Expression ends on non-expression token.
             {
+                n: { expr: 0 },
                 g: 'expr,expr-end',
             }
         ])
             .ac((r) => {
-            if (options.evaluate) {
-                // console.log('EXPR', evaluate(r.node, options.evaluate))
-                r.parent.node = evaluate(r.node, options.evaluate);
-                // console.log('EVAL', r.parent.node)
+            // Only evaluate at root of expr (where r.n.expr === 0) 
+            if (options.evaluate && 0 === r.n.expr) {
+                // The parent node will contain the root of the expr tree
+                r.parent.node = evaluate(r.parent.node, options.evaluate);
             }
         });
     });
