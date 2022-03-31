@@ -2339,13 +2339,13 @@ describe('expr', () => {
   test('example-dotpath', () => {
     let opts: any = {
       op: {
-        indot: {
+        'dot-infix': {
           src: '.',
           infix: true,
           left: 15_000_000,
           right: 14_000_000,
         },
-        predot: {
+        'dot-prefix': {
           src: '.',
           prefix: true,
           right: 14_000_000,
@@ -2387,13 +2387,21 @@ describe('expr', () => {
 
 
     let resolve = (op: Op, terms: any[]) => {
-      return terms.join('/')
+      if ('dot-infix' === op.name) {
+        return terms.join('/')
+      }
+      else if ('dot-prefix' === op.name) {
+        return '/' + terms[0]
+      }
     }
 
 
     expect(evaluate(je0('a.b'), resolve)).toEqual('a/b')
     expect(evaluate(je0('a.b.c'), resolve)).toEqual('a/b/c')
     expect(evaluate(je0('a.b.c.d'), resolve)).toEqual('a/b/c/d')
+
+    expect(evaluate(je0('.a'), resolve)).toEqual('/a')
+    expect(evaluate(je0('.a.b'), resolve)).toEqual('/a/b')
 
     const je1 = Jsonic.make().use(Expr, { ...opts, evaluate: resolve })
     // expect(je1('{x:a.b}', { log: -1 })).toEqual({ x: 'a/b' })

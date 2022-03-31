@@ -683,7 +683,7 @@ function makeOpMap(token, fixed, op, anyfix) {
             src: src,
             left: opdef.left || Number.MIN_SAFE_INTEGER,
             right: opdef.right || Number.MAX_SAFE_INTEGER,
-            name: name + '-' + anyfix,
+            name: name + (name.endsWith('-' + anyfix) ? '' : '-' + anyfix),
             infix: 'infix' === anyfix,
             prefix: 'prefix' === anyfix,
             suffix: 'suffix' === anyfix,
