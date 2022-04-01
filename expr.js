@@ -143,8 +143,7 @@ let Expr = function expr(jsonic, options) {
                     g: 'expr,expr-paren',
                 }
                 : NONE,
-        ])
-            .close([
+        ]).close([
             hasTernary
                 ? {
                     s: [TERN0],
@@ -516,8 +515,7 @@ let Expr = function expr(jsonic, options) {
                     },
                     g: 'expr,expr-ternary,step',
                 },
-            ])
-                .close([
+            ]).close([
                 {
                     s: [TERN1],
                     c: (r) => {

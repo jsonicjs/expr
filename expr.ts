@@ -237,8 +237,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             g: 'expr,expr-paren',
           }
         : NONE,
-    ])
-    .close([
+    ]).close([
       hasTernary
         ? {
             s: [TERN0],
@@ -650,8 +649,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           },
           g: 'expr,expr-ternary,step',
         },
-      ])
-      .close([
+      ]).close([
         {
           s: [TERN1],
           c: (r: Rule) => {
