@@ -57,5 +57,5 @@ declare const testing: {
     prattify: typeof prattify;
     opify: (x: any) => any;
 };
-export { Expr, evaluate, testing, };
-export type { ExprOptions, OpDef, Op, };
+export { Expr, evaluate, testing };
+export type { ExprOptions, OpDef, Op };

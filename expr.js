@@ -43,16 +43,12 @@ let Expr = function expr(jsonic, options) {
     // Ensure comment matcher is first to avoid conflicts with
     // comment markers (//, /*, etc)
     let lexm = ((_a = jsonic.options.lex) === null || _a === void 0 ? void 0 : _a.match) || [];
-    let cmI = lexm.map(m => m.name).indexOf('makeCommentMatcher');
+    let cmI = lexm.map((m) => m.name).indexOf('makeCommentMatcher');
     if (0 < cmI) {
         jsonic.options({
             lex: {
-                match: [
-                    lexm[cmI],
-                    ...lexm.slice(0, cmI),
-                    ...lexm.slice(cmI + 1),
-                ]
-            }
+                match: [lexm[cmI], ...lexm.slice(0, cmI), ...lexm.slice(cmI + 1)],
+            },
         });
     }
     let token = jsonic.token.bind(jsonic);
@@ -64,26 +60,34 @@ let Expr = function expr(jsonic, options) {
     const infixTM = makeOpMap(token, fixed, optop, 'infix');
     const ternaryTM = makeOpMap(token, fixed, optop, 'ternary');
     const parenOTM = makeParenMap(token, fixed, optop);
-    const parenCTM = omap(parenOTM, ([_, pdef]) => [undefined, undefined, pdef.ctin, pdef]);
-    let parenFixed = Object
-        .values({ ...parenOTM, ...parenCTM })
-        .reduce((a, p) => (a[p.otkn] = p.osrc, a[p.ctkn] = p.csrc, a), {});
+    const parenCTM = omap(parenOTM, ([_, pdef]) => [
+        undefined,
+        undefined,
+        pdef.ctin,
+        pdef,
+    ]);
+    let parenFixed = Object.values({ ...parenOTM, ...parenCTM }).reduce((a, p) => ((a[p.otkn] = p.osrc), (a[p.ctkn] = p.csrc), a), {});
     // NOTE: operators with same src will generate same token - this is correct.
-    let operatorFixed = Object
-        .values({ ...prefixTM, ...suffixTM, ...infixTM, ...ternaryTM })
-        .reduce((a, op) => (a[op.tkn] = op.src, a), {});
+    let operatorFixed = Object.values({
+        ...prefixTM,
+        ...suffixTM,
+        ...infixTM,
+        ...ternaryTM,
+    }).reduce((a, op) => ((a[op.tkn] = op.src), a), {});
     jsonic.options({
         fixed: {
-            token: { ...operatorFixed, ...parenFixed }
-        }
+            token: { ...operatorFixed, ...parenFixed },
+        },
     });
     const PREFIX = values(prefixTM).map((op) => op.tin);
     const INFIX = values(infixTM).map((op) => op.tin);
     const SUFFIX = values(suffixTM).map((op) => op.tin);
     const TERN0 = values(ternaryTM)
-        .filter((op) => 0 === op.use.ternary.opI).map((op) => op.tin);
+        .filter((op) => 0 === op.use.ternary.opI)
+        .map((op) => op.tin);
     const TERN1 = values(ternaryTM)
-        .filter((op) => 1 === op.use.ternary.opI).map((op) => op.tin);
+        .filter((op) => 1 === op.use.ternary.opI)
+        .map((op) => op.tin);
     const OP = values(parenOTM).map((pdef) => pdef.otin);
     const CP = values(parenCTM).map((pdef) => pdef.ctin);
     const hasPrefix = 0 < PREFIX.length;
@@ -99,93 +103,107 @@ let Expr = function expr(jsonic, options) {
     const ZZ = jsonic.token.ZZ;
     const VAL = [TX, NR, ST, VL];
     const NONE = null;
-    jsonic
-        .rule('val', (rs) => {
+    jsonic.rule('val', (rs) => {
         // Implicit pair not allowed inside ternary
         if (hasTernary && TERN1.includes(jsonic.token.CL)) {
             let pairkeyalt = rs.def.open.find((a) => a.g.includes('pair'));
             pairkeyalt.c = (r) => !r.n.expr_ternary;
         }
-        rs
-            .open([
+        rs.open([
             // The prefix operator of the first term of an expression.
-            hasPrefix ? {
-                s: [PREFIX],
-                b: 1,
-                n: { expr_prefix: 1, expr_suffix: 0 },
-                p: 'expr',
-                g: 'expr,expr-prefix',
-            } : NONE,
+            hasPrefix
+                ? {
+                    s: [PREFIX],
+                    b: 1,
+                    n: { expr_prefix: 1, expr_suffix: 0 },
+                    p: 'expr',
+                    g: 'expr,expr-prefix',
+                }
+                : NONE,
             // An opening parenthesis of an expression.
-            hasParen ? {
-                s: [OP],
-                b: 1,
-                p: 'paren',
-                c: (r, ctx) => {
-                    const pdef = parenOTM[r.o0.tin];
-                    let pass = true;
-                    if (pdef.preval.required) {
-                        pass = 'val' === r.prev.name && r.prev.use.paren_preval;
-                    }
-                    // Paren with preval as first term becomes root.
-                    if (pass) {
-                        if (1 === r.prev.id) {
-                            ctx.root = () => r.node;
+            hasParen
+                ? {
+                    s: [OP],
+                    b: 1,
+                    p: 'paren',
+                    c: (r, ctx) => {
+                        const pdef = parenOTM[r.o0.tin];
+                        let pass = true;
+                        if (pdef.preval.required) {
+                            pass = 'val' === r.prev.name && r.prev.use.paren_preval;
                         }
-                    }
-                    return pass;
-                },
-                g: 'expr,expr-paren',
-            } : NONE,
+                        // Paren with preval as first term becomes root.
+                        if (pass) {
+                            if (1 === r.prev.id) {
+                                ctx.root = () => r.node;
+                            }
+                        }
+                        return pass;
+                    },
+                    g: 'expr,expr-paren',
+                }
+                : NONE,
         ])
             .close([
-            hasTernary ? {
-                s: [TERN0],
-                c: (r) => !r.n.expr,
-                b: 1,
-                r: 'ternary',
-                g: 'expr,expr-ternary',
-            } : NONE,
+            hasTernary
+                ? {
+                    s: [TERN0],
+                    c: (r) => !r.n.expr,
+                    b: 1,
+                    r: 'ternary',
+                    g: 'expr,expr-ternary',
+                }
+                : NONE,
             // The infix operator following the first term of an expression.
-            hasInfix ? {
-                s: [INFIX],
-                b: 1,
-                n: { expr_prefix: 0, expr_suffix: 0 },
-                r: (r) => !r.n.expr ? 'expr' : '',
-                g: 'expr,expr-infix',
-            } : NONE,
+            hasInfix
+                ? {
+                    s: [INFIX],
+                    b: 1,
+                    n: { expr_prefix: 0, expr_suffix: 0 },
+                    r: (r) => (!r.n.expr ? 'expr' : ''),
+                    g: 'expr,expr-infix',
+                }
+                : NONE,
             // The suffix operator following the first term of an expression.
-            hasSuffix ? {
-                s: [SUFFIX],
-                b: 1,
-                n: { expr_prefix: 0, expr_suffix: 1 },
-                r: (r) => !r.n.expr ? 'expr' : '',
-                g: 'expr,expr-suffix',
-            } : NONE,
+            hasSuffix
+                ? {
+                    s: [SUFFIX],
+                    b: 1,
+                    n: { expr_prefix: 0, expr_suffix: 1 },
+                    r: (r) => (!r.n.expr ? 'expr' : ''),
+                    g: 'expr,expr-suffix',
+                }
+                : NONE,
             // The closing parenthesis of an expression.
-            hasParen ? {
-                s: [CP],
-                c: (r) => !!r.n.expr_paren,
-                b: 1,
-                g: 'expr,expr-paren',
-            } : NONE,
+            hasParen
+                ? {
+                    s: [CP],
+                    c: (r) => !!r.n.expr_paren,
+                    b: 1,
+                    g: 'expr,expr-paren',
+                }
+                : NONE,
             // The opening parenthesis of an expression with a preceding value.
             // foo(1) => ['(','foo',1]
-            hasParen ? {
-                s: [OP],
-                b: 1,
-                r: 'val',
-                c: (r) => parenOTM[r.c0.tin].preval.active,
-                u: { paren_preval: true },
-                g: 'expr,expr-paren,expr-paren-preval',
-            } : NONE,
-            hasTernary ? {
-                s: [TERN1],
-                c: (r) => !!r.n.expr_ternary,
-                b: 1,
-                g: 'expr,expr-ternary',
-            } : NONE,
-            // Don't create implicit list inside expression (comma separator). 
+            hasParen
+                ? {
+                    s: [OP],
+                    b: 1,
+                    r: 'val',
+                    c: (r) => parenOTM[r.c0.tin].preval.active,
+                    u: { paren_preval: true },
+                    g: 'expr,expr-paren,expr-paren-preval',
+                }
+                : NONE,
+            hasTernary
+                ? {
+                    s: [TERN1],
+                    c: (r) => !!r.n.expr_ternary,
+                    b: 1,
+                    g: 'expr,expr-ternary',
+                }
+                : NONE,
+            // Don't create implicit list inside expression (comma separator).
             {
                 s: [CA],
                 c: (r) => (1 === r.d && (1 <= r.n.expr || 1 <= r.n.expr_ternary)) ||
@@ -193,7 +211,7 @@ let Expr = function expr(jsonic, options) {
                 b: 1,
                 g: 'expr,list,val,imp,comma,top',
             },
-            // Don't create implicit list inside expression (space separator). 
+            // Don't create implicit list inside expression (space separator).
             {
                 s: [VAL],
                 c: (r) => (1 === r.d && (1 <= r.n.expr || 1 <= r.n.expr_ternary)) ||
@@ -205,8 +223,7 @@ let Expr = function expr(jsonic, options) {
     });
     jsonic.rule('list', (rs) => {
         let orig_bo = rs.def.bo;
-        rs
-            .bo((...rest) => {
+        rs.bo((...rest) => {
             orig_bo(...rest);
             // List elements are new expressions.
             rest[0].n.expr = 0;
@@ -218,8 +235,7 @@ let Expr = function expr(jsonic, options) {
     });
     jsonic.rule('map', (rs) => {
         let orig_bo = rs.def.bo;
-        rs
-            .bo((...rest) => {
+        rs.bo((...rest) => {
             orig_bo(...rest);
             // Map values are new expressions.
             rest[0].n.expr = 0;
@@ -229,90 +245,98 @@ let Expr = function expr(jsonic, options) {
             rest[0].n.expr_ternary = 0;
         });
     });
-    jsonic
-        .rule('elem', (rs) => {
-        rs
-            .close([
+    jsonic.rule('elem', (rs) => {
+        rs.close([
             // Close implicit list within parens.
-            hasParen ? {
-                s: [CP],
-                b: 1,
-                c: (r) => !!r.n.expr_paren,
-                g: 'expr,expr-paren,imp,close,list',
-            } : NONE,
-            // Following elem is a paren expression.
-            hasParen ? {
-                s: [OP],
-                b: 1,
-                r: 'elem',
-                g: 'expr,expr-paren,imp,open,list',
-            } : NONE,
-        ]);
-    });
-    jsonic
-        .rule('pair', (rs) => {
-        rs
-            .close([
-            // Close implicit map within parens.
-            hasParen ? {
-                s: [CP],
-                b: 1,
-                c: (r) => !!r.n.expr_paren || 0 < r.n.pk,
-                g: 'expr,expr-paren,imp,map',
-            } : NONE,
-        ]);
-    });
-    jsonic
-        .rule('expr', (rs) => {
-        rs
-            .open([
-            hasPrefix ? {
-                s: [PREFIX],
-                c: (r) => !!r.n.expr_prefix,
-                n: { expr: 1, il: 1, im: 1 },
-                p: 'val',
-                g: 'expr,expr-prefix',
-                a: (r) => {
-                    const op = makeOp(r.o0, prefixTM);
-                    r.node = isOp(r.parent.node) ?
-                        prattify(r.parent.node, op) : prior(r, r.parent, op);
+            hasParen
+                ? {
+                    s: [CP],
+                    b: 1,
+                    c: (r) => !!r.n.expr_paren,
+                    g: 'expr,expr-paren,imp,close,list',
                 }
-            } : NONE,
-            hasInfix ? {
-                s: [INFIX],
-                p: 'val',
-                n: { expr: 1, expr_prefix: 0, il: 1, im: 1 },
-                a: (r) => {
-                    const prev = r.prev;
-                    const parent = r.parent;
-                    const op = makeOp(r.o0, infixTM);
-                    // Second and further operators.
-                    if (isOp(parent.node) && !isTernaryOp(parent.node)) {
-                        r.node = prattify(parent.node, op);
-                    }
-                    // First term was unary expression.
-                    else if (isOp(prev.node)) {
-                        r.node = prattify(prev.node, op);
-                        r.parent = prev;
-                    }
-                    // First term was plain value or ternary part.
-                    else {
-                        r.node = prior(r, prev, op);
-                    }
-                },
-                g: 'expr,expr-infix',
-            } : NONE,
-            hasSuffix ? {
-                s: [SUFFIX],
-                n: { expr: 1, expr_prefix: 0, il: 1, im: 1 },
-                a: (r) => {
-                    const prev = r.prev;
-                    const op = makeOp(r.o0, suffixTM);
-                    r.node = isOp(prev.node) ?
-                        prattify(prev.node, op) : prior(r, prev, op);
-                },
-                g: 'expr,expr-suffix',
-            } : NONE,
+                : NONE,
+            // Following elem is a paren expression.
+            hasParen
+                ? {
+                    s: [OP],
+                    b: 1,
+                    r: 'elem',
+                    g: 'expr,expr-paren,imp,open,list',
+                }
+                : NONE,
+        ]);
+    });
+    jsonic.rule('pair', (rs) => {
+        rs.close([
+            // Close implicit map within parens.
+            hasParen
+                ? {
+                    s: [CP],
+                    b: 1,
+                    c: (r) => !!r.n.expr_paren || 0 < r.n.pk,
+                    g: 'expr,expr-paren,imp,map',
+                }
+                : NONE,
+        ]);
+    });
+    jsonic.rule('expr', (rs) => {
+        rs.open([
+            hasPrefix
+                ? {
+                    s: [PREFIX],
+                    c: (r) => !!r.n.expr_prefix,
+                    n: { expr: 1, il: 1, im: 1 },
+                    p: 'val',
+                    g: 'expr,expr-prefix',
+                    a: (r) => {
+                        const op = makeOp(r.o0, prefixTM);
+                        r.node = isOp(r.parent.node)
+                            ? prattify(r.parent.node, op)
+                            : prior(r, r.parent, op);
+                    },
+                }
+                : NONE,
+            hasInfix
+                ? {
+                    s: [INFIX],
+                    p: 'val',
+                    n: { expr: 1, expr_prefix: 0, il: 1, im: 1 },
+                    a: (r) => {
+                        const prev = r.prev;
+                        const parent = r.parent;
+                        const op = makeOp(r.o0, infixTM);
+                        // Second and further operators.
+                        if (isOp(parent.node) && !isTernaryOp(parent.node)) {
+                            r.node = prattify(parent.node, op);
+                        }
+                        // First term was unary expression.
+                        else if (isOp(prev.node)) {
+                            r.node = prattify(prev.node, op);
+                            r.parent = prev;
+                        }
+                        // First term was plain value or ternary part.
+                        else {
+                            r.node = prior(r, prev, op);
+                        }
+                    },
+                    g: 'expr,expr-infix',
+                }
+                : NONE,
+            hasSuffix
+                ? {
+                    s: [SUFFIX],
+                    n: { expr: 1, expr_prefix: 0, il: 1, im: 1 },
+                    a: (r) => {
+                        const prev = r.prev;
+                        const op = makeOp(r.o0, suffixTM);
+                        r.node = isOp(prev.node)
+                            ? prattify(prev.node, op)
+                            : prior(r, prev, op);
+                    },
+                    g: 'expr,expr-suffix',
+                }
+                : NONE,
         ])
             .bc((r) => {
             var _a;
@@ -322,50 +346,58 @@ let Expr = function expr(jsonic, options) {
             }
         })
             .close([
-            hasInfix ? {
-                s: [INFIX],
-                // Complete prefix first.
-                c: (r) => !r.n.expr_prefix,
-                b: 1,
-                r: 'expr',
-                g: 'expr,expr-infix',
-            } : NONE,
-            hasSuffix ? {
-                s: [SUFFIX],
-                c: (r) => !r.n.expr_prefix,
-                b: 1,
-                r: 'expr',
-                g: 'expr,expr-suffix',
-            } : NONE,
-            hasParen ? {
-                s: [CP],
-                c: (r) => !!r.n.expr_paren,
-                b: 1,
-            } : NONE,
-            hasTernary ? {
-                s: [TERN0],
-                c: (r) => !r.n.expr_prefix,
-                b: 1,
-                r: 'ternary',
-                g: 'expr,expr-ternary',
-            } : NONE,
-            // Implicit list at the top level. 
+            hasInfix
+                ? {
+                    s: [INFIX],
+                    // Complete prefix first.
+                    c: (r) => !r.n.expr_prefix,
+                    b: 1,
+                    r: 'expr',
+                    g: 'expr,expr-infix',
+                }
+                : NONE,
+            hasSuffix
+                ? {
+                    s: [SUFFIX],
+                    c: (r) => !r.n.expr_prefix,
+                    b: 1,
+                    r: 'expr',
+                    g: 'expr,expr-suffix',
+                }
+                : NONE,
+            hasParen
+                ? {
+                    s: [CP],
+                    c: (r) => !!r.n.expr_paren,
+                    b: 1,
+                }
+                : NONE,
+            hasTernary
+                ? {
+                    s: [TERN0],
+                    c: (r) => !r.n.expr_prefix,
+                    b: 1,
+                    r: 'ternary',
+                    g: 'expr,expr-ternary',
+                }
+                : NONE,
+            // Implicit list at the top level.
             {
                 s: [CA],
                 c: { d: 0 },
                 n: { expr: 0 },
                 r: 'elem',
-                a: (rule) => rule.parent.node = rule.node = [rule.node],
+                a: (rule) => (rule.parent.node = rule.node = [rule.node]),
                 g: 'expr,comma,list,top',
             },
-            // Implicit list at the top level. 
+            // Implicit list at the top level.
             {
                 s: [VAL],
                 c: { d: 0 },
                 n: { expr: 0 },
                 b: 1,
                 r: 'elem',
-                a: (rule) => rule.parent.node = rule.node = [rule.node],
+                a: (rule) => (rule.parent.node = rule.node = [rule.node]),
                 g: 'expr,space,list,top',
             },
             // Implicit list indicated by comma.
@@ -388,62 +420,67 @@ let Expr = function expr(jsonic, options) {
             {
                 n: { expr: 0 },
                 g: 'expr,expr-end',
-            }
+            },
         ])
             .ac((r) => {
-            // Only evaluate at root of expr (where r.n.expr === 0) 
+            // Only evaluate at root of expr (where r.n.expr === 0)
             if (options.evaluate && 0 === r.n.expr) {
                 // The parent node will contain the root of the expr tree
                 r.parent.node = evaluate(r.parent.node, options.evaluate);
             }
         });
     });
-    jsonic
-        .rule('paren', (rs) => {
-        rs
-            .bo((r) => {
+    jsonic.rule('paren', (rs) => {
+        rs.bo((r) => {
             // Allow implicits inside parens
             r.n.im = 0;
             r.n.il = 0;
             r.n.pk = 0;
         })
             .open([
-            hasParen ? {
-                s: [OP, CP],
-                b: 1,
-                g: 'expr,expr-paren,empty',
-                c: (r) => parenOTM[r.o0.tin].name === parenCTM[r.o1.tin].name,
-                a: makeOpenParen(parenOTM),
-            } : NONE,
-            hasParen ? {
-                s: [OP],
-                p: 'val',
-                n: {
-                    expr_paren: 1, expr: 0, expr_prefix: 0, expr_suffix: 0,
-                },
-                g: 'expr,expr-paren,open',
-                a: makeOpenParen(parenOTM),
-            } : NONE,
+            hasParen
+                ? {
+                    s: [OP, CP],
+                    b: 1,
+                    g: 'expr,expr-paren,empty',
+                    c: (r) => parenOTM[r.o0.tin].name === parenCTM[r.o1.tin].name,
+                    a: makeOpenParen(parenOTM),
+                }
+                : NONE,
+            hasParen
+                ? {
+                    s: [OP],
+                    p: 'val',
+                    n: {
+                        expr_paren: 1,
+                        expr: 0,
+                        expr_prefix: 0,
+                        expr_suffix: 0,
+                    },
+                    g: 'expr,expr-paren,open',
+                    a: makeOpenParen(parenOTM),
+                }
+                : NONE,
         ])
             .close([
-            hasParen ? {
-                s: [CP],
-                c: (r) => {
-                    const pdef = parenCTM[r.c0.tin];
-                    let pd = 'expr_paren_depth_' + pdef.name;
-                    return !!r.n[pd];
-                },
-                a: makeCloseParen(parenCTM),
-                g: 'expr,expr-paren,close',
-            } : NONE,
+            hasParen
+                ? {
+                    s: [CP],
+                    c: (r) => {
+                        const pdef = parenCTM[r.c0.tin];
+                        let pd = 'expr_paren_depth_' + pdef.name;
+                        return !!r.n[pd];
+                    },
+                    a: makeCloseParen(parenCTM),
+                    g: 'expr,expr-paren,close',
+                }
+                : NONE,
         ]);
     });
     // Ternary operators are like fancy parens.
     if (hasTernary) {
-        jsonic
-            .rule('ternary', (rs) => {
-            rs
-                .open([
+        jsonic.rule('ternary', (rs) => {
+            rs.open([
                 {
                     s: [TERN0],
                     p: 'val',
@@ -464,8 +501,8 @@ let Expr = function expr(jsonic, options) {
                         else {
                             r.node = r.prev.node = makeNode([], op, r.prev.node);
                         }
-                        r.use.expr_ternary_paren = r.n.expr_paren ||
-                            r.prev.use.expr_ternary_paren || 0;
+                        r.use.expr_ternary_paren =
+                            r.n.expr_paren || r.prev.use.expr_ternary_paren || 0;
                         r.n.expr_paren = 0;
                     },
                 },
@@ -474,9 +511,8 @@ let Expr = function expr(jsonic, options) {
                     c: (r) => 2 === r.prev.use.expr_ternary_step,
                     a: (r) => {
                         r.use.expr_ternary_step = r.prev.use.expr_ternary_step;
-                        r.n.expr_paren =
-                            r.use.expr_ternary_paren =
-                                r.prev.use.expr_ternary_paren;
+                        r.n.expr_paren = r.use.expr_ternary_paren =
+                            r.prev.use.expr_ternary_paren;
                     },
                     g: 'expr,expr-ternary,step',
                 },
@@ -485,8 +521,8 @@ let Expr = function expr(jsonic, options) {
                 {
                     s: [TERN1],
                     c: (r) => {
-                        return 1 === r.use.expr_ternary_step &&
-                            r.use.expr_ternary_name === ternaryTM[r.c0.tin].name;
+                        return (1 === r.use.expr_ternary_step &&
+                            r.use.expr_ternary_name === ternaryTM[r.c0.tin].name);
                     },
                     r: 'ternary',
                     a: (r) => {
@@ -500,12 +536,14 @@ let Expr = function expr(jsonic, options) {
                     s: [[CA, ...CP]],
                     c: implicitTernaryCond,
                     // Handle ternary as first item of imp list inside paren.
-                    b: (_r, ctx) => CP.includes(ctx.t0.tin) ? 1 : 0,
+                    b: (_r, ctx) => (CP.includes(ctx.t0.tin) ? 1 : 0),
                     r: (r, ctx) => {
                         var _a;
                         return !CP.includes(ctx.t0.tin) &&
-                            (0 === r.d || (r.prev.use.expr_ternary_paren &&
-                                !((_a = r.parent.node) === null || _a === void 0 ? void 0 : _a.length))) ? 'elem' : '';
+                            (0 === r.d ||
+                                (r.prev.use.expr_ternary_paren && !((_a = r.parent.node) === null || _a === void 0 ? void 0 : _a.length)))
+                            ? 'elem'
+                            : '';
                     },
                     a: implicitTernaryAction,
                     g: 'expr,expr-ternary,list,val,imp,comma',
@@ -522,7 +560,8 @@ let Expr = function expr(jsonic, options) {
                             r.prev.use.expr_ternary_paren) &&
                             !((_a = r.parent.node) === null || _a === void 0 ? void 0 : _a.length) &&
                             ZZ !== ctx.t0.tin
-                            ? 'elem' : '';
+                            ? 'elem'
+                            : '';
                     },
                     a: implicitTernaryAction,
                     g: 'expr,expr-ternary,list,val,imp,space',
@@ -640,9 +679,9 @@ function implicitList(rule, ctx, a) {
     return a;
 }
 function implicitTernaryCond(r) {
-    return (0 === r.d || 1 <= r.n.expr_paren) &&
+    return ((0 === r.d || 1 <= r.n.expr_paren) &&
         !r.n.pk &&
-        2 === r.use.expr_ternary_step;
+        2 === r.use.expr_ternary_step);
 }
 function implicitTernaryAction(r, _ctx, a) {
     r.n.expr_paren = r.prev.use.expr_ternary_paren;
@@ -662,7 +701,7 @@ function isOpKind(kind, node) {
     return null == node ? false : isOp(node) && true === node[0][kind];
 }
 function isOp(node) {
-    return (null == node) ? false : node[0] && (node[0].OP_MARK === OP_MARK);
+    return null == node ? false : node[0] && node[0].OP_MARK === OP_MARK;
 }
 function makeOpMap(token, fixed, op, anyfix) {
     return Object.entries(op)
@@ -671,7 +710,7 @@ function makeOpMap(token, fixed, op, anyfix) {
         let tkn = '';
         let tin = -1;
         let src = '';
-        if ('string' === typeof (opdef.src)) {
+        if ('string' === typeof opdef.src) {
             src = opdef.src;
         }
         else {
@@ -679,7 +718,7 @@ function makeOpMap(token, fixed, op, anyfix) {
         }
         tin = (fixed(src) || token('#E' + src));
         tkn = token(tin);
-        let op = odm[tin] = {
+        let op = (odm[tin] = {
             src: src,
             left: opdef.left || Number.MIN_SAFE_INTEGER,
             right: opdef.right || Number.MAX_SAFE_INTEGER,
@@ -704,8 +743,8 @@ function makeOpMap(token, fixed, op, anyfix) {
                 required: false,
             },
             token: {},
-            OP_MARK
-        };
+            OP_MARK,
+        });
         // Handle the second operator if ternary.
         if (op.ternary) {
             let srcs = opdef.src;
@@ -725,8 +764,7 @@ function makeOpMap(token, fixed, op, anyfix) {
     }, {});
 }
 function makeParenMap(token, fixed, optop) {
-    return entries(optop)
-        .reduce((a, [name, pdef]) => {
+    return entries(optop).reduce((a, [name, pdef]) => {
         if (pdef.paren) {
             let otin = (fixed(pdef.osrc) || token('#E' + pdef.osrc));
             let otkn = token(otin);
@@ -742,11 +780,17 @@ function makeParenMap(token, fixed, optop) {
                 ctin,
                 preval: {
                     // True by default if preval specified.
-                    active: null == pdef.preval ? false :
-                        null == pdef.preval.active ? true : pdef.preval.active,
+                    active: null == pdef.preval
+                        ? false
+                        : null == pdef.preval.active
+                            ? true
+                            : pdef.preval.active,
                     // False by default.
-                    required: null == pdef.preval ? false :
-                        null == pdef.preval.required ? false : pdef.preval.required,
+                    required: null == pdef.preval
+                        ? false
+                        : null == pdef.preval.required
+                            ? false
+                            : pdef.preval.required,
                 },
                 use: {},
                 paren: true,
@@ -763,7 +807,7 @@ function makeParenMap(token, fixed, optop) {
                 tin: -1,
                 terms: 1,
                 token: {},
-                OP_MARK
+                OP_MARK,
             };
         }
         return a;
@@ -772,32 +816,53 @@ function makeParenMap(token, fixed, optop) {
 Expr.defaults = {
     op: {
         positive: {
-            prefix: true, right: 14000, src: '+'
+            prefix: true,
+            right: 14000,
+            src: '+',
         },
         negative: {
-            prefix: true, right: 14000, src: '-'
+            prefix: true,
+            right: 14000,
+            src: '-',
         },
         // NOTE: all these are left-associative as left < right
         // Example: 2+3+4 === (2+3)+4
         addition: {
-            infix: true, left: 140, right: 150, src: '+'
+            infix: true,
+            left: 140,
+            right: 150,
+            src: '+',
         },
         subtraction: {
-            infix: true, left: 140, right: 150, src: '-'
+            infix: true,
+            left: 140,
+            right: 150,
+            src: '-',
         },
         multiplication: {
-            infix: true, left: 160, right: 170, src: '*'
+            infix: true,
+            left: 160,
+            right: 170,
+            src: '*',
         },
         division: {
-            infix: true, left: 160, right: 170, src: '/'
+            infix: true,
+            left: 160,
+            right: 170,
+            src: '/',
         },
         remainder: {
-            infix: true, left: 160, right: 170, src: '%'
+            infix: true,
+            left: 160,
+            right: 170,
+            src: '%',
         },
         plain: {
-            paren: true, osrc: '(', csrc: ')',
+            paren: true,
+            osrc: '(',
+            csrc: ')',
         },
-    }
+    },
 };
 // const jj = (x: any) => JSON.parse(JSON.stringify(x))
 // Pratt algorithm embeds next operator.
@@ -815,8 +880,7 @@ function prattify(expr, op) {
             else {
                 const end = expr_op.terms;
                 // if (isOp(expr[end]) && expr[end][0].right < op.left) {
-                if (isOp(expr[end]) &&
-                    expr[end][0].right < op.left) {
+                if (isOp(expr[end]) && expr[end][0].right < op.left) {
                     out = prattify(expr[end], op);
                 }
                 else {
@@ -860,7 +924,7 @@ function evaluate(expr, resolve) {
 exports.evaluate = evaluate;
 const testing = {
     prattify,
-    opify: (x) => (x.OP_MARK = OP_MARK, x)
+    opify: (x) => ((x.OP_MARK = OP_MARK), x),
 };
 exports.testing = testing;
 //# sourceMappingURL=expr.js.map
