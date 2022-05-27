@@ -33,8 +33,8 @@ exports.testing = exports.evaluate = exports.Expr = void 0;
 // TODO: custom ctx.F for Op - make this automatic in options
 // TODO: increase infix base binding values
 // TODO: error on incomplete expr: 1+2+
-const jsonic_1 = require("jsonic");
-const { omap, entries, values } = jsonic_1.util;
+const jsonic_next_1 = require("@jsonic/jsonic-next");
+const { omap, entries, values } = jsonic_next_1.util;
 // Mark Operator objects as owned by this plugin.
 const OP_MARK = {};
 // The plugin itself.

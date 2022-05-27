@@ -1,4 +1,4 @@
-import { Plugin, Token } from 'jsonic';
+import { Plugin, Token } from '@jsonic/jsonic-next';
 declare type OpDef = {
     src?: string | string[];
     osrc?: string;

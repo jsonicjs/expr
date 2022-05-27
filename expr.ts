@@ -44,7 +44,7 @@ import {
   Context,
   Token,
   util,
-} from 'jsonic'
+} from '@jsonic/jsonic-next'
 
 const { omap, entries, values } = util
 

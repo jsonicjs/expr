@@ -1,9 +1,9 @@
 "use strict";
 /* Copyright (c) 2021 Richard Rodger and other contributors, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-const jsonic_1 = require("jsonic");
+const jsonic_next_1 = require("@jsonic/jsonic-next");
 const expr_1 = require("../expr");
-const { omap } = jsonic_1.util;
+const { omap } = jsonic_next_1.util;
 const C = (x) => JSON.parse(JSON.stringify(x));
 // Walk expr tree into simplified form where first element is the op src.
 const S = (x) => (x && Array.isArray(x)) ?
@@ -38,7 +38,7 @@ function makeExpr(opspec, term0, term1) {
 }
 describe('expr', () => {
     test('happy', () => {
-        const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
+        const j = mj(jsonic_next_1.Jsonic.make().use(expr_1.Expr));
         expect(j('1+2')).toMatchObject(['+', 1, 2]);
         expect(j('-1+2')).toMatchObject(['+', ['-', 1], 2]);
     });
@@ -163,7 +163,7 @@ describe('expr', () => {
         expect(C(S(E)))[_mo_](['%', 1, ['%', 2, ['%', 3, ['%', 4, ['%', 5]]]]]);
     });
     test('binary', () => {
-        const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
+        const j = mj(jsonic_next_1.Jsonic.make().use(expr_1.Expr));
         expect(j('1+2'))[_mo_](['+', 1, 2]);
         expect(j('1*2'))[_mo_](['*', 1, 2]);
         expect(j('1+2+3'))[_mo_](['+', ['+', 1, 2], 3]);
@@ -196,7 +196,7 @@ describe('expr', () => {
         expect(j('1*2*3*4*5'))[_mo_](['*', ['*', ['*', ['*', 1, 2], 3], 4], 5]);
     });
     test('structure', () => {
-        const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
+        const j = mj(jsonic_next_1.Jsonic.make().use(expr_1.Expr));
         expect(j('a:1+2'))[_mo_]({ a: ['+', 1, 2] });
         expect(j('a:1+2,b:3+4'))[_mo_]({ a: ['+', 1, 2], b: ['+', 3, 4] });
         expect(j('[1+2]'))[_mo_]([['+', 1, 2]]);
@@ -204,7 +204,7 @@ describe('expr', () => {
         expect(j('{a:[1+2]}'))[_mo_]({ a: [['+', 1, 2]] });
     });
     test('implicit-list-top-basic', () => {
-        const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
+        const j = mj(jsonic_next_1.Jsonic.make().use(expr_1.Expr));
         expect(j('1,2'))[_mo_]([1, 2]);
         expect(j('1+2,3'))[_mo_]([['+', 1, 2], 3]);
         expect(j('1+2+3,4'))[_mo_]([['+', ['+', 1, 2], 3], 4]);
@@ -249,7 +249,7 @@ describe('expr', () => {
         expect(j('1+2,3+4,5+6'))[_mo_]([['+', 1, 2], ['+', 3, 4], ['+', 5, 6]]);
     });
     test('implicit-list-top-paren', () => {
-        const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
+        const j = mj(jsonic_next_1.Jsonic.make().use(expr_1.Expr));
         expect(j('(1,2)'))[_mo_](['(', [1, 2]]);
         expect(j('(1+2,3)'))[_mo_](['(', [['+', 1, 2], 3]]);
         expect(j('(1+2+3,4)'))[_mo_](['(', [['+', ['+', 1, 2], 3], 4]]);
@@ -298,7 +298,7 @@ describe('expr', () => {
         expect(j('(1+2 3+4 5+6)'))[_mo_](['(', [['+', 1, 2], ['+', 3, 4], ['+', 5, 6]]]);
     });
     test('map-implicit-list-paren', () => {
-        const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
+        const j = mj(jsonic_next_1.Jsonic.make().use(expr_1.Expr));
         expect(j('a:(1,2),b:0'))[_mo_]({ a: ['(', [1, 2]], b: 0 });
         expect(j('a:(1+2,3),b:0'))[_mo_]({ a: ['(', [['+', 1, 2], 3]], b: 0 });
         expect(j('a:(1+2+3,4),b:0'))[_mo_]({ a: ['(', [['+', ['+', 1, 2], 3], 4]], b: 0 });
@@ -385,7 +385,7 @@ describe('expr', () => {
         expect(j('{a:(1+2 3+4 5+6)}'))[_mo_]({ a: ['(', [['+', 1, 2], ['+', 3, 4], ['+', 5, 6]]] });
     });
     test('unary-prefix-basic', () => {
-        const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
+        const j = mj(jsonic_next_1.Jsonic.make().use(expr_1.Expr));
         expect(j('1')).toEqual(1);
         expect(j('z')).toEqual('z');
         expect(j('-1')).toMatchObject(['-', 1]);
@@ -489,7 +489,7 @@ describe('expr', () => {
         expect(j('1+2+-3')).toMatchObject(['+', ['+', 1, 2], ['-', 3]]);
     });
     test('unary-prefix-edge', () => {
-        const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+        const je = jsonic_next_1.Jsonic.make().use(expr_1.Expr, {
             op: {
                 at: {
                     prefix: true, right: 15000, src: '@'
@@ -533,7 +533,7 @@ describe('expr', () => {
         expect(j('@1~@2~3')).toEqual(['@', ['~', ['~', 1, ['@', 2]], 3]]);
     });
     test('unary-suffix-basic', () => {
-        const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+        const je = jsonic_next_1.Jsonic.make().use(expr_1.Expr, {
             op: {
                 factorial: {
                     suffix: true, left: 15000, src: '!'
@@ -577,7 +577,7 @@ describe('expr', () => {
         expect(j('0!+1+2')).toMatchObject(['+', ['+', ['!', 0], 1], 2]);
     });
     test('unary-suffix-edge', () => {
-        const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+        const je = jsonic_next_1.Jsonic.make().use(expr_1.Expr, {
             op: {
                 factorial: {
                     suffix: true, left: 15000, src: '!'
@@ -624,7 +624,7 @@ describe('expr', () => {
         expect(j('1!~2!~3')).toEqual(['~', ['!', ['~', ['!', 1], 2]], 3]);
     });
     test('unary-suffix-structure', () => {
-        const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+        const je = jsonic_next_1.Jsonic.make().use(expr_1.Expr, {
             op: {
                 factorial: {
                     suffix: true, left: 15000, src: '!'
@@ -663,7 +663,7 @@ describe('expr', () => {
         expect(j('{a:1! b:2! c:3! d:4!}')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3], d: ['!', 4] });
     });
     test('unary-suffix-prefix', () => {
-        const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+        const je = jsonic_next_1.Jsonic.make().use(expr_1.Expr, {
             op: {
                 factorial: {
                     suffix: true, left: 15000, src: '!'
@@ -693,7 +693,7 @@ describe('expr', () => {
         expect(j('--1??+2')).toEqual(['+', ['?', ['?', ['-', ['-', 1]]]], 2]);
     });
     test('unary-suffix-paren', () => {
-        const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+        const je = jsonic_next_1.Jsonic.make().use(expr_1.Expr, {
             op: {
                 factorial: {
                     suffix: true, left: 15000, src: '!'
@@ -722,7 +722,7 @@ describe('expr', () => {
         expect(j('(0!+1+2)')).toMatchObject(['(', ['+', ['+', ['!', 0], 1], 2]]);
     });
     test('paren-basic', () => {
-        const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
+        const j = mj(jsonic_next_1.Jsonic.make().use(expr_1.Expr));
         expect(j('()')).toMatchObject(['(']);
         expect(j('(),()')).toMatchObject([['('], ['(']]);
         expect(j('(),(),()')).toMatchObject([['('], ['('], ['(']]);
@@ -775,7 +775,7 @@ describe('expr', () => {
         expect(j('(a:1)')).toMatchObject(['(', { a: 1 }]);
     });
     test('paren-map-implicit-structure-comma', () => {
-        const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
+        const j = mj(jsonic_next_1.Jsonic.make().use(expr_1.Expr));
         expect(j('{a:(1)}'))[_mo_]({ a: ['(', 1] });
         expect(j('{a:(1,2)}'))[_mo_]({ a: ['(', [1, 2]] });
         expect(j('{a:(1,2,3)}'))[_mo_]({ a: ['(', [1, 2, 3]] });
@@ -862,7 +862,7 @@ describe('expr', () => {
         expect(j('d:0,a:(1,2,3),b:(8,9),c:8'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: ['(', [8, 9]], c: 8 });
     });
     test('paren-map-implicit-structure-space', () => {
-        const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
+        const j = mj(jsonic_next_1.Jsonic.make().use(expr_1.Expr));
         expect(j('{a:(1)}'))[_mo_]({ a: ['(', 1] });
         expect(j('{a:(1 2)}'))[_mo_]({ a: ['(', [1, 2]] });
         expect(j('{a:(1 2 3)}'))[_mo_]({ a: ['(', [1, 2, 3]] });
@@ -949,7 +949,7 @@ describe('expr', () => {
         expect(j('d:0,a:(1 2 3) b:(8 9) c:8'))[_mo_]({ d: 0, a: ['(', [1, 2, 3]], b: ['(', [8, 9]], c: 8 });
     });
     test('paren-list-implicit-structure-comma', () => {
-        const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
+        const j = mj(jsonic_next_1.Jsonic.make().use(expr_1.Expr));
         expect(j('[(1)]'))[_mo_]([['(', 1]]);
         expect(j('[(1,2)]'))[_mo_]([['(', [1, 2]]]);
         expect(j('[(1,2,3)]'))[_mo_]([['(', [1, 2, 3]]]);
@@ -1038,7 +1038,7 @@ describe('expr', () => {
         expect(j('0,(1,2,3),(8,9),8'))[_mo_]([0, ['(', [1, 2, 3]], ['(', [8, 9]], 8]);
     });
     test('paren-list-implicit-structure-space', () => {
-        const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
+        const j = mj(jsonic_next_1.Jsonic.make().use(expr_1.Expr));
         expect(j('[(1)]'))[_mo_]([['(', 1]]);
         expect(j('[(1 2)]'))[_mo_]([['(', [1, 2]]]);
         expect(j('[(1 2 3)]'))[_mo_]([['(', [1, 2, 3]]]);
@@ -1127,7 +1127,7 @@ describe('expr', () => {
         expect(j('0 (1 2 3) (8 9) 8'))[_mo_]([0, ['(', [1, 2, 3]], ['(', [8, 9]], 8]);
     });
     test('paren-implicit-list', () => {
-        const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
+        const j = mj(jsonic_next_1.Jsonic.make().use(expr_1.Expr));
         expect(j('(a)'))[_mo_](['(', 'a']);
         expect(j('(a,b)'))[_mo_](['(', ['a', 'b']]);
         expect(j('(a,b,c)'))[_mo_](['(', ['a', 'b', 'c']]);
@@ -1151,7 +1151,7 @@ describe('expr', () => {
         expect(j('foo (1,a)'))[_mo_](['foo', ['(', [1, 'a']]]);
     });
     test('paren-implicit-map', () => {
-        const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
+        const j = mj(jsonic_next_1.Jsonic.make().use(expr_1.Expr));
         expect(j('(a:1,b:2)'))[_mo_](['(', { a: 1, b: 2 }]);
         expect(j('(a:1 b:2)'))[_mo_](['(', { a: 1, b: 2 }]);
         expect(j('(a:1,b:2,c:3)'))[_mo_](['(', { a: 1, b: 2, c: 3 }]);
@@ -1166,7 +1166,7 @@ describe('expr', () => {
         expect(j('(a:1+2 b:3+4 c:5+6)'))[_mo_](['(', { a: ['+', 1, 2], b: ['+', 3, 4], c: ['+', 5, 6] }]);
     });
     test('add-paren', () => {
-        const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+        const je = jsonic_next_1.Jsonic.make().use(expr_1.Expr, {
             op: {
                 angle: {
                     paren: true, osrc: '<', csrc: '>'
@@ -1183,7 +1183,7 @@ describe('expr', () => {
         expect(j('1*<2+3>'))[_mo_](['*', 1, ['<', ['+', 2, 3]]]);
     });
     test('paren-preval-basic', () => {
-        const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+        const je = jsonic_next_1.Jsonic.make().use(expr_1.Expr, {
             op: {
                 plain: {
                     preval: {},
@@ -1242,7 +1242,7 @@ describe('expr', () => {
         expect(j('1<2><3><4><5>+9'))[_mo_](['+', ['<', ['<', ['<', ['<', 1, 2], 3], 4], 5], 9]);
     });
     test('paren-preval-overload', () => {
-        const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+        const je = jsonic_next_1.Jsonic.make().use(expr_1.Expr, {
             op: {
                 factorial: {
                     suffix: true, left: 15000, src: '!'
@@ -1313,7 +1313,7 @@ describe('expr', () => {
         expect(j('a{{x:1,y:2}}'))[_mo_](['{', 'a', { x: 1, y: 2 }]);
     });
     test('paren-preval-implicit', () => {
-        const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+        const je = jsonic_next_1.Jsonic.make().use(expr_1.Expr, {
             op: {
                 plain: {
                     preval: true
@@ -1327,7 +1327,7 @@ describe('expr', () => {
         expect(j('foo,(1+2+3,a)'))[_mo_](['foo', ['(', [['+', ['+', 1, 2], 3], 'a']]]);
     });
     test('add-infix', () => {
-        const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+        const je = jsonic_next_1.Jsonic.make().use(expr_1.Expr, {
             op: {
                 foo: {
                     infix: true, left: 180, right: 190, src: 'foo'
@@ -1339,7 +1339,7 @@ describe('expr', () => {
     });
     // TODO: provide as external tests for other plugins
     test('json-base', () => {
-        const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
+        const j = mj(jsonic_next_1.Jsonic.make().use(expr_1.Expr));
         expect(j('1')).toEqual(1);
         expect(j('"a"')).toEqual('a');
         expect(j('true')).toEqual(true);
@@ -1351,7 +1351,7 @@ describe('expr', () => {
         });
     });
     test('jsonic-base', () => {
-        const j = mj(jsonic_1.Jsonic.make().use(expr_1.Expr));
+        const j = mj(jsonic_next_1.Jsonic.make().use(expr_1.Expr));
         expect(j('1 "a" true # foo'))[_mo_]([1, 'a', true]);
         expect(j('x:1 y:"a" z:true // bar'))[_mo_]({ x: 1, y: 'a', z: true });
         expect(j('a:b:1 \n /* zed */ a:c:{\nd:e:[1 2]}'))[_mo_]({
@@ -1362,7 +1362,7 @@ describe('expr', () => {
         });
     });
     test('ternary-basic', () => {
-        const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+        const je = jsonic_next_1.Jsonic.make().use(expr_1.Expr, {
             // TODO: make this work
             op: {
                 factorial: {
@@ -1521,7 +1521,7 @@ describe('expr', () => {
         expect(j('(a,1?2:3,b)'))[_mo_](['(', ['a', ['?', 1, 2, 3], 'b']]);
     });
     test('ternary-paren-preval', () => {
-        const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+        const je = jsonic_next_1.Jsonic.make().use(expr_1.Expr, {
             // TODO: make this work
             op: {
                 ternary: {
@@ -1558,7 +1558,7 @@ describe('expr', () => {
         expect(j('foo(a,1?2:3,b)'))[_mo_](['(', 'foo', ['a', ['?', 1, 2, 3], 'b']]);
     });
     test('ternary-many', () => {
-        const je0 = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+        const je0 = jsonic_next_1.Jsonic.make().use(expr_1.Expr, {
             // TODO: make this work
             op: {
                 foo: {
@@ -1577,7 +1577,7 @@ describe('expr', () => {
         expect(j0('1QQ2CC3'))[_mo_](['QQ', 1, 2, 3]);
         expect(j0('1QQ2?4:5CC3'))[_mo_](['QQ', 1, ['?', 2, 4, 5], 3]);
         expect(j0('1?2QQ4CC5:3'))[_mo_](['?', 1, ['QQ', 2, 4, 5], 3]);
-        const je1 = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+        const je1 = jsonic_next_1.Jsonic.make().use(expr_1.Expr, {
             // TODO: make this work
             op: {
                 foo: {
@@ -1622,7 +1622,7 @@ describe('expr', () => {
                 }
             }
         };
-        const je0 = jsonic_1.Jsonic.make().use(expr_1.Expr, opts);
+        const je0 = jsonic_next_1.Jsonic.make().use(expr_1.Expr, opts);
         const j0 = mj(je0);
         expect(j0('a.b'))[_mo_](['.', 'a', 'b']);
         expect(j0('a.b.c'))[_mo_](['.', 'a', ['.', 'b', 'c']]);
@@ -1657,7 +1657,7 @@ describe('expr', () => {
         expect((0, expr_1.evaluate)(je0('a.b.c.d'), resolve)).toEqual('a/b/c/d');
         expect((0, expr_1.evaluate)(je0('.a'), resolve)).toEqual('/a');
         expect((0, expr_1.evaluate)(je0('.a.b'), resolve)).toEqual('/a/b');
-        const je1 = jsonic_1.Jsonic.make().use(expr_1.Expr, { ...opts, evaluate: resolve });
+        const je1 = jsonic_next_1.Jsonic.make().use(expr_1.Expr, { ...opts, evaluate: resolve });
         // expect(je1('{x:a.b}', { log: -1 })).toEqual({ x: 'a/b' })
         // expect(je1('x:a.b', { log: -1 })).toEqual({ x: 'a/b' })
         expect(je1('{x:a.b}')).toEqual({ x: 'a/b' });
@@ -1684,7 +1684,7 @@ describe('expr', () => {
             let mf = MF[op.name];
             return mf ? mf(...terms) : NaN;
         };
-        const j = jsonic_1.Jsonic.make().use(expr_1.Expr);
+        const j = jsonic_next_1.Jsonic.make().use(expr_1.Expr);
         expect((0, expr_1.evaluate)(ME(PLUS, 1, 2), mr)).toEqual(3);
         expect((0, expr_1.evaluate)(j('1+2'), mr)).toEqual(3);
         expect((0, expr_1.evaluate)(ME(PLUS, ME(PLUS, 1, 2), 3), mr)).toEqual(6);
@@ -1697,7 +1697,7 @@ describe('expr', () => {
         expect((0, expr_1.evaluate)(j('(1+2)+3'), mr)).toEqual(6);
         expect((0, expr_1.evaluate)(j('(1+2)*3'), mr)).toEqual(9);
         expect((0, expr_1.evaluate)(j('3*(1+2)'), mr)).toEqual(9);
-        const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+        const je = jsonic_next_1.Jsonic.make().use(expr_1.Expr, {
             evaluate: mr
         });
         expect(je('11+22', { xlog: -1 })).toEqual(33);
@@ -1718,7 +1718,7 @@ describe('expr', () => {
             let mf = MF[op.name];
             return mf ? mf(...terms) : [];
         };
-        const j = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+        const j = jsonic_next_1.Jsonic.make().use(expr_1.Expr, {
             op: {
                 union: {
                     infix: true, src: 'U', left: 140, right: 150,
