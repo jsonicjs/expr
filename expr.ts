@@ -325,10 +325,12 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   })
 
   jsonic.rule('list', (rs: RuleSpec) => {
-    let orig_bo: any = rs.def.bo
-    rs.bo((...rest: any) => {
-      orig_bo(...rest)
+    // let orig_bo: any = rs.def.bo
+    // rs.bo((...rest: any) => {
+    // orig_bo(...rest)
 
+    // rs.def.bo.push((...rest: any) => {
+    rs.bo(false, (...rest: any) => {
       // List elements are new expressions.
       rest[0].n.expr = 0
       rest[0].n.expr_prefix = 0
@@ -339,10 +341,12 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   })
 
   jsonic.rule('map', (rs: RuleSpec) => {
-    let orig_bo: any = rs.def.bo
-    rs.bo((...rest: any) => {
-      orig_bo(...rest)
+    // let orig_bo: any = rs.def.bo
+    // rs.bo((...rest: any) => {
+    //   orig_bo(...rest)
 
+    // rs.def.bo.push((...rest: any) => {
+    rs.bo(false, (...rest: any) => {
       // Map values are new expressions.
       rest[0].n.expr = 0
       rest[0].n.expr_prefix = 0
@@ -1054,8 +1058,6 @@ Expr.defaults = {
     },
   },
 } as ExprOptions
-
-// const jj = (x: any) => JSON.parse(JSON.stringify(x))
 
 // Pratt algorithm embeds next operator.
 // NOTE: preserves referential integrity of root expression.
