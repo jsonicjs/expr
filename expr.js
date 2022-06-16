@@ -429,7 +429,7 @@ let Expr = function expr(jsonic, options) {
             // Only evaluate at root of expr (where r.n.expr === 0)
             if (options.evaluate && 0 === r.n.expr) {
                 // The parent node will contain the root of the expr tree
-                r.parent.node = evaluate(r.parent.node, options.evaluate);
+                r.parent.node = evaluate(r.parent, r.parent.node, options.evaluate);
             }
         });
     });
@@ -913,12 +913,13 @@ function prattify(expr, op) {
     }
     return out;
 }
-function evaluate(expr, resolve) {
+// function evaluate(rule: Rule, expr: any, resolve: (rule: Rule, op: Op, ...terms: any) => any) {
+function evaluate(rule, expr, resolve) {
     if (null == expr) {
         return expr;
     }
     if (isOp(expr)) {
-        return resolve(expr[0], expr.slice(1).map((term) => evaluate(term, resolve)));
+        return resolve(rule, expr[0], expr.slice(1).map((term) => evaluate(rule, term, resolve)));
     }
     return expr;
 }

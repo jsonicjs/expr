@@ -1,4 +1,4 @@
-import { Plugin, Token } from '@jsonic/jsonic-next';
+import { Plugin, Rule, Token } from '@jsonic/jsonic-next';
 declare type OpDef = {
     src?: string | string[];
     osrc?: string;
@@ -49,13 +49,14 @@ declare type Op = {
     token: Token;
     OP_MARK: typeof OP_MARK;
 };
+declare type Resolve = (rule: Rule, op: Op, ...terms: any) => any;
 declare const OP_MARK: {};
 declare let Expr: Plugin;
 declare function prattify(expr: any, op?: Op): any[];
-declare function evaluate(expr: any, resolve: (op: Op, ...terms: any) => any): any;
+declare function evaluate(rule: Rule, expr: any, resolve: Resolve): any;
 declare const testing: {
     prattify: typeof prattify;
     opify: (x: any) => any;
 };
 export { Expr, evaluate, testing };
-export type { ExprOptions, OpDef, Op };
+export type { ExprOptions, OpDef, Op, Resolve };
