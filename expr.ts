@@ -107,10 +107,8 @@ type Op = {
 // Lookup operators by token.
 type OpMap = { [tin: number]: Op }
 
-
 // Resolve the value of an operartion
 type Resolve = (rule: Rule, op: Op, ...terms: any) => any
-
 
 // Mark Operator objects as owned by this plugin.
 const OP_MARK = {}
@@ -208,103 +206,103 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
       // The prefix operator of the first term of an expression.
       hasPrefix
         ? {
-          s: [PREFIX],
-          b: 1,
-          n: { expr_prefix: 1, expr_suffix: 0 },
-          p: 'expr',
-          g: 'expr,expr-prefix',
-        }
+            s: [PREFIX],
+            b: 1,
+            n: { expr_prefix: 1, expr_suffix: 0 },
+            p: 'expr',
+            g: 'expr,expr-prefix',
+          }
         : NONE,
 
       // An opening parenthesis of an expression.
       hasParen
         ? {
-          s: [OP],
-          b: 1,
-          p: 'paren',
-          c: (r: Rule, ctx: Context) => {
-            const pdef = parenOTM[r.o0.tin]
-            let pass = true
+            s: [OP],
+            b: 1,
+            p: 'paren',
+            c: (r: Rule, ctx: Context) => {
+              const pdef = parenOTM[r.o0.tin]
+              let pass = true
 
-            if (pdef.preval.required) {
-              pass = 'val' === r.prev.name && r.prev.use.paren_preval
-            }
-
-            // Paren with preval as first term becomes root.
-            if (pass) {
-              if (1 === r.prev.id) {
-                ctx.root = () => r.node
+              if (pdef.preval.required) {
+                pass = 'val' === r.prev.name && r.prev.use.paren_preval
               }
-            }
 
-            return pass
-          },
-          g: 'expr,expr-paren',
-        }
+              // Paren with preval as first term becomes root.
+              if (pass) {
+                if (1 === r.prev.id) {
+                  ctx.root = () => r.node
+                }
+              }
+
+              return pass
+            },
+            g: 'expr,expr-paren',
+          }
         : NONE,
     ]).close([
       hasTernary
         ? {
-          s: [TERN0],
-          c: (r: Rule) => !r.n.expr,
-          b: 1,
-          r: 'ternary',
-          g: 'expr,expr-ternary',
-        }
+            s: [TERN0],
+            c: (r: Rule) => !r.n.expr,
+            b: 1,
+            r: 'ternary',
+            g: 'expr,expr-ternary',
+          }
         : NONE,
 
       // The infix operator following the first term of an expression.
       hasInfix
         ? {
-          s: [INFIX],
-          b: 1,
-          n: { expr_prefix: 0, expr_suffix: 0 },
-          r: (r: Rule) => (!r.n.expr ? 'expr' : ''),
-          g: 'expr,expr-infix',
-        }
+            s: [INFIX],
+            b: 1,
+            n: { expr_prefix: 0, expr_suffix: 0 },
+            r: (r: Rule) => (!r.n.expr ? 'expr' : ''),
+            g: 'expr,expr-infix',
+          }
         : NONE,
 
       // The suffix operator following the first term of an expression.
       hasSuffix
         ? {
-          s: [SUFFIX],
-          b: 1,
-          n: { expr_prefix: 0, expr_suffix: 1 },
-          r: (r: Rule) => (!r.n.expr ? 'expr' : ''),
-          g: 'expr,expr-suffix',
-        }
+            s: [SUFFIX],
+            b: 1,
+            n: { expr_prefix: 0, expr_suffix: 1 },
+            r: (r: Rule) => (!r.n.expr ? 'expr' : ''),
+            g: 'expr,expr-suffix',
+          }
         : NONE,
 
       // The closing parenthesis of an expression.
       hasParen
         ? {
-          s: [CP],
-          c: (r: Rule) => !!r.n.expr_paren,
-          b: 1,
-          g: 'expr,expr-paren',
-        }
+            s: [CP],
+            c: (r: Rule) => !!r.n.expr_paren,
+            b: 1,
+            g: 'expr,expr-paren',
+          }
         : NONE,
 
       // The opening parenthesis of an expression with a preceding value.
       // foo(1) => ['(','foo',1]
       hasParen
         ? {
-          s: [OP],
-          b: 1,
-          r: 'val',
-          c: (r: Rule) => parenOTM[r.c0.tin].preval.active,
-          u: { paren_preval: true },
-          g: 'expr,expr-paren,expr-paren-preval',
-        }
+            s: [OP],
+            b: 1,
+            r: 'val',
+            c: (r: Rule) => parenOTM[r.c0.tin].preval.active,
+            u: { paren_preval: true },
+            g: 'expr,expr-paren,expr-paren-preval',
+          }
         : NONE,
 
       hasTernary
         ? {
-          s: [TERN1],
-          c: (r: Rule) => !!r.n.expr_ternary,
-          b: 1,
-          g: 'expr,expr-ternary',
-        }
+            s: [TERN1],
+            c: (r: Rule) => !!r.n.expr_ternary,
+            b: 1,
+            g: 'expr,expr-ternary',
+          }
         : NONE,
 
       // Don't create implicit list inside expression (comma separator).
@@ -366,21 +364,21 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
       // Close implicit list within parens.
       hasParen
         ? {
-          s: [CP],
-          b: 1,
-          c: (r: Rule) => !!r.n.expr_paren,
-          g: 'expr,expr-paren,imp,close,list',
-        }
+            s: [CP],
+            b: 1,
+            c: (r: Rule) => !!r.n.expr_paren,
+            g: 'expr,expr-paren,imp,close,list',
+          }
         : NONE,
 
       // Following elem is a paren expression.
       hasParen
         ? {
-          s: [OP],
-          b: 1,
-          r: 'elem',
-          g: 'expr,expr-paren,imp,open,list',
-        }
+            s: [OP],
+            b: 1,
+            r: 'elem',
+            g: 'expr,expr-paren,imp,open,list',
+          }
         : NONE,
     ])
   })
@@ -390,11 +388,11 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
       // Close implicit map within parens.
       hasParen
         ? {
-          s: [CP],
-          b: 1,
-          c: (r: Rule) => !!r.n.expr_paren || 0 < r.n.pk,
-          g: 'expr,expr-paren,imp,map',
-        }
+            s: [CP],
+            b: 1,
+            c: (r: Rule) => !!r.n.expr_paren || 0 < r.n.pk,
+            g: 'expr,expr-paren,imp,map',
+          }
         : NONE,
     ])
   })
@@ -403,63 +401,63 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
     rs.open([
       hasPrefix
         ? {
-          s: [PREFIX],
-          c: (r: Rule) => !!r.n.expr_prefix,
-          n: { expr: 1, il: 1, im: 1 },
-          p: 'val',
-          g: 'expr,expr-prefix',
-          a: (r: Rule) => {
-            const op = makeOp(r.o0, prefixTM)
-            r.node = isOp(r.parent.node)
-              ? prattify(r.parent.node, op)
-              : prior(r, r.parent, op)
-          },
-        }
+            s: [PREFIX],
+            c: (r: Rule) => !!r.n.expr_prefix,
+            n: { expr: 1, il: 1, im: 1 },
+            p: 'val',
+            g: 'expr,expr-prefix',
+            a: (r: Rule) => {
+              const op = makeOp(r.o0, prefixTM)
+              r.node = isOp(r.parent.node)
+                ? prattify(r.parent.node, op)
+                : prior(r, r.parent, op)
+            },
+          }
         : NONE,
 
       hasInfix
         ? {
-          s: [INFIX],
-          p: 'val',
-          n: { expr: 1, expr_prefix: 0, il: 1, im: 1 },
-          a: (r: Rule) => {
-            const prev = r.prev
-            const parent = r.parent
-            const op = makeOp(r.o0, infixTM)
+            s: [INFIX],
+            p: 'val',
+            n: { expr: 1, expr_prefix: 0, il: 1, im: 1 },
+            a: (r: Rule) => {
+              const prev = r.prev
+              const parent = r.parent
+              const op = makeOp(r.o0, infixTM)
 
-            // Second and further operators.
-            if (isOp(parent.node) && !isTernaryOp(parent.node)) {
-              r.node = prattify(parent.node, op)
-            }
+              // Second and further operators.
+              if (isOp(parent.node) && !isTernaryOp(parent.node)) {
+                r.node = prattify(parent.node, op)
+              }
 
-            // First term was unary expression.
-            else if (isOp(prev.node)) {
-              r.node = prattify(prev.node, op)
-              r.parent = prev
-            }
+              // First term was unary expression.
+              else if (isOp(prev.node)) {
+                r.node = prattify(prev.node, op)
+                r.parent = prev
+              }
 
-            // First term was plain value or ternary part.
-            else {
-              r.node = prior(r, prev, op)
-            }
-          },
-          g: 'expr,expr-infix',
-        }
+              // First term was plain value or ternary part.
+              else {
+                r.node = prior(r, prev, op)
+              }
+            },
+            g: 'expr,expr-infix',
+          }
         : NONE,
 
       hasSuffix
         ? {
-          s: [SUFFIX],
-          n: { expr: 1, expr_prefix: 0, il: 1, im: 1 },
-          a: (r: Rule) => {
-            const prev = r.prev
-            const op = makeOp(r.o0, suffixTM)
-            r.node = isOp(prev.node)
-              ? prattify(prev.node, op)
-              : prior(r, prev, op)
-          },
-          g: 'expr,expr-suffix',
-        }
+            s: [SUFFIX],
+            n: { expr: 1, expr_prefix: 0, il: 1, im: 1 },
+            a: (r: Rule) => {
+              const prev = r.prev
+              const op = makeOp(r.o0, suffixTM)
+              r.node = isOp(prev.node)
+                ? prattify(prev.node, op)
+                : prior(r, prev, op)
+            },
+            g: 'expr,expr-suffix',
+          }
         : NONE,
     ])
 
@@ -473,41 +471,41 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
       .close([
         hasInfix
           ? {
-            s: [INFIX],
-            // Complete prefix first.
-            c: (r: Rule) => !r.n.expr_prefix,
-            b: 1,
-            r: 'expr',
-            g: 'expr,expr-infix',
-          }
+              s: [INFIX],
+              // Complete prefix first.
+              c: (r: Rule) => !r.n.expr_prefix,
+              b: 1,
+              r: 'expr',
+              g: 'expr,expr-infix',
+            }
           : NONE,
 
         hasSuffix
           ? {
-            s: [SUFFIX],
-            c: (r: Rule) => !r.n.expr_prefix,
-            b: 1,
-            r: 'expr',
-            g: 'expr,expr-suffix',
-          }
+              s: [SUFFIX],
+              c: (r: Rule) => !r.n.expr_prefix,
+              b: 1,
+              r: 'expr',
+              g: 'expr,expr-suffix',
+            }
           : NONE,
 
         hasParen
           ? {
-            s: [CP],
-            c: (r: Rule) => !!r.n.expr_paren,
-            b: 1,
-          }
+              s: [CP],
+              c: (r: Rule) => !!r.n.expr_paren,
+              b: 1,
+            }
           : NONE,
 
         hasTernary
           ? {
-            s: [TERN0],
-            c: (r: Rule) => !r.n.expr_prefix,
-            b: 1,
-            r: 'ternary',
-            g: 'expr,expr-ternary',
-          }
+              s: [TERN0],
+              c: (r: Rule) => !r.n.expr_prefix,
+              b: 1,
+              r: 'ternary',
+              g: 'expr,expr-ternary',
+            }
           : NONE,
 
         // Implicit list at the top level.
@@ -575,44 +573,44 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
       .open([
         hasParen
           ? {
-            s: [OP, CP],
-            b: 1,
-            g: 'expr,expr-paren,empty',
-            c: (r: Rule) =>
-              parenOTM[r.o0.tin].name === parenCTM[r.o1.tin].name,
-            a: makeOpenParen(parenOTM),
-          }
+              s: [OP, CP],
+              b: 1,
+              g: 'expr,expr-paren,empty',
+              c: (r: Rule) =>
+                parenOTM[r.o0.tin].name === parenCTM[r.o1.tin].name,
+              a: makeOpenParen(parenOTM),
+            }
           : NONE,
 
         hasParen
           ? {
-            s: [OP],
-            p: 'val',
-            n: {
-              expr_paren: 1,
-              expr: 0,
-              expr_prefix: 0,
-              expr_suffix: 0,
-            },
-            g: 'expr,expr-paren,open',
-            a: makeOpenParen(parenOTM),
-          }
+              s: [OP],
+              p: 'val',
+              n: {
+                expr_paren: 1,
+                expr: 0,
+                expr_prefix: 0,
+                expr_suffix: 0,
+              },
+              g: 'expr,expr-paren,open',
+              a: makeOpenParen(parenOTM),
+            }
           : NONE,
       ])
 
       .close([
         hasParen
           ? {
-            s: [CP],
-            c: (r: Rule) => {
-              const pdef = parenCTM[r.c0.tin]
-              let pd = 'expr_paren_depth_' + pdef.name
-              return !!r.n[pd]
-            },
+              s: [CP],
+              c: (r: Rule) => {
+                const pdef = parenCTM[r.c0.tin]
+                let pd = 'expr_paren_depth_' + pdef.name
+                return !!r.n[pd]
+              },
 
-            a: makeCloseParen(parenCTM),
-            g: 'expr,expr-paren,close',
-          }
+              a: makeCloseParen(parenCTM),
+              g: 'expr,expr-paren,close',
+            }
           : NONE,
       ])
   })
@@ -683,8 +681,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           b: (_r: Rule, ctx: Context) => (CP.includes(ctx.t0.tin) ? 1 : 0),
           r: (r: Rule, ctx: Context) =>
             !CP.includes(ctx.t0.tin) &&
-              (0 === r.d ||
-                (r.prev.use.expr_ternary_paren && !r.parent.node?.length))
+            (0 === r.d ||
+              (r.prev.use.expr_ternary_paren && !r.parent.node?.length))
               ? 'elem'
               : '',
           a: implicitTernaryAction,
@@ -978,15 +976,15 @@ function makeParenMap(
             null == pdef.preval
               ? false
               : null == pdef.preval.active
-                ? true
-                : pdef.preval.active,
+              ? true
+              : pdef.preval.active,
           // False by default.
           required:
             null == pdef.preval
               ? false
               : null == pdef.preval.required
-                ? false
-                : pdef.preval.required,
+              ? false
+              : pdef.preval.required,
         },
         use: {} as any,
         paren: true,
