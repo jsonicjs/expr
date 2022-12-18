@@ -96,6 +96,8 @@ let Expr = function expr(jsonic, options) {
     const hasTernary = 0 < TERN0.length && 0 < TERN1.length;
     const hasParen = 0 < OP.length && 0 < CP.length;
     const CA = jsonic.token.CA;
+    const CS = jsonic.token.CS;
+    const CB = jsonic.token.CB;
     const TX = jsonic.token.TX;
     const NR = jsonic.token.NR;
     const ST = jsonic.token.ST;
@@ -104,12 +106,14 @@ let Expr = function expr(jsonic, options) {
     const VAL = [TX, NR, ST, VL];
     const NONE = null;
     jsonic.rule('val', (rs) => {
+        // TODO: jsonic - make it easier to handle this case
         // Implicit pair not allowed inside ternary
         if (hasTernary && TERN1.includes(jsonic.token.CL)) {
             let pairkeyalt = rs.def.open.find((a) => a.g.includes('pair'));
             pairkeyalt.c = (r) => !r.n.expr_ternary;
         }
-        rs.open([
+        rs
+            .open([
             // The prefix operator of the first term of an expression.
             hasPrefix
                 ? {
@@ -134,8 +138,8 @@ let Expr = function expr(jsonic, options) {
                         }
                         // Paren with preval as first term becomes root.
                         if (pass) {
-                            if (1 === r.prev.id) {
-                                ctx.root = () => r.node;
+                            if (1 === r.prev.i) {
+                                ctx.root = () => r;
                             }
                         }
                         return pass;
@@ -143,7 +147,8 @@ let Expr = function expr(jsonic, options) {
                     g: 'expr,expr-paren',
                 }
                 : NONE,
-        ]).close([
+        ])
+            .close([
             hasTernary
                 ? {
                     s: [TERN0],
@@ -221,24 +226,27 @@ let Expr = function expr(jsonic, options) {
         ]);
     });
     jsonic.rule('list', (rs) => {
-        // let orig_bo: any = rs.def.bo
-        // rs.bo((...rest: any) => {
-        // orig_bo(...rest)
-        // rs.def.bo.push((...rest: any) => {
-        rs.bo(false, (...rest) => {
+        // rs.bo(false, (...rest: any) => {
+        rs.bo(false, (r) => {
             // List elements are new expressions.
-            rest[0].n.expr = 0;
-            rest[0].n.expr_prefix = 0;
-            rest[0].n.expr_suffix = 0;
-            rest[0].n.expr_paren = 0;
-            rest[0].n.expr_ternary = 0;
-        });
+            // Unless this is an implicit list.
+            if (!r.prev.use.implist) {
+                r.n.expr = 0;
+                r.n.expr_prefix = 0;
+                r.n.expr_suffix = 0;
+                r.n.expr_paren = 0;
+                r.n.expr_ternary = 0;
+            }
+        })
+            .close([
+            hasParen && {
+                s: [CP],
+                // If end of normal list, consume `]` - it's not a close paren.
+                b: (r) => (CS === r.c0.tin && !r.n.expr_paren) ? 0 : 1
+            }
+        ]);
     });
     jsonic.rule('map', (rs) => {
-        // let orig_bo: any = rs.def.bo
-        // rs.bo((...rest: any) => {
-        //   orig_bo(...rest)
-        // rs.def.bo.push((...rest: any) => {
         rs.bo(false, (...rest) => {
             // Map values are new expressions.
             rest[0].n.expr = 0;
@@ -246,7 +254,14 @@ let Expr = function expr(jsonic, options) {
             rest[0].n.expr_suffix = 0;
             rest[0].n.expr_paren = 0;
             rest[0].n.expr_ternary = 0;
-        });
+        })
+            .close([
+            hasParen && {
+                s: [CP],
+                // If end of normal map, consume `}` - it's not a close paren.
+                b: (r) => (CB === r.c0.tin && !r.n.expr_paren) ? 0 : 1
+            }
+        ]);
     });
     jsonic.rule('elem', (rs) => {
         rs.close([
@@ -289,7 +304,7 @@ let Expr = function expr(jsonic, options) {
                 ? {
                     s: [PREFIX],
                     c: (r) => !!r.n.expr_prefix,
-                    n: { expr: 1, il: 1, im: 1 },
+                    n: { expr: 1, dlist: 1, dmap: 1 },
                     p: 'val',
                     g: 'expr,expr-prefix',
                     a: (r) => {
@@ -304,7 +319,7 @@ let Expr = function expr(jsonic, options) {
                 ? {
                     s: [INFIX],
                     p: 'val',
-                    n: { expr: 1, expr_prefix: 0, il: 1, im: 1 },
+                    n: { expr: 1, expr_prefix: 0, dlist: 1, dmap: 1 },
                     a: (r) => {
                         const prev = r.prev;
                         const parent = r.parent;
@@ -329,7 +344,7 @@ let Expr = function expr(jsonic, options) {
             hasSuffix
                 ? {
                     s: [SUFFIX],
-                    n: { expr: 1, expr_prefix: 0, il: 1, im: 1 },
+                    n: { expr: 1, expr_prefix: 0, dlist: 1, dmap: 1 },
                     a: (r) => {
                         const prev = r.prev;
                         const op = makeOp(r.o0, suffixTM);
@@ -436,8 +451,10 @@ let Expr = function expr(jsonic, options) {
     jsonic.rule('paren', (rs) => {
         rs.bo((r) => {
             // Allow implicits inside parens
-            r.n.im = 0;
-            r.n.il = 0;
+            // r.n.im = 0
+            // r.n.il = 0
+            r.n.dmap = 0;
+            r.n.dlist = 0;
             r.n.pk = 0;
         })
             .open([
@@ -880,7 +897,6 @@ function prattify(expr, op) {
             // op is higher
             else {
                 const end = expr_op.terms;
-                // if (isOp(expr[end]) && expr[end][0].right < op.left) {
                 if (isOp(expr[end]) && expr[end][0].right < op.left) {
                     out = prattify(expr[end], op);
                 }
@@ -913,7 +929,6 @@ function prattify(expr, op) {
     }
     return out;
 }
-// function evaluate(rule: Rule, expr: any, resolve: (rule: Rule, op: Op, ...terms: any) => any) {
 function evaluate(rule, expr, resolve) {
     if (null == expr) {
         return expr;

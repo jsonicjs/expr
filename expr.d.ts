@@ -1,5 +1,5 @@
 import { Plugin, Rule, Token } from '@jsonic/jsonic-next';
-declare type OpDef = {
+type OpDef = {
     src?: string | string[];
     osrc?: string;
     csrc?: string;
@@ -16,13 +16,13 @@ declare type OpDef = {
         required?: boolean;
     };
 };
-declare type ExprOptions = {
+type ExprOptions = {
     op?: {
         [name: string]: OpDef;
     };
     evaluate?: typeof evaluate;
 };
-declare type Op = {
+type Op = {
     name: string;
     src: string;
     left: number;
@@ -49,7 +49,7 @@ declare type Op = {
     token: Token;
     OP_MARK: typeof OP_MARK;
 };
-declare type Resolve = (rule: Rule, op: Op, ...terms: any) => any;
+type Resolve = (rule: Rule, op: Op, ...terms: any) => any;
 declare const OP_MARK: {};
 declare let Expr: Plugin;
 declare function prattify(expr: any, op?: Op): any[];

@@ -1,5 +1,4 @@
-const { Jsonic } = require('jsonic')
-const { Debug } = require('jsonic/debug')
+const { Jsonic, Debug, util } = require('@jsonic/jsonic-next')
 
 const { Expr } = require('..')
 
@@ -13,7 +12,7 @@ const S = (x) =>
           ...(1 < x.length ? x.slice(1).map((t) => S(t)) : []),
         ].filter((t) => undefined !== t)
     : null != x && 'object' === typeof x
-    ? omap(x, ([n, v]) => [n, S(v)])
+    ? util.omap(x, ([n, v]) => [n, S(v)])
     : x
 
 const clean = (v) => JSON.parse(JSON.stringify(v))
@@ -43,10 +42,10 @@ const j = Jsonic.make({
       //   infix: true, left: 16, right: 17, src: ';'
       // },
 
-      foo: {
-        ternary: true,
-        src: ['?', ':'],
-      },
+      // foo: {
+      //   ternary: true,
+      //   src: ['?', ':'],
+      // },
       // bar: {
       //   ternary: true,
       //   src: ['QQ', 'CC'],
@@ -59,19 +58,21 @@ const j = Jsonic.make({
       // plain: {
       //    preval: {},
       // },
+
       // angle: {
       //   osrc: '<',
       //   csrc: '>',
       //   // preval: { required: true },
       //   postval: {},
       // },
-      // square: {
-      //   osrc: '[',
-      //   csrc: ']',
-      //   preval: {
-      //     required: true
-      //   },
-      // },
+      square: {
+        osrc: '[',
+        csrc: ']',
+	paren: true,
+        preval: {
+          required: true
+        },
+      },
       // brace: {
       //   osrc: '{',
       //   csrc: '}',
@@ -89,7 +90,7 @@ const j = Jsonic.make({
     },
   })
 
-console.log(j.describe())
+console.log(j.debug.describe())
 // , {
 //   op: {
 //     square: {
@@ -102,5 +103,6 @@ console.log(j.describe())
 
 const v = j(process.argv[2], { log: -1 })
 // console.log(v)
+console.log(S(v))
 //console.log(clean(v), '###', v)
 console.dir(clean(S(v)), { depth: null })
