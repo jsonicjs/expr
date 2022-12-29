@@ -112,8 +112,7 @@ let Expr = function expr(jsonic, options) {
             let pairkeyalt = rs.def.open.find((a) => a.g.includes('pair'));
             pairkeyalt.c = (r) => !r.n.expr_ternary;
         }
-        rs
-            .open([
+        rs.open([
             // The prefix operator of the first term of an expression.
             hasPrefix
                 ? {
@@ -147,8 +146,7 @@ let Expr = function expr(jsonic, options) {
                     g: 'expr,expr-paren',
                 }
                 : NONE,
-        ])
-            .close([
+        ]).close([
             hasTernary
                 ? {
                     s: [TERN0],
@@ -237,13 +235,12 @@ let Expr = function expr(jsonic, options) {
                 r.n.expr_paren = 0;
                 r.n.expr_ternary = 0;
             }
-        })
-            .close([
+        }).close([
             hasParen && {
                 s: [CP],
                 // If end of normal list, consume `]` - it's not a close paren.
-                b: (r) => (CS === r.c0.tin && !r.n.expr_paren) ? 0 : 1
-            }
+                b: (r) => (CS === r.c0.tin && !r.n.expr_paren ? 0 : 1),
+            },
         ]);
     });
     jsonic.rule('map', (rs) => {
@@ -254,13 +251,12 @@ let Expr = function expr(jsonic, options) {
             rest[0].n.expr_suffix = 0;
             rest[0].n.expr_paren = 0;
             rest[0].n.expr_ternary = 0;
-        })
-            .close([
+        }).close([
             hasParen && {
                 s: [CP],
                 // If end of normal map, consume `}` - it's not a close paren.
-                b: (r) => (CB === r.c0.tin && !r.n.expr_paren) ? 0 : 1
-            }
+                b: (r) => (CB === r.c0.tin && !r.n.expr_paren ? 0 : 1),
+            },
         ]);
     });
     jsonic.rule('elem', (rs) => {

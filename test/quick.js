@@ -68,9 +68,9 @@ const j = Jsonic.make({
       square: {
         osrc: '[',
         csrc: ']',
-	paren: true,
+        paren: true,
         preval: {
-          required: true
+          required: true,
         },
       },
       // brace: {
