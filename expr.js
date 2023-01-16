@@ -39,18 +39,17 @@ const { omap, entries, values } = jsonic_next_1.util;
 const OP_MARK = {};
 // The plugin itself.
 let Expr = function expr(jsonic, options) {
-    var _a;
     // Ensure comment matcher is first to avoid conflicts with
     // comment markers (//, /*, etc)
-    let lexm = ((_a = jsonic.options.lex) === null || _a === void 0 ? void 0 : _a.match) || [];
-    let cmI = lexm.map((m) => m.name).indexOf('makeCommentMatcher');
-    if (0 < cmI) {
-        jsonic.options({
-            lex: {
-                match: [lexm[cmI], ...lexm.slice(0, cmI), ...lexm.slice(cmI + 1)],
-            },
-        });
-    }
+    // let lexm = jsonic.options.lex?.match || []
+    // let cmI: number = lexm.map((m) => m.name).indexOf('makeCommentMatcher')
+    // if (0 < cmI) {
+    //   jsonic.options({
+    //     lex: {
+    //       match: [lexm[cmI], ...lexm.slice(0, cmI), ...lexm.slice(cmI + 1)],
+    //     },
+    //   })
+    // }
     let token = jsonic.token.bind(jsonic);
     let fixed = jsonic.fixed.bind(jsonic);
     // Build token maps (TM).
@@ -77,6 +76,11 @@ let Expr = function expr(jsonic, options) {
     jsonic.options({
         fixed: {
             token: { ...operatorFixed, ...parenFixed },
+        },
+        lex: {
+            match: {
+                comment: { order: 1e5 },
+            },
         },
     });
     const PREFIX = values(prefixTM).map((op) => op.tin);

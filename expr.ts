@@ -117,15 +117,15 @@ const OP_MARK = {}
 let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   // Ensure comment matcher is first to avoid conflicts with
   // comment markers (//, /*, etc)
-  let lexm = jsonic.options.lex?.match || []
-  let cmI: number = lexm.map((m) => m.name).indexOf('makeCommentMatcher')
-  if (0 < cmI) {
-    jsonic.options({
-      lex: {
-        match: [lexm[cmI], ...lexm.slice(0, cmI), ...lexm.slice(cmI + 1)],
-      },
-    })
-  }
+  // let lexm = jsonic.options.lex?.match || []
+  // let cmI: number = lexm.map((m) => m.name).indexOf('makeCommentMatcher')
+  // if (0 < cmI) {
+  //   jsonic.options({
+  //     lex: {
+  //       match: [lexm[cmI], ...lexm.slice(0, cmI), ...lexm.slice(cmI + 1)],
+  //     },
+  //   })
+  // }
 
   let token = jsonic.token.bind(jsonic) as any
   let fixed = jsonic.fixed.bind(jsonic) as any
@@ -161,6 +161,12 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
   jsonic.options({
     fixed: {
       token: { ...operatorFixed, ...parenFixed },
+    },
+
+    lex: {
+      match: {
+        comment: { order: 1e5 },
+      },
     },
   })
 
