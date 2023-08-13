@@ -234,7 +234,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
               let pass = true
 
               if (pdef.preval.required) {
-                pass = 'val' === r.prev.name && r.prev.use.paren_preval
+                pass = 'val' === r.prev.name && r.prev.u.paren_preval
               }
 
               // Paren with preval as first term becomes root.
@@ -341,7 +341,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
     rs.bo(false, (r: Rule) => {
       // List elements are new expressions.
       // Unless this is an implicit list.
-      if (!r.prev.use.implist) {
+      if (!r.prev.u.implist) {
         r.n.expr = 0
         r.n.expr_prefix = 0
         r.n.expr_suffix = 0
@@ -528,10 +528,10 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
         {
           s: [CA],
           // c: { d: 0 },
-          c: (r) => r.d <= 0,
+          c: (r: Rule) => r.d <= 0,
           n: { expr: 0 },
           r: 'elem',
-          a: (rule: Rule) => (rule.parent.node = rule.node = [rule.node]),
+          a: (r: Rule) => (r.parent.node = r.node = [r.node]),
           g: 'expr,comma,list,top',
         },
 
@@ -539,11 +539,11 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
         {
           s: [VAL],
           // c: { d: 0 },
-          c: (r) => r.d <= 0,
+          c: (r: Rule) => r.d <= 0,
           n: { expr: 0 },
           b: 1,
           r: 'elem',
-          a: (rule: Rule) => (rule.parent.node = rule.node = [rule.node]),
+          a: (r: Rule) => (r.parent.node = r.node = [r.node]),
           g: 'expr,space,list,top',
         },
 
@@ -551,7 +551,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
         {
           s: [CA],
           // c: { n: { pk: 0 } },
-          c: (r) => r.lte('pk'),
+          c: (r: Rule) => r.lte('pk'),
           n: { expr: 0 },
           b: 1,
           h: implicitList,
@@ -561,7 +561,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
         // Implicit list indicated by space separated value.
         {
           // c: { n: { pk: 0, expr_suffix: 0 } },
-          c: (r) => r.lte('pk') && r.lte('expr_suffix'),
+          c: (r: Rule) => r.lte('pk') && r.lte('expr_suffix'),
           n: { expr: 0 },
           h: implicitList,
           g: 'expr,list,val,imp,space',
@@ -654,7 +654,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           g: 'expr,expr-ternary,open',
           a: (r: Rule) => {
             let op = makeOp(r.o0, ternaryTM)
-            r.use.expr_ternary_name = op.name
+            r.u.expr_ternary_name = op.name
 
             if (isOp(r.prev.node)) {
               r.node = makeNode(r.prev.node, op, dupNode(r.prev.node))
@@ -662,19 +662,19 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
               r.node = r.prev.node = makeNode([], op, r.prev.node)
             }
 
-            r.use.expr_ternary_paren =
-              r.n.expr_paren || r.prev.use.expr_ternary_paren || 0
+            r.u.expr_ternary_paren =
+              r.n.expr_paren || r.prev.u.expr_ternary_paren || 0
 
             r.n.expr_paren = 0
           },
         },
         {
           p: 'val',
-          c: (r: Rule) => 2 === r.prev.use.expr_ternary_step,
+          c: (r: Rule) => 2 === r.prev.u.expr_ternary_step,
           a: (r: Rule) => {
-            r.use.expr_ternary_step = r.prev.use.expr_ternary_step
-            r.n.expr_paren = r.use.expr_ternary_paren =
-              r.prev.use.expr_ternary_paren
+            r.u.expr_ternary_step = r.prev.u.expr_ternary_step
+            r.n.expr_paren = r.u.expr_ternary_paren =
+              r.prev.u.expr_ternary_paren
           },
           g: 'expr,expr-ternary,step',
         },
@@ -683,13 +683,13 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           s: [TERN1],
           c: (r: Rule) => {
             return (
-              1 === r.use.expr_ternary_step &&
-              r.use.expr_ternary_name === ternaryTM[r.c0.tin].name
+              1 === r.u.expr_ternary_step &&
+              r.u.expr_ternary_name === ternaryTM[r.c0.tin].name
             )
           },
           r: 'ternary',
           a: (r: Rule) => {
-            r.use.expr_ternary_step++
+            r.u.expr_ternary_step++
             r.node.push(r.child.node)
           },
           g: 'expr,expr-ternary,step',
@@ -704,7 +704,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           r: (r: Rule, ctx: Context) =>
             !CP.includes(ctx.t0.tin) &&
             (0 === r.d ||
-              (r.prev.use.expr_ternary_paren && !r.parent.node?.length))
+              (r.prev.u.expr_ternary_paren && !r.parent.node?.length))
               ? 'elem'
               : '',
           a: implicitTernaryAction,
@@ -719,7 +719,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           r: (r: Rule, ctx: Context) => {
             return (0 === r.d ||
               !CP.includes(ctx.t0.tin) ||
-              r.prev.use.expr_ternary_paren) &&
+              r.prev.u.expr_ternary_paren) &&
               !r.parent.node?.length &&
               ZZ !== ctx.t0.tin
               ? 'elem'
@@ -731,7 +731,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
         // End of ternary.
         {
-          c: (r: Rule) => 0 < r.d && 2 === r.use.expr_ternary_step,
+          c: (r: Rule) => 0 < r.d && 2 === r.u.expr_ternary_step,
           a: (r: Rule) => {
             r.node.push(r.child.node)
           },
@@ -790,7 +790,7 @@ function makeOpenParen(parenOTM: OpMap) {
   return function openParen(r: Rule) {
     const op = makeOp(r.o0, parenOTM)
     let pd = 'expr_paren_depth_' + op.name
-    r.use[pd] = r.n[pd] = 1
+    r.u[pd] = r.n[pd] = 1
     r.node = undefined
   }
 }
@@ -807,7 +807,7 @@ function makeCloseParen(parenCTM: OpMap) {
     let pd = 'expr_paren_depth_' + op.name
 
     // Construct completed paren expression.
-    if (r.use[pd] === r.n[pd]) {
+    if (r.u[pd] === r.n[pd]) {
       const val = r.node
 
       // r.node = [op.osrc]
@@ -816,7 +816,7 @@ function makeCloseParen(parenCTM: OpMap) {
         r.node[1] = val
       }
 
-      if (r.parent.prev.use.paren_preval) {
+      if (r.parent.prev.u.paren_preval) {
         if (isParenOp(r.parent.prev.node)) {
           r.node = makeNode(
             r.parent.prev.node,
@@ -866,14 +866,12 @@ function implicitList(rule: Rule, ctx: Context, a: any) {
 
 function implicitTernaryCond(r: Rule) {
   return (
-    (0 === r.d || 1 <= r.n.expr_paren) &&
-    !r.n.pk &&
-    2 === r.use.expr_ternary_step
+    (0 === r.d || 1 <= r.n.expr_paren) && !r.n.pk && 2 === r.u.expr_ternary_step
   )
 }
 
 function implicitTernaryAction(r: Rule, _ctx: Context, a: AltMatch) {
-  r.n.expr_paren = r.prev.use.expr_ternary_paren
+  r.n.expr_paren = r.prev.u.expr_ternary_paren
   r.node.push(r.child.node)
 
   if ('elem' === a.r) {
