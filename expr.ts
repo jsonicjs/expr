@@ -147,7 +147,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
   let parenFixed = Object.values({ ...parenOTM, ...parenCTM }).reduce(
     (a, p) => ((a[p.otkn] = p.osrc), (a[p.ctkn] = p.csrc), a),
-    {} as any
+    {} as any,
   )
 
   // NOTE: operators with same src will generate same token - this is correct.
@@ -818,7 +818,7 @@ function makeCloseParen(parenCTM: OpMap) {
             r.parent.prev.node,
             r.node[0],
             dupNode(r.parent.prev.node),
-            r.node[1]
+            r.node[1],
           )
         } else {
           r.node.splice(1, 0, r.parent.prev.node)
@@ -898,7 +898,7 @@ function makeOpMap(
   token: (tkn: string | Tin) => Tin | string,
   fixed: (tkn: string) => Tin,
   op: { [name: string]: OpDef },
-  anyfix: 'prefix' | 'suffix' | 'infix' | 'ternary'
+  anyfix: 'prefix' | 'suffix' | 'infix' | 'ternary',
 ): OpMap {
   return Object.entries(op)
     .filter(([_, opdef]: [string, OpDef]) => opdef[anyfix])
@@ -971,7 +971,7 @@ function makeOpMap(
 function makeParenMap(
   token: (tkn_tin: string | Tin) => Tin | string,
   fixed: (tkn: string) => Tin,
-  optop: { [name: string]: OpDef }
+  optop: { [name: string]: OpDef },
 ): OpMap {
   return entries(optop).reduce((a: OpMap, [name, pdef]: [string, any]) => {
     if (pdef.paren) {
@@ -1138,7 +1138,7 @@ function evaluate(rule: Rule, expr: any, resolve: Resolve) {
     return resolve(
       rule,
       expr[0],
-      expr.slice(1).map((term: any) => evaluate(rule, term, resolve))
+      expr.slice(1).map((term: any) => evaluate(rule, term, resolve)),
     )
   }
 
