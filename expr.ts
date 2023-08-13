@@ -527,7 +527,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
         // Implicit list at the top level.
         {
           s: [CA],
-          c: { d: 0 },
+          // c: { d: 0 },
+          c: (r) => r.d <= 0,
           n: { expr: 0 },
           r: 'elem',
           a: (rule: Rule) => (rule.parent.node = rule.node = [rule.node]),
@@ -537,7 +538,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
         // Implicit list at the top level.
         {
           s: [VAL],
-          c: { d: 0 },
+          // c: { d: 0 },
+          c: (r) => r.d <= 0,
           n: { expr: 0 },
           b: 1,
           r: 'elem',
@@ -548,7 +550,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
         // Implicit list indicated by comma.
         {
           s: [CA],
-          c: { n: { pk: 0 } },
+          // c: { n: { pk: 0 } },
+          c: (r) => r.lte('pk'),
           n: { expr: 0 },
           b: 1,
           h: implicitList,
@@ -557,7 +560,8 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
 
         // Implicit list indicated by space separated value.
         {
-          c: { n: { pk: 0, expr_suffix: 0 } },
+          // c: { n: { pk: 0, expr_suffix: 0 } },
+          c: (r) => r.lte('pk') && r.lte('expr_suffix'),
           n: { expr: 0 },
           h: implicitList,
           g: 'expr,list,val,imp,space',
