@@ -1,7 +1,8 @@
 "use strict";
 /* Copyright (c) 2021 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.testing = exports.evaluate = exports.Expr = void 0;
+exports.testing = exports.Expr = void 0;
+exports.evaluate = evaluate;
 // This algorithm is based on Pratt parsing, and draws heavily from
 // the explanation written by Aleksey Kladov here:
 // https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
@@ -940,7 +941,6 @@ function evaluate(rule, expr, resolve) {
     }
     return expr;
 }
-exports.evaluate = evaluate;
 const testing = {
     prattify,
     opify: (x) => ((x.OP_MARK = OP_MARK), x),

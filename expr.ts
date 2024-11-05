@@ -996,15 +996,15 @@ function makeParenMap(
             null == pdef.preval
               ? false
               : null == pdef.preval.active
-              ? true
-              : pdef.preval.active,
+                ? true
+                : pdef.preval.active,
           // False by default.
           required:
             null == pdef.preval
               ? false
               : null == pdef.preval.required
-              ? false
-              : pdef.preval.required,
+                ? false
+                : pdef.preval.required,
         },
         use: {} as any,
         paren: true,

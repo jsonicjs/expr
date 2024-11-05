@@ -12,8 +12,8 @@ const S = (x) =>
           ...(1 < x.length ? x.slice(1).map((t) => S(t)) : []),
         ].filter((t) => undefined !== t)
     : null != x && 'object' === typeof x
-    ? util.omap(x, ([n, v]) => [n, S(v)])
-    : x
+      ? util.omap(x, ([n, v]) => [n, S(v)])
+      : x
 
 const clean = (v) => JSON.parse(JSON.stringify(v))
 
