@@ -1,10 +1,9 @@
 {
   "name": "@jsonic/expr",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "This plugin allows the [Jsonic](https://jsonic.senecajs.org) JSON parser to support expression syntax.",
   "main": "expr.js",
   "type": "commonjs",
-  "browser": "expr.min.js",
   "types": "expr.d.ts",
   "homepage": "https://github.com/jsonicjs/expr",
   "keywords": [
@@ -24,13 +23,14 @@
     "test-some": "jest -t",
     "test-watch": "jest --coverage --watchAll",
     "watch": "tsc -w -d",
-    "build": "tsc -d && cp expr.js expr.min.js && browserify -o expr.min.js -e expr.js -s @JsonicExpr -im -i assert -p tinyify",
+    "build": "tsc -d",
+    "doc": "jsonic-doc",
     "prettier": "prettier --write --no-semi --single-quote *.ts test/*.js",
     "clean": "rm -rf node_modules yarn.lock package-lock.json",
     "reset": "npm run clean && npm i && npm run build && npm test",
     "repo-tag": "REPO_VERSION=`node -e \"console.log(require('./package').version)\"` && echo TAG: v$REPO_VERSION && git commit -a -m v$REPO_VERSION && git push && git tag v$REPO_VERSION && git push --tags;",
     "repo-publish": "npm run clean && npm i && npm run repo-publish-quick",
-    "repo-publish-quick": "npm run prettier && npm run build && npm run test && npm run repo-tag && npm publish --access public --registry https://registry.npmjs.org "
+    "repo-publish-quick": "npm run prettier && npm run build && npm run test && npm run doc && npm run repo-tag && npm publish --access public --registry https://registry.npmjs.org "
   },
   "license": "MIT",
   "files": [
@@ -40,17 +40,16 @@
     "LICENSE"
   ],
   "devDependencies": {
+    "@jsonic/doc": "^0.0.9",
     "@types/jest": "^29.5.14",
-    "browserify": "^17.0.1",
     "esbuild": "^0.24.0",
     "es-jest": "^2.1.0",
     "jest": "^29.7.0",
     "prettier": "^3.3.3",
-    "tinyify": "^4.0.0",
     "typescript": "^5.6.3"
   },
   "peerDependencies": {
-    "@jsonic/jsonic-next": ">=2.14.0"
+    "jsonic": ">=2.15.2"
   },
   "dependencies": {}
 }

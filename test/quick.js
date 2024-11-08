@@ -1,4 +1,4 @@
-const { Jsonic, Debug, util } = require('@jsonic/jsonic-next')
+const { Jsonic, Debug, util } = require('jsonic')
 
 const { Expr } = require('..')
 

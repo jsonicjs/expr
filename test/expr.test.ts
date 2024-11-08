@@ -1,7 +1,7 @@
 /* Copyright (c) 2021-2022 Richard Rodger and other contributors, MIT License */
 
 
-import { Jsonic, Rule, util } from '@jsonic/jsonic-next'
+import { Jsonic, Rule, util } from 'jsonic'
 
 import {
   Expr,
