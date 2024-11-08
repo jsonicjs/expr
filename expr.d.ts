@@ -1,4 +1,4 @@
-import { Plugin, Rule, Token } from 'jsonic';
+import { Plugin, Rule, Context, Token } from 'jsonic';
 type OpDef = {
     src?: string | string[];
     osrc?: string;
@@ -49,11 +49,11 @@ type Op = {
     token: Token;
     OP_MARK: typeof OP_MARK;
 };
-type Resolve = (rule: Rule, op: Op, ...terms: any) => any;
+type Resolve = (rule: Rule, ctx: Context, op: Op, ...terms: any) => any;
 declare const OP_MARK: {};
 declare let Expr: Plugin;
 declare function prattify(expr: any, op?: Op): any[];
-declare function evaluate(rule: Rule, expr: any, resolve: Resolve): any;
+declare function evaluate(rule: Rule, ctx: Context, expr: any, resolve: Resolve): any;
 declare const testing: {
     prattify: typeof prattify;
     opify: (x: any) => any;

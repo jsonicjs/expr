@@ -1,7 +1,7 @@
-/* Copyright (c) 2021-2022 Richard Rodger and other contributors, MIT License */
+/* Copyright (c) 2021-2024 Richard Rodger and other contributors, MIT License */
 
 
-import { Jsonic, Rule, util } from 'jsonic'
+import { Jsonic, Rule, Context, util } from 'jsonic'
 
 import {
   Expr,
@@ -2387,7 +2387,7 @@ describe('expr', () => {
     expect(j0('$.a.b.c'))[_mo_](['.', '$', ['.', 'a', ['.', 'b', 'c']]])
 
 
-    let resolve: Resolve = (_rule: Rule, op: Op, terms: any[]) => {
+    let resolve: Resolve = (_rule: Rule, _ctx: Context, op: Op, terms: any[]) => {
       if ('dot-infix' === op.name) {
         return terms.join('/')
       }
@@ -2397,13 +2397,14 @@ describe('expr', () => {
     }
 
     let r = (null as unknown as Rule)
+    let c = (null as unknown as Context)
 
-    expect(evaluate(r, je0('a.b'), resolve)).toEqual('a/b')
-    expect(evaluate(r, je0('a.b.c'), resolve)).toEqual('a/b/c')
-    expect(evaluate(r, je0('a.b.c.d'), resolve)).toEqual('a/b/c/d')
+    expect(evaluate(r, c, je0('a.b'), resolve)).toEqual('a/b')
+    expect(evaluate(r, c, je0('a.b.c'), resolve)).toEqual('a/b/c')
+    expect(evaluate(r, c, je0('a.b.c.d'), resolve)).toEqual('a/b/c/d')
 
-    expect(evaluate(r, je0('.a'), resolve)).toEqual('/a')
-    expect(evaluate(r, je0('.a.b'), resolve)).toEqual('/a/b')
+    expect(evaluate(r, c, je0('.a'), resolve)).toEqual('/a')
+    expect(evaluate(r, c, je0('.a.b'), resolve)).toEqual('/a/b')
 
     const je1 = Jsonic.make().use(Expr, { ...opts, evaluate: resolve })
     // expect(je1('{x:a.b}', { log: -1 })).toEqual({ x: 'a/b' })
@@ -2436,7 +2437,7 @@ describe('expr', () => {
       'plain-paren': (a: any) => a,
     }
 
-    let mr = (_r: Rule, op: Op, terms: any) => {
+    let mr = (_r: Rule, _ctx: Context, op: Op, terms: any) => {
       // console.log('MR', op, terms)
       let mf = MF[op.name]
       return mf ? mf(...terms) : NaN
@@ -2445,26 +2446,27 @@ describe('expr', () => {
     const j = Jsonic.make().use(Expr)
 
     let r = (null as unknown as Rule)
+    let c = (null as unknown as Context)
 
-    expect(evaluate(r, ME(PLUS, 1, 2), mr)).toEqual(3)
-    expect(evaluate(r, j('1+2'), mr)).toEqual(3)
+    expect(evaluate(r, c, ME(PLUS, 1, 2), mr)).toEqual(3)
+    expect(evaluate(r, c, j('1+2'), mr)).toEqual(3)
 
-    expect(evaluate(r, ME(PLUS, ME(PLUS, 1, 2), 3), mr)).toEqual(6)
-    expect(evaluate(r, j('1+2+3'), mr)).toEqual(6)
+    expect(evaluate(r, c, ME(PLUS, ME(PLUS, 1, 2), 3), mr)).toEqual(6)
+    expect(evaluate(r, c, j('1+2+3'), mr)).toEqual(6)
 
-    expect(evaluate(r, j('1*2+3'), mr)).toEqual(5)
-    expect(evaluate(r, j('1+2*3'), mr)).toEqual(7)
+    expect(evaluate(r, c, j('1*2+3'), mr)).toEqual(5)
+    expect(evaluate(r, c, j('1+2*3'), mr)).toEqual(7)
 
 
-    expect(evaluate(r, j('(1)'), mr)).toEqual(1)
+    expect(evaluate(r, c, j('(1)'), mr)).toEqual(1)
 
-    expect(evaluate(r, j('(1+2)'), mr)).toEqual(3)
+    expect(evaluate(r, c, j('(1+2)'), mr)).toEqual(3)
 
-    expect(evaluate(r, j('3+(1+2)'), mr)).toEqual(6)
-    expect(evaluate(r, j('(1+2)+3'), mr)).toEqual(6)
+    expect(evaluate(r, c, j('3+(1+2)'), mr)).toEqual(6)
+    expect(evaluate(r, c, j('(1+2)+3'), mr)).toEqual(6)
 
-    expect(evaluate(r, j('(1+2)*3'), mr)).toEqual(9)
-    expect(evaluate(r, j('3*(1+2)'), mr)).toEqual(9)
+    expect(evaluate(r, c, j('(1+2)*3'), mr)).toEqual(9)
+    expect(evaluate(r, c, j('3*(1+2)'), mr)).toEqual(9)
 
 
     const je = Jsonic.make().use(Expr, {
@@ -2492,7 +2494,7 @@ describe('expr', () => {
       ,
     }
 
-    let mr = (_r: Rule, op: Op, terms: any) => {
+    let mr = (_r: Rule, _ctx: Context, op: Op, terms: any) => {
       let mf = MF[op.name]
       return mf ? mf(...terms) : []
     }
@@ -2510,16 +2512,17 @@ describe('expr', () => {
 
 
     let r = (null as unknown as Rule)
+    let c = (null as unknown as Context)
 
-    expect(evaluate(r, j('[1]U[2]'), mr)).toEqual([1, 2])
-    expect(evaluate(r, j('[1,3]U[1,2]'), mr)).toEqual([1, 2, 3])
+    expect(evaluate(r, c, j('[1]U[2]'), mr)).toEqual([1, 2])
+    expect(evaluate(r, c, j('[1,3]U[1,2]'), mr)).toEqual([1, 2, 3])
 
-    expect(evaluate(r, j('[1,3]N[1,2]'), mr)).toEqual([1])
-    expect(evaluate(r, j('[1,3]N[2]'), mr)).toEqual([])
-    expect(evaluate(r, j('[1,3]N[2,1]'), mr)).toEqual([1])
+    expect(evaluate(r, c, j('[1,3]N[1,2]'), mr)).toEqual([1])
+    expect(evaluate(r, c, j('[1,3]N[2]'), mr)).toEqual([])
+    expect(evaluate(r, c, j('[1,3]N[2,1]'), mr)).toEqual([1])
 
-    expect(evaluate(r, j('[1,3]N[2]U[1,2]'), mr)).toEqual([1, 2])
-    expect(evaluate(r, j('[1,3]N([2]U[1,2])'), mr)).toEqual([1])
+    expect(evaluate(r, c, j('[1,3]N[2]U[1,2]'), mr)).toEqual([1, 2])
+    expect(evaluate(r, c, j('[1,3]N([2]U[1,2])'), mr)).toEqual([1])
   })
 
 

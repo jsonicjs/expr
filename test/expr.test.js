@@ -1,5 +1,5 @@
 "use strict";
-/* Copyright (c) 2021-2022 Richard Rodger and other contributors, MIT License */
+/* Copyright (c) 2021-2024 Richard Rodger and other contributors, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 const jsonic_1 = require("jsonic");
 const expr_1 = require("../expr");
@@ -1644,7 +1644,7 @@ describe('expr', () => {
         expect(j0('....a.b.c'))[_mo_](['.', ['.', ['.', ['.', ['.', 'a', ['.', 'b', 'c']]]]]]);
         expect(j0('$.a.b'))[_mo_](['.', '$', ['.', 'a', 'b']]);
         expect(j0('$.a.b.c'))[_mo_](['.', '$', ['.', 'a', ['.', 'b', 'c']]]);
-        let resolve = (_rule, op, terms) => {
+        let resolve = (_rule, _ctx, op, terms) => {
             if ('dot-infix' === op.name) {
                 return terms.join('/');
             }
@@ -1653,11 +1653,12 @@ describe('expr', () => {
             }
         };
         let r = null;
-        expect((0, expr_1.evaluate)(r, je0('a.b'), resolve)).toEqual('a/b');
-        expect((0, expr_1.evaluate)(r, je0('a.b.c'), resolve)).toEqual('a/b/c');
-        expect((0, expr_1.evaluate)(r, je0('a.b.c.d'), resolve)).toEqual('a/b/c/d');
-        expect((0, expr_1.evaluate)(r, je0('.a'), resolve)).toEqual('/a');
-        expect((0, expr_1.evaluate)(r, je0('.a.b'), resolve)).toEqual('/a/b');
+        let c = null;
+        expect((0, expr_1.evaluate)(r, c, je0('a.b'), resolve)).toEqual('a/b');
+        expect((0, expr_1.evaluate)(r, c, je0('a.b.c'), resolve)).toEqual('a/b/c');
+        expect((0, expr_1.evaluate)(r, c, je0('a.b.c.d'), resolve)).toEqual('a/b/c/d');
+        expect((0, expr_1.evaluate)(r, c, je0('.a'), resolve)).toEqual('/a');
+        expect((0, expr_1.evaluate)(r, c, je0('.a.b'), resolve)).toEqual('/a/b');
         const je1 = jsonic_1.Jsonic.make().use(expr_1.Expr, { ...opts, evaluate: resolve });
         // expect(je1('{x:a.b}', { log: -1 })).toEqual({ x: 'a/b' })
         // expect(je1('x:a.b', { log: -1 })).toEqual({ x: 'a/b' })
@@ -1680,25 +1681,26 @@ describe('expr', () => {
             'multiplication-infix': (a, b) => a * b,
             'plain-paren': (a) => a,
         };
-        let mr = (_r, op, terms) => {
+        let mr = (_r, _ctx, op, terms) => {
             // console.log('MR', op, terms)
             let mf = MF[op.name];
             return mf ? mf(...terms) : NaN;
         };
         const j = jsonic_1.Jsonic.make().use(expr_1.Expr);
         let r = null;
-        expect((0, expr_1.evaluate)(r, ME(PLUS, 1, 2), mr)).toEqual(3);
-        expect((0, expr_1.evaluate)(r, j('1+2'), mr)).toEqual(3);
-        expect((0, expr_1.evaluate)(r, ME(PLUS, ME(PLUS, 1, 2), 3), mr)).toEqual(6);
-        expect((0, expr_1.evaluate)(r, j('1+2+3'), mr)).toEqual(6);
-        expect((0, expr_1.evaluate)(r, j('1*2+3'), mr)).toEqual(5);
-        expect((0, expr_1.evaluate)(r, j('1+2*3'), mr)).toEqual(7);
-        expect((0, expr_1.evaluate)(r, j('(1)'), mr)).toEqual(1);
-        expect((0, expr_1.evaluate)(r, j('(1+2)'), mr)).toEqual(3);
-        expect((0, expr_1.evaluate)(r, j('3+(1+2)'), mr)).toEqual(6);
-        expect((0, expr_1.evaluate)(r, j('(1+2)+3'), mr)).toEqual(6);
-        expect((0, expr_1.evaluate)(r, j('(1+2)*3'), mr)).toEqual(9);
-        expect((0, expr_1.evaluate)(r, j('3*(1+2)'), mr)).toEqual(9);
+        let c = null;
+        expect((0, expr_1.evaluate)(r, c, ME(PLUS, 1, 2), mr)).toEqual(3);
+        expect((0, expr_1.evaluate)(r, c, j('1+2'), mr)).toEqual(3);
+        expect((0, expr_1.evaluate)(r, c, ME(PLUS, ME(PLUS, 1, 2), 3), mr)).toEqual(6);
+        expect((0, expr_1.evaluate)(r, c, j('1+2+3'), mr)).toEqual(6);
+        expect((0, expr_1.evaluate)(r, c, j('1*2+3'), mr)).toEqual(5);
+        expect((0, expr_1.evaluate)(r, c, j('1+2*3'), mr)).toEqual(7);
+        expect((0, expr_1.evaluate)(r, c, j('(1)'), mr)).toEqual(1);
+        expect((0, expr_1.evaluate)(r, c, j('(1+2)'), mr)).toEqual(3);
+        expect((0, expr_1.evaluate)(r, c, j('3+(1+2)'), mr)).toEqual(6);
+        expect((0, expr_1.evaluate)(r, c, j('(1+2)+3'), mr)).toEqual(6);
+        expect((0, expr_1.evaluate)(r, c, j('(1+2)*3'), mr)).toEqual(9);
+        expect((0, expr_1.evaluate)(r, c, j('3*(1+2)'), mr)).toEqual(9);
         const je = jsonic_1.Jsonic.make().use(expr_1.Expr, {
             evaluate: mr
         });
@@ -1716,7 +1718,7 @@ describe('expr', () => {
                 .map(en => parseInt(en[0]))
                 .sort(),
         };
-        let mr = (_r, op, terms) => {
+        let mr = (_r, _ctx, op, terms) => {
             let mf = MF[op.name];
             return mf ? mf(...terms) : [];
         };
@@ -1731,13 +1733,14 @@ describe('expr', () => {
             }
         });
         let r = null;
-        expect((0, expr_1.evaluate)(r, j('[1]U[2]'), mr)).toEqual([1, 2]);
-        expect((0, expr_1.evaluate)(r, j('[1,3]U[1,2]'), mr)).toEqual([1, 2, 3]);
-        expect((0, expr_1.evaluate)(r, j('[1,3]N[1,2]'), mr)).toEqual([1]);
-        expect((0, expr_1.evaluate)(r, j('[1,3]N[2]'), mr)).toEqual([]);
-        expect((0, expr_1.evaluate)(r, j('[1,3]N[2,1]'), mr)).toEqual([1]);
-        expect((0, expr_1.evaluate)(r, j('[1,3]N[2]U[1,2]'), mr)).toEqual([1, 2]);
-        expect((0, expr_1.evaluate)(r, j('[1,3]N([2]U[1,2])'), mr)).toEqual([1]);
+        let c = null;
+        expect((0, expr_1.evaluate)(r, c, j('[1]U[2]'), mr)).toEqual([1, 2]);
+        expect((0, expr_1.evaluate)(r, c, j('[1,3]U[1,2]'), mr)).toEqual([1, 2, 3]);
+        expect((0, expr_1.evaluate)(r, c, j('[1,3]N[1,2]'), mr)).toEqual([1]);
+        expect((0, expr_1.evaluate)(r, c, j('[1,3]N[2]'), mr)).toEqual([]);
+        expect((0, expr_1.evaluate)(r, c, j('[1,3]N[2,1]'), mr)).toEqual([1]);
+        expect((0, expr_1.evaluate)(r, c, j('[1,3]N[2]U[1,2]'), mr)).toEqual([1, 2]);
+        expect((0, expr_1.evaluate)(r, c, j('[1,3]N([2]U[1,2])'), mr)).toEqual([1]);
     });
 });
 //# sourceMappingURL=expr.test.js.map
