@@ -1,6 +1,6 @@
 {
   "name": "@jsonic/expr",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "This plugin allows the [Jsonic](https://jsonic.senecajs.org) JSON parser to support expression syntax.",
   "main": "expr.js",
   "type": "commonjs",
@@ -50,7 +50,7 @@
     "typescript": "^5.6.3"
   },
   "peerDependencies": {
-    "@jsonic/jsonic-next": ">=2.13.0"
+    "@jsonic/jsonic-next": ">=2.14.0"
   },
   "dependencies": {}
 }
