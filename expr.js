@@ -116,11 +116,14 @@ let Expr = function expr(jsonic, options) {
         if (hasTernary && TERN1.includes(jsonic.token.CL)) {
             // let pairkeyalt: any = rs.def.open.find((a: any) => a.g.includes('pair'))
             // pairkeyalt.c = (r: Rule) => !r.n.expr_ternary
-            rs.def.open.filter((a) => a.g.includes('pair')).map((alt) => {
+            rs.def.open
+                .filter((a) => a.g.includes('pair'))
+                .map((alt) => {
                 let origcond = alt.c;
                 let internary = (r) => !r.n.expr_ternary;
-                alt.c = origcond ? ((r, ctx) => origcond(r, ctx) && internary(r)) :
-                    internary;
+                alt.c = origcond
+                    ? (r, ctx) => origcond(r, ctx) && internary(r)
+                    : internary;
             });
         }
         rs.open([
@@ -705,7 +708,7 @@ function implicitList(rule, ctx, a) {
     return a;
 }
 function implicitTernaryCond(r) {
-    let cond = ((0 === r.d || 1 <= r.n.expr_paren) && !r.n.pk && 2 === r.u.expr_ternary_step);
+    let cond = (0 === r.d || 1 <= r.n.expr_paren) && !r.n.pk && 2 === r.u.expr_ternary_step;
     // console.log('****** ITC', cond, r.n.pk)
     return cond;
 }
