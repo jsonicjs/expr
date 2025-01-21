@@ -1,5 +1,5 @@
 "use strict";
-/* Copyright (c) 2021 Richard Rodger, MIT License */
+/* Copyright (c) 2021-2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.testing = exports.Expr = void 0;
 exports.evaluate = evaluate;
@@ -114,8 +114,14 @@ let Expr = function expr(jsonic, options) {
         // TODO: jsonic - make it easier to handle this case
         // Implicit pair not allowed inside ternary
         if (hasTernary && TERN1.includes(jsonic.token.CL)) {
-            let pairkeyalt = rs.def.open.find((a) => a.g.includes('pair'));
-            pairkeyalt.c = (r) => !r.n.expr_ternary;
+            // let pairkeyalt: any = rs.def.open.find((a: any) => a.g.includes('pair'))
+            // pairkeyalt.c = (r: Rule) => !r.n.expr_ternary
+            rs.def.open.filter((a) => a.g.includes('pair')).map((alt) => {
+                let origcond = alt.c;
+                let internary = (r) => !r.n.expr_ternary;
+                alt.c = origcond ? ((r, ctx) => origcond(r, ctx) && internary(r)) :
+                    internary;
+            });
         }
         rs.open([
             // The prefix operator of the first term of an expression.
@@ -424,7 +430,6 @@ let Expr = function expr(jsonic, options) {
             // Implicit list indicated by comma.
             {
                 s: [CA],
-                // c: { n: { pk: 0 } },
                 c: (r) => r.lte('pk'),
                 n: { expr: 0 },
                 b: 1,
@@ -433,7 +438,6 @@ let Expr = function expr(jsonic, options) {
             },
             // Implicit list indicated by space separated value.
             {
-                // c: { n: { pk: 0, expr_suffix: 0 } },
                 c: (r) => r.lte('pk') && r.lte('expr_suffix'),
                 n: { expr: 0 },
                 h: implicitList,
@@ -456,8 +460,6 @@ let Expr = function expr(jsonic, options) {
     jsonic.rule('paren', (rs) => {
         rs.bo((r) => {
             // Allow implicits inside parens
-            // r.n.im = 0
-            // r.n.il = 0
             r.n.dmap = 0;
             r.n.dlist = 0;
             r.n.pk = 0;
@@ -703,7 +705,9 @@ function implicitList(rule, ctx, a) {
     return a;
 }
 function implicitTernaryCond(r) {
-    return ((0 === r.d || 1 <= r.n.expr_paren) && !r.n.pk && 2 === r.u.expr_ternary_step);
+    let cond = ((0 === r.d || 1 <= r.n.expr_paren) && !r.n.pk && 2 === r.u.expr_ternary_step);
+    // console.log('****** ITC', cond, r.n.pk)
+    return cond;
 }
 function implicitTernaryAction(r, _ctx, a) {
     r.n.expr_paren = r.prev.u.expr_ternary_paren;

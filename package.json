@@ -49,7 +49,7 @@
     "typescript": "^5.7.3"
   },
   "peerDependencies": {
-    "jsonic": ">=2.15.2"
+    "jsonic": "2.16.0"
   },
   "dependencies": {}
 }
