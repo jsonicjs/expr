@@ -1,17 +1,18 @@
-/* Copyright (c) 2021-2024 Richard Rodger and other contributors, MIT License */
+/* Copyright (c) 2021-2025 Richard Rodger and other contributors, MIT License */
 
 
 import { Jsonic, Rule, Context, util } from 'jsonic'
+import { Debug } from 'jsonic/debug'
 
 import {
   Expr,
-  evaluate,
+  evaluation,
   testing,
 } from '../expr'
 
 import type {
   Op,
-  Resolve,
+  Evaluate,
 } from '../expr'
 
 
@@ -61,6 +62,11 @@ function makeExpr(opspec: any, term0?: any, term1?: any): any[] {
 
 
 describe('expr', () => {
+
+  beforeEach(() => {
+    global.console = require('console')
+  })
+
 
   test('happy', () => {
     const j = mj(Jsonic.make().use(Expr))
@@ -2030,7 +2036,7 @@ describe('expr', () => {
     expect(j0('$.a.b.c'))[_mo_](['.', '$', ['.', 'a', ['.', 'b', 'c']]])
 
 
-    let resolve: Resolve = (_rule: Rule, _ctx: Context, op: Op, terms: any[]) => {
+    let resolve: Evaluate = (_rule: Rule, _ctx: Context, op: Op, terms: any[]) => {
       if ('dot-infix' === op.name) {
         return terms.join('/')
       }
@@ -2042,12 +2048,12 @@ describe('expr', () => {
     let r = (null as unknown as Rule)
     let c = (null as unknown as Context)
 
-    expect(evaluate(r, c, je0('a.b'), resolve)).toEqual('a/b')
-    expect(evaluate(r, c, je0('a.b.c'), resolve)).toEqual('a/b/c')
-    expect(evaluate(r, c, je0('a.b.c.d'), resolve)).toEqual('a/b/c/d')
+    expect(evaluation(r, c, je0('a.b'), resolve)).toEqual('a/b')
+    expect(evaluation(r, c, je0('a.b.c'), resolve)).toEqual('a/b/c')
+    expect(evaluation(r, c, je0('a.b.c.d'), resolve)).toEqual('a/b/c/d')
 
-    expect(evaluate(r, c, je0('.a'), resolve)).toEqual('/a')
-    expect(evaluate(r, c, je0('.a.b'), resolve)).toEqual('/a/b')
+    expect(evaluation(r, c, je0('.a'), resolve)).toEqual('/a')
+    expect(evaluation(r, c, je0('.a.b'), resolve)).toEqual('/a/b')
 
     const je1 = Jsonic.make().use(Expr, { ...opts, evaluate: resolve })
     // expect(je1('{x:a.b}', { log: -1 })).toEqual({ x: 'a/b' })
@@ -2076,7 +2082,10 @@ describe('expr', () => {
 
     let MF: any = {
       'addition-infix': (a: any, b: any) => a + b,
+      'subtraction-infix': (a: any, b: any) => a - b,
       'multiplication-infix': (a: any, b: any) => a * b,
+      'negative-prefix': (a: any) => -1 * a,
+      'positive-prefix': (a: any) => a,
       'plain-paren': (a: any) => a,
     }
 
@@ -2091,34 +2100,53 @@ describe('expr', () => {
     let r = (null as unknown as Rule)
     let c = (null as unknown as Context)
 
-    expect(evaluate(r, c, ME(PLUS, 1, 2), mr)).toEqual(3)
-    expect(evaluate(r, c, j('1+2'), mr)).toEqual(3)
+    expect(evaluation(r, c, ME(PLUS, 1, 2), mr)).toEqual(3)
+    expect(evaluation(r, c, j('1+2'), mr)).toEqual(3)
 
-    expect(evaluate(r, c, ME(PLUS, ME(PLUS, 1, 2), 3), mr)).toEqual(6)
-    expect(evaluate(r, c, j('1+2+3'), mr)).toEqual(6)
+    expect(evaluation(r, c, ME(PLUS, ME(PLUS, 1, 2), 3), mr)).toEqual(6)
+    expect(evaluation(r, c, j('1+2+3'), mr)).toEqual(6)
 
-    expect(evaluate(r, c, j('1*2+3'), mr)).toEqual(5)
-    expect(evaluate(r, c, j('1+2*3'), mr)).toEqual(7)
-
-
-    expect(evaluate(r, c, j('(1)'), mr)).toEqual(1)
-
-    expect(evaluate(r, c, j('(1+2)'), mr)).toEqual(3)
-
-    expect(evaluate(r, c, j('3+(1+2)'), mr)).toEqual(6)
-    expect(evaluate(r, c, j('(1+2)+3'), mr)).toEqual(6)
-
-    expect(evaluate(r, c, j('(1+2)*3'), mr)).toEqual(9)
-    expect(evaluate(r, c, j('3*(1+2)'), mr)).toEqual(9)
+    expect(evaluation(r, c, j('1*2+3'), mr)).toEqual(5)
+    expect(evaluation(r, c, j('1+2*3'), mr)).toEqual(7)
 
 
-    const je = Jsonic.make().use(Expr, {
-      evaluate: mr
-    })
+    expect(evaluation(r, c, j('(1)'), mr)).toEqual(1)
 
-    expect(je('11+22', { xlog: -1 })).toEqual(33)
-    expect(je('a:11+22', { xlog: -1 })).toEqual({ a: 33 })
-    expect(je('[11+22]', { xlog: -1 })).toEqual([33])
+    expect(evaluation(r, c, j('(1+2)'), mr)).toEqual(3)
+
+    expect(evaluation(r, c, j('3+(1+2)'), mr)).toEqual(6)
+    expect(evaluation(r, c, j('(1+2)+3'), mr)).toEqual(6)
+
+    expect(evaluation(r, c, j('(1+2)*3'), mr)).toEqual(9)
+    expect(evaluation(r, c, j('3*(1+2)'), mr)).toEqual(9)
+
+
+    const je = Jsonic.make()
+      // .use(Debug, { trace: true })
+      .use(Expr, {
+        evaluate: mr
+      })
+
+    expect(je('11+22')).toEqual(33)
+    expect(je('a:11+22')).toEqual({ a: 33 })
+    expect(je('[11+22]')).toEqual([33])
+
+    expect(je('111+(222)')).toEqual(333)
+    expect(je('(111)+222')).toEqual(333)
+    expect(je('(111)+(222)')).toEqual(333)
+    expect(je('(111+222)')).toEqual(333)
+
+    expect(je('(1+2)*4')).toEqual(12)
+    expect(je('1+(2*4)')).toEqual(9)
+
+    expect(je('((1+2)*4)')).toEqual(12)
+    expect(je('(1+(2*4))')).toEqual(9)
+
+    expect(je('1-3')).toEqual(-2)
+    expect(je('-1')).toEqual(-1)
+    expect(je('+1')).toEqual(1)
+    expect(je('1+(-3)')).toEqual(-2)
+
   })
 
 
@@ -2157,15 +2185,15 @@ describe('expr', () => {
     let r = (null as unknown as Rule)
     let c = (null as unknown as Context)
 
-    expect(evaluate(r, c, j('[1]U[2]'), mr)).toEqual([1, 2])
-    expect(evaluate(r, c, j('[1,3]U[1,2]'), mr)).toEqual([1, 2, 3])
+    expect(evaluation(r, c, j('[1]U[2]'), mr)).toEqual([1, 2])
+    expect(evaluation(r, c, j('[1,3]U[1,2]'), mr)).toEqual([1, 2, 3])
 
-    expect(evaluate(r, c, j('[1,3]N[1,2]'), mr)).toEqual([1])
-    expect(evaluate(r, c, j('[1,3]N[2]'), mr)).toEqual([])
-    expect(evaluate(r, c, j('[1,3]N[2,1]'), mr)).toEqual([1])
+    expect(evaluation(r, c, j('[1,3]N[1,2]'), mr)).toEqual([1])
+    expect(evaluation(r, c, j('[1,3]N[2]'), mr)).toEqual([])
+    expect(evaluation(r, c, j('[1,3]N[2,1]'), mr)).toEqual([1])
 
-    expect(evaluate(r, c, j('[1,3]N[2]U[1,2]'), mr)).toEqual([1, 2])
-    expect(evaluate(r, c, j('[1,3]N([2]U[1,2])'), mr)).toEqual([1])
+    expect(evaluation(r, c, j('[1,3]N[2]U[1,2]'), mr)).toEqual([1, 2])
+    expect(evaluation(r, c, j('[1,3]N([2]U[1,2])'), mr)).toEqual([1])
   })
 
 

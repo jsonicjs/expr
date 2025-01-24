@@ -20,7 +20,7 @@ type ExprOptions = {
     op?: {
         [name: string]: OpDef;
     };
-    evaluate?: typeof evaluate;
+    evaluate?: typeof evaluation;
 };
 type Op = {
     name: string;
@@ -49,14 +49,14 @@ type Op = {
     token: Token;
     OP_MARK: typeof OP_MARK;
 };
-type Resolve = (rule: Rule, ctx: Context, op: Op, ...terms: any) => any;
+type Evaluate = (rule: Rule, ctx: Context, op: Op, ...terms: any) => any;
 declare const OP_MARK: {};
 declare let Expr: Plugin;
 declare function prattify(expr: any, op?: Op): any[];
-declare function evaluate(rule: Rule, ctx: Context, expr: any, resolve: Resolve): any;
+declare function evaluation(rule: Rule, ctx: Context, expr: any, evaluate: Evaluate): any;
 declare const testing: {
     prattify: typeof prattify;
     opify: (x: any) => any;
 };
-export { Expr, evaluate, testing };
-export type { ExprOptions, OpDef, Op, Resolve };
+export { Expr, evaluation, testing };
+export type { ExprOptions, OpDef, Op, Evaluate };

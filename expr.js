@@ -2,7 +2,7 @@
 /* Copyright (c) 2021-2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.testing = exports.Expr = void 0;
-exports.evaluate = evaluate;
+exports.evaluation = evaluation;
 // This algorithm is based on Pratt parsing, and draws heavily from
 // the explanation written by Aleksey Kladov here:
 // https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
@@ -51,10 +51,17 @@ let Expr = function expr(jsonic, options) {
     //     },
     //   })
     // }
+    // console.log('EXPR', options)
     let token = jsonic.token.bind(jsonic);
     let fixed = jsonic.fixed.bind(jsonic);
     // Build token maps (TM).
     let optop = options.op || {};
+    // Delete operations marked null.
+    for (let opname in optop) {
+        if (null === optop[opname]) {
+            delete optop[opname];
+        }
+    }
     const prefixTM = makeOpMap(token, fixed, optop, 'prefix');
     const suffixTM = makeOpMap(token, fixed, optop, 'suffix');
     const infixTM = makeOpMap(token, fixed, optop, 'infix');
@@ -137,7 +144,8 @@ let Expr = function expr(jsonic, options) {
                     g: 'expr,expr-prefix',
                 }
                 : NONE,
-            // An opening parenthesis of an expression.
+            // An opening parenthesis.
+            // NOTE: this can happen outside an expression.
             hasParen
                 ? {
                     s: [OP],
@@ -310,6 +318,13 @@ let Expr = function expr(jsonic, options) {
     });
     jsonic.rule('expr', (rs) => {
         rs.open([
+            // An opening parenthesis of an expression.
+            hasParen
+                ? {
+                    s: [OP],
+                    p: 'val',
+                    g: 'expr,expr-paren,expr-start',
+                } : NONE,
             hasPrefix
                 ? {
                     s: [PREFIX],
@@ -454,9 +469,10 @@ let Expr = function expr(jsonic, options) {
         ])
             .ac((r, ctx) => {
             // Only evaluate at root of expr (where r.n.expr === 0)
+            // console.log('EXPR AC', r)
             if (options.evaluate && 0 === r.n.expr) {
                 // The parent node will contain the root of the expr tree
-                r.parent.node = evaluate(r.parent, ctx, r.parent.node, options.evaluate);
+                r.parent.node = evaluation(r.parent, ctx, r.parent.node, options.evaluate);
             }
         });
     });
@@ -505,7 +521,13 @@ let Expr = function expr(jsonic, options) {
                     g: 'expr,expr-paren,close',
                 }
                 : NONE,
-        ]);
+        ])
+            .ac((r, ctx) => {
+            // A Paren can occur outside an expression
+            if (options.evaluate && 0 === r.n.expr) {
+                r.node = evaluation(r.child, ctx, r.child.node, options.evaluate);
+            }
+        });
     });
     // Ternary operators are like fancy parens.
     if (hasTernary) {
@@ -939,12 +961,13 @@ function prattify(expr, op) {
     }
     return out;
 }
-function evaluate(rule, ctx, expr, resolve) {
+function evaluation(rule, ctx, expr, evaluate) {
+    // console.log('EXPR-EVAL', expr, resolve)
     if (null == expr) {
         return expr;
     }
     if (isOp(expr)) {
-        return resolve(rule, ctx, expr[0], expr.slice(1).map((term) => evaluate(rule, ctx, term, resolve)));
+        return evaluate(rule, ctx, expr[0], expr.slice(1).map((term) => evaluation(rule, ctx, term, evaluate)));
     }
     return expr;
 }

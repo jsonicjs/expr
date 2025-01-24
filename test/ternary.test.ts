@@ -10,7 +10,7 @@ import {
 
 import type {
   Op,
-  Resolve,
+  Evaluate,
 } from '../expr'
 
 
