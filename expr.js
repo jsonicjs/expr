@@ -324,7 +324,8 @@ let Expr = function expr(jsonic, options) {
                     s: [OP],
                     p: 'val',
                     g: 'expr,expr-paren,expr-start',
-                } : NONE,
+                }
+                : NONE,
             hasPrefix
                 ? {
                     s: [PREFIX],
