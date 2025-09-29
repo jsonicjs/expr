@@ -67,6 +67,7 @@ let Expr = function expr(jsonic, options) {
     const infixTM = makeOpMap(token, fixed, optop, 'infix');
     const ternaryTM = makeOpMap(token, fixed, optop, 'ternary');
     const parenOTM = makeParenMap(token, fixed, optop);
+    // console.log('PAREN-MAP', parenOTM)
     const parenCTM = omap(parenOTM, ([_, pdef]) => [
         undefined,
         undefined,
@@ -524,9 +525,11 @@ let Expr = function expr(jsonic, options) {
                 : NONE,
         ])
             .ac((r, ctx) => {
+            // console.log('PAREN-AC', r)
             // A Paren can occur outside an expression
             if (options.evaluate && 0 === r.n.expr) {
-                r.node = evaluation(r.child, ctx, r.child.node, options.evaluate);
+                r.node = evaluation(r, ctx, r.node, options.evaluate);
+                // r.node = evaluation(r.child, ctx, r.child.node, options.evaluate)
             }
         });
     });
@@ -963,7 +966,7 @@ function prattify(expr, op) {
     return out;
 }
 function evaluation(rule, ctx, expr, evaluate) {
-    // console.log('EXPR-EVAL', expr, resolve)
+    // console.log('EXPR-EVAL', expr, isOp(expr))
     if (null == expr) {
         return expr;
     }

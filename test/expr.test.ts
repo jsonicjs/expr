@@ -2198,6 +2198,53 @@ describe('expr', () => {
 
 
 
+
+  test('mini-config', () => {
+    const funcMap: Record<string, Function> = {
+      floor: (v: any) => Math.floor(v)
+    }
+
+    let MF: any = {
+      'addition-infix': (a: any, b: any) => a + b,
+      'subtraction-infix': (a: any, b: any) => a - b,
+      'plain-paren': (a: any) => a,
+      'func-paren': (...a: any[]) => {
+        console.log('FUNC', a)
+        const fname = a[0]
+        const func = funcMap[fname]
+        return null == func ? undefined : func(...a.slice(1))
+      }
+    }
+
+    const j = Jsonic.make().use(Expr, {
+      op: {
+        // plain: null,
+        func: {
+          paren: true,
+          preval: true,
+          osrc: '(',
+          csrc: ')',
+        },
+      },
+      evaluate: (r: Rule, _ctx: Context, op: Op, terms: any) => {
+        console.log('MR', r.parent.prev.u.paren_preval, op.name, terms)
+        let mf = MF[op.name]
+        return mf ? mf(...terms) : NaN
+      }
+    })
+
+    // expect(j('11+22')).toEqual(33)
+    // expect(j('44-33')).toEqual(11)
+    // expect(j('(44-33)+11')).toEqual(22)
+    // expect(j('44-(33+11)')).toEqual(0)
+    // expect(j('44-33+11')).toEqual(22)
+
+    expect(j('(1.1)')).toEqual(1.1)
+    expect(j('floor(1.5)')).toEqual(1)
+
+  })
+
+
 })
 
 

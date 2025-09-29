@@ -1517,5 +1517,44 @@ describe('expr', () => {
         expect((0, expr_1.evaluation)(r, c, j('[1,3]N[2]U[1,2]'), mr)).toEqual([1, 2]);
         expect((0, expr_1.evaluation)(r, c, j('[1,3]N([2]U[1,2])'), mr)).toEqual([1]);
     });
+    test('mini-config', () => {
+        const funcMap = {
+            floor: (v) => Math.floor(v)
+        };
+        let MF = {
+            'addition-infix': (a, b) => a + b,
+            'subtraction-infix': (a, b) => a - b,
+            'plain-paren': (a) => a,
+            'func-paren': (...a) => {
+                console.log('FUNC', a);
+                const fname = a[0];
+                const func = funcMap[fname];
+                return null == func ? undefined : func(...a.slice(1));
+            }
+        };
+        const j = jsonic_1.Jsonic.make().use(expr_1.Expr, {
+            op: {
+                // plain: null,
+                func: {
+                    paren: true,
+                    preval: true,
+                    osrc: '(',
+                    csrc: ')',
+                },
+            },
+            evaluate: (r, _ctx, op, terms) => {
+                console.log('MR', r.parent.prev.u.paren_preval, op.name, terms);
+                let mf = MF[op.name];
+                return mf ? mf(...terms) : NaN;
+            }
+        });
+        // expect(j('11+22')).toEqual(33)
+        // expect(j('44-33')).toEqual(11)
+        // expect(j('(44-33)+11')).toEqual(22)
+        // expect(j('44-(33+11)')).toEqual(0)
+        // expect(j('44-33+11')).toEqual(22)
+        expect(j('(1.1)')).toEqual(1.1);
+        expect(j('floor(1.5)')).toEqual(1);
+    });
 });
 //# sourceMappingURL=expr.test.js.map
