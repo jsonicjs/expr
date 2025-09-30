@@ -14,6 +14,7 @@ type OpDef = {
     preval?: {
         active?: boolean;
         required?: boolean;
+        alloow?: string[];
     };
 };
 type ExprOptions = {
@@ -45,6 +46,7 @@ type Op = {
     preval: {
         active: boolean;
         required: boolean;
+        allow?: string[];
     };
     token: Token;
     OP_MARK: typeof OP_MARK;

@@ -91,6 +91,15 @@ let Expr = function expr(jsonic, options) {
                 comment: { order: 1e5 },
             },
         },
+        error: {
+            'expr_invalid_parent_preval-func-paren': 'Invalid operation: {src}',
+        },
+        hint: {
+            'expr_invalid_parent_preval-func-paren': 'Only the following operations are allowed: ' +
+                (Object.entries(parenOTM)
+                    .filter((n) => n[1].name === 'func-paren')
+                    .map((n) => { var _a, _b; return (_b = (_a = n[1].preval) === null || _a === void 0 ? void 0 : _a.allow) === null || _b === void 0 ? void 0 : _b.join(', '); }).join('')),
+        },
     });
     const PREFIX = values(prefixTM).map((op) => op.tin);
     const INFIX = values(infixTM).map((op) => op.tin);
@@ -158,12 +167,13 @@ let Expr = function expr(jsonic, options) {
                         if (pdef.preval.required) {
                             pass = 'val' === r.prev.name && r.prev.u.paren_preval;
                         }
-                        // Paren with preval as first term becomes root.
+                        // Paren with preval at the very top becomes root.
                         if (pass) {
                             if (1 === r.prev.i) {
                                 ctx.root = () => r;
                             }
                         }
+                        // console.log('PAREN-OPEN', pdef.name, pass)
                         return pass;
                     },
                     g: 'expr,expr-paren',
@@ -215,9 +225,34 @@ let Expr = function expr(jsonic, options) {
                     s: [OP],
                     b: 1,
                     r: 'val',
-                    c: (r) => parenOTM[r.c0.tin].preval.active,
+                    c: (r) => {
+                        const prevaldef = parenOTM[r.c0.tin].preval;
+                        let pass = prevaldef.active;
+                        // console.log('QQQ', r.name, r.node, r.prev.name, r.parent.name)
+                        if (pass && prevaldef.allow) {
+                            if (Array.isArray(prevaldef.allow)) {
+                                pass = prevaldef.allow.includes(r.node);
+                            }
+                        }
+                        // console.log('PREVAL-0', r.name, r.node, prevaldef, pass)
+                        return pass;
+                    },
                     u: { paren_preval: true },
                     g: 'expr,expr-paren,expr-paren-preval',
+                }
+                : NONE,
+            hasParen
+                ? {
+                    s: [OP],
+                    b: 1,
+                    r: 'val',
+                    c: (r) => parenOTM[r.c0.tin].preval.active,
+                    e: (r) => {
+                        const pdef = parenOTM[r.c0.tin];
+                        r.o0.err = 'expr_invalid_parent_preval-' + pdef.name;
+                        return r.o0;
+                    },
+                    g: 'expr,expr-paren,expr-paren-preval,expr-error',
                 }
                 : NONE,
             hasTernary
@@ -490,6 +525,7 @@ let Expr = function expr(jsonic, options) {
                 ? {
                     s: [OP, CP],
                     b: 1,
+                    u: { expr_paren_empty: true },
                     g: 'expr,expr-paren,empty',
                     c: (r) => parenOTM[r.o0.tin].name === parenCTM[r.o1.tin].name,
                     a: makeOpenParen(parenOTM),
@@ -516,7 +552,7 @@ let Expr = function expr(jsonic, options) {
                     s: [CP],
                     c: (r) => {
                         const pdef = parenCTM[r.c0.tin];
-                        let pd = 'expr_paren_depth_' + pdef.name;
+                        let pd = 'expr_paren_depth-' + pdef.name;
                         return !!r.n[pd];
                     },
                     a: makeCloseParen(parenCTM),
@@ -525,11 +561,35 @@ let Expr = function expr(jsonic, options) {
                 : NONE,
         ])
             .ac((r, ctx) => {
-            // console.log('PAREN-AC', r)
+            // console.log('PAREN-AC', r.n, r.u, r.node)
             // A Paren can occur outside an expression
-            if (options.evaluate && 0 === r.n.expr) {
-                r.node = evaluation(r, ctx, r.node, options.evaluate);
-                // r.node = evaluation(r.child, ctx, r.child.node, options.evaluate)
+            if (options.evaluate) {
+                if (0 === r.n.expr) {
+                    // const subval = r.u.expr_paren_empty ? undefined : r.node
+                    // const val = evaluation(r, ctx, subval, options.evaluate)
+                    const val = evaluation(r, ctx, r.node, options.evaluate);
+                    // console.log(
+                    //   'PEV', val,
+                    //   //   'R=', r.name, r.node,
+                    //   //   'P1=', r.parent.name, r.parent.node,
+                    //   //   'PV1=', r.parent.prev.name, r.parent.prev.node,
+                    //   //   'P2=', r.parent.parent.name, r.parent.parent.node,
+                    //   //   'V1=', r.prev.name, r.prev.node,
+                    //   //   'VP1=', r.prev.parent.name, r.prev.parent.node,
+                    // )
+                    r.node = val;
+                    // console.log('PAREN-AC', val)
+                    if (r.parent.prev && r.parent.prev.u.paren_preval) {
+                        r.parent.prev.node = val;
+                        //   r.node = val
+                    }
+                    // else {
+                    //   r.node = val
+                    // }
+                }
+                else {
+                    r.node = undefined;
+                }
             }
         });
     });
@@ -672,7 +732,7 @@ function dupNode(node) {
 function makeOpenParen(parenOTM) {
     return function openParen(r) {
         const op = makeOp(r.o0, parenOTM);
-        let pd = 'expr_paren_depth_' + op.name;
+        let pd = 'expr_paren_depth-' + op.name;
         r.u[pd] = r.n[pd] = 1;
         r.node = undefined;
     };
@@ -686,7 +746,7 @@ function makeCloseParen(parenCTM) {
             r.node = r.child.node;
         }
         const op = makeOp(r.c0, parenCTM);
-        let pd = 'expr_paren_depth_' + op.name;
+        let pd = 'expr_paren_depth-' + op.name;
         // Construct completed paren expression.
         if (r.u[pd] === r.n[pd]) {
             const val = r.node;
@@ -696,6 +756,7 @@ function makeCloseParen(parenCTM) {
                 r.node[1] = val;
             }
             if (r.parent.prev.u.paren_preval) {
+                // console.log('CP', r.parent.prev.node, isParenOp(r.parent.prev.node))
                 if (isParenOp(r.parent.prev.node)) {
                     r.node = makeNode(r.parent.prev.node, r.node[0], dupNode(r.parent.prev.node), r.node[1]);
                 }
@@ -846,6 +907,11 @@ function makeParenMap(token, fixed, optop) {
                         : null == pdef.preval.required
                             ? false
                             : pdef.preval.required,
+                    allow: null == pdef.preval
+                        ? undefined
+                        : null == pdef.preval.allow
+                            ? undefined
+                            : pdef.preval.allow,
                 },
                 use: {},
                 paren: true,

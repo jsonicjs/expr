@@ -2197,11 +2197,9 @@ describe('expr', () => {
   })
 
 
-
-
   test('mini-config', () => {
     const funcMap: Record<string, Function> = {
-      floor: (v: any) => Math.floor(v)
+      floor: (v: any) => isNaN(v) ? undefined : Math.floor(v)
     }
 
     let MF: any = {
@@ -2209,40 +2207,147 @@ describe('expr', () => {
       'subtraction-infix': (a: any, b: any) => a - b,
       'plain-paren': (a: any) => a,
       'func-paren': (...a: any[]) => {
-        console.log('FUNC', a)
+        let out = a[1]
         const fname = a[0]
-        const func = funcMap[fname]
-        return null == func ? undefined : func(...a.slice(1))
+        if ('' !== fname) {
+          const func = funcMap[fname]
+          out = null == func ? undefined : func(...a.slice(1))
+        }
+        // console.log('FUNC', fname, a, '->', out)
+        return out
       }
     }
 
-    const j = Jsonic.make().use(Expr, {
+    const j0 = Jsonic.make().use(Expr, {
       op: {
         // plain: null,
         func: {
           paren: true,
           preval: true,
+          osrc: '<',
+          csrc: '>',
+        },
+      },
+      evaluate: (r: Rule, _ctx: Context, op: Op, terms: any) => {
+        let mf = MF[op.name]
+        // console.log('EVAL-j0', op.name, r.parent.prev?.u?.paren_preval, r.u, r.k, r.n)
+        // r.parent.prev?.u?.paren_preval, op.name, terms, mf)
+        // if (r.parent.prev?.u?.paren_preval) {
+        if (
+          // r.n.expr_paren
+          'func-paren' === op.name
+          && !r.parent.prev?.u?.paren_preval
+        ) {
+          terms = ['', ...terms]
+        }
+
+        return mf ? mf(...terms) : NaN
+      }
+    })
+
+
+    expect(j0('11+22')).toEqual(33)
+    expect(j0('44-33')).toEqual(11)
+    expect(j0('(44-33)+11')).toEqual(22)
+    expect(j0('44-(33+11)')).toEqual(0)
+    expect(j0('44-33+11')).toEqual(22)
+
+    expect(j0('(1.1)')).toEqual(1.1)
+    expect(j0('[0,(1)]')).toEqual([0, 1])
+    expect(j0('[0 (1)]')).toEqual([0, 1])
+
+    expect(j0('floor<1.5>')).toEqual(1)
+    expect(j0('a:floor<2.5>')).toEqual({ a: 2 })
+    expect(j0('{b:floor<3.5>}')).toEqual({ b: 3 })
+    expect(j0('[floor<4.5>]')).toEqual([4])
+    expect(j0('[0 floor<5.5>]')).toEqual([0, 5])
+
+    expect(j0('a:(1+2) b:floor<1.9>')).toEqual({ a: 3, b: 1 })
+
+    expect(j0('()')).toEqual(undefined)
+    expect(j0('<>')).toEqual(undefined)
+    expect(j0('<1>')).toEqual(1)
+    expect(j0('c:<2>')).toEqual({ c: 2 })
+    expect(j0('floor<>')).toEqual(undefined)
+    expect(j0('floor<"a">')).toEqual(undefined)
+    expect(j0('[1 (2) (2+1) floor<4.5>]')).toEqual([1, 2, 3, 4])
+    expect(j0('1 (2) (2+1) floor<4.5>')).toEqual([1, 2, 3, 4])
+
+    expect(j0('bad<9>')).toEqual(undefined)
+
+
+    // console.log('===========')
+
+    const j1 = Jsonic.make().use(Expr, {
+      op: {
+        plain: null,
+        func: {
+          paren: true,
+          preval: {
+            active: true,
+            allow: ['floor']
+          },
           osrc: '(',
           csrc: ')',
         },
       },
       evaluate: (r: Rule, _ctx: Context, op: Op, terms: any) => {
-        console.log('MR', r.parent.prev.u.paren_preval, op.name, terms)
         let mf = MF[op.name]
+        // console.log('EVAL-j1', op.name, r.parent.prev?.u?.paren_preval, r.u, r.k, r.n)
+        // r.parent.prev?.u?.paren_preval, op.name, terms, mf)
+        // if (r.parent.prev?.u?.paren_preval) {
+        if (
+          // r.n.expr_paren
+          'func-paren' === op.name
+          && !r.parent.prev?.u?.paren_preval
+        ) {
+          terms = ['', ...terms]
+        }
+
         return mf ? mf(...terms) : NaN
       }
     })
 
-    // expect(j('11+22')).toEqual(33)
-    // expect(j('44-33')).toEqual(11)
-    // expect(j('(44-33)+11')).toEqual(22)
-    // expect(j('44-(33+11)')).toEqual(0)
-    // expect(j('44-33+11')).toEqual(22)
 
-    expect(j('(1.1)')).toEqual(1.1)
-    expect(j('floor(1.5)')).toEqual(1)
+    expect(j1('()')).toEqual(undefined)
+    expect(j1('(0)')).toEqual(0)
+    expect(j1('(0+1)')).toEqual(1)
+    expect(j1('[(0) 1]')).toEqual([0, 1])
+    expect(() => j1('[0 (1) 2]')).toThrow('Invalid operation: 0')
+    expect(j1('[0,(1),2]')).toEqual([0, 1, 2])
+    expect(j1('[0,(1)]')).toEqual([0, 1])
+    expect(() => j1('[0 (1)]')).toThrow('Invalid operation: 0')
+    expect(j1('[(1)]')).toEqual([1])
+    expect(j1('[0,(1)]')).toEqual([0, 1])
+    expect(j1('[(0),(1)]')).toEqual([0, 1])
+    expect(j1('(0),(1)')).toEqual([0, 1])
 
+    expect(() => j1('[(0) (1)]')).toThrow('Invalid operation: (')
+    expect(() => j1('(0) (1)')).toThrow('Invalid operation: (')
+
+    expect(j1('floor(1.1)')).toEqual(1)
+    expect(j1('floor (1.1)')).toEqual(1)
+    expect(j1('(floor) (1.1)')).toEqual(1)
+
+    expect(() => j1('(0+1) (1+1)')).toThrow('Invalid operation: (')
+
+    expect(j1('floor(0.5)')).toEqual(0)
+    expect(j1('a:floor(2.5)')).toEqual({ a: 2 })
+
+    expect(j1('{b:floor(3.5)}')).toEqual({ b: 3 })
+    expect(j1('[floor(4.5)]')).toEqual([4])
+    expect(j1('[0 floor(5.5)]')).toEqual([0, 5])
+    expect(j1('[(0) 1 floor(5.5)]')).toEqual([0, 1, 5])
+    expect(j1('[(0) floor(5.5)]')).toEqual([0, 5])
+    expect(j1('[0,(1),floor(5.5)]')).toEqual([0, 1, 5])
+
+    expect(j1('[1,(2),(2+1)]')).toEqual([1, 2, 3])
+    expect(j1('[1,(2),(2+1),floor(4.5)]')).toEqual([1, 2, 3, 4])
+
+    expect(j1('a:floor(1.5)')).toEqual({ a: 1 })
+    expect(() => j1('b:bad(2.5)')).toThrow('Invalid operation: bad')
   })
+
 
 
 })
