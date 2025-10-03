@@ -150,9 +150,11 @@ let Expr = function expr(jsonic, options) {
                     s: [VAL, OP],
                     b: 1,
                     p: 'expr',
-                    c: (r) => {
+                    c: (r, ctx) => {
                         const pdef = parenOTM[r.o1.tin];
-                        return pdef.preval.active;
+                        const preval = r.o0.resolveVal(r, ctx);
+                        return pdef.preval.active &&
+                            (null == pdef.preval.allow || pdef.preval.allow.includes(preval));
                     },
                     u: { paren_preval: true },
                     g: 'expr,expr-paren,expr-paren-preval',
@@ -530,7 +532,9 @@ let Expr = function expr(jsonic, options) {
                 //   r.node,
                 //   options.evaluate,
                 // )
-                r.parent.node = evaluation(r.parent, ctx, r.parent.node, options.evaluate);
+                let out = evaluation(r.parent, ctx, r.parent.node, options.evaluate);
+                // console.log('EXPR-AC-OUT', out)
+                r.parent.node = out;
             }
         });
     });
@@ -1041,14 +1045,12 @@ function prattify(expr, op, whence) {
     return out;
 }
 function evaluation(rule, ctx, expr, evaluate) {
-    // console.log('EXPR-EVAL', expr, resolve)
-    if (null == expr) {
-        return expr;
+    let out = expr !== null && expr !== void 0 ? expr : null;
+    if (null != expr && isOp(expr)) {
+        out = evaluate(rule, ctx, expr[0], expr.slice(1).map((term) => evaluation(rule, ctx, term, evaluate)));
     }
-    if (isOp(expr)) {
-        return evaluate(rule, ctx, expr[0], expr.slice(1).map((term) => evaluation(rule, ctx, term, evaluate)));
-    }
-    return expr;
+    // console.log('EXPR-EVAL', expr, '->', out)
+    return out;
 }
 function p(node, seen) {
     var _a, _b;

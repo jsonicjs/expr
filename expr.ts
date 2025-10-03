@@ -64,6 +64,7 @@ type OpDef = {
   preval?: {
     active?: boolean
     required?: boolean
+    allow?: string[]
   }
 }
 
@@ -99,6 +100,7 @@ type Op = {
   preval: {
     active: boolean
     required: boolean
+    allow?: string[]
   }
   token: Token
   OP_MARK: typeof OP_MARK
@@ -249,9 +251,11 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           s: [VAL, OP],
           b: 1,
           p: 'expr',
-          c: (r: Rule) => {
+          c: (r: Rule, ctx: Context) => {
             const pdef = parenOTM[r.o1.tin]
-            return pdef.preval.active
+            const preval = r.o0.resolveVal(r, ctx)
+            return pdef.preval.active &&
+              (null == pdef.preval.allow || pdef.preval.allow.includes(preval))
           },
           u: { paren_preval: true },
           g: 'expr,expr-paren,expr-paren-preval',
@@ -678,12 +682,16 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           //   options.evaluate,
           // )
 
-          r.parent.node = evaluation(
+          let out = evaluation(
             r.parent,
             ctx,
             r.parent.node,
             options.evaluate,
           )
+
+          // console.log('EXPR-AC-OUT', out)
+
+          r.parent.node = out
         }
       })
   })
@@ -1277,14 +1285,10 @@ function prattify(expr: any, op?: Op, whence?: string): any[] {
 
 
 function evaluation(rule: Rule, ctx: Context, expr: any, evaluate: Evaluate) {
-  // console.log('EXPR-EVAL', expr, resolve)
+  let out = expr ?? null
 
-  if (null == expr) {
-    return expr
-  }
-
-  if (isOp(expr)) {
-    return evaluate(
+  if (null != expr && isOp(expr)) {
+    out = evaluate(
       rule,
       ctx,
       expr[0],
@@ -1292,7 +1296,9 @@ function evaluation(rule: Rule, ctx: Context, expr: any, evaluate: Evaluate) {
     )
   }
 
-  return expr
+  // console.log('EXPR-EVAL', expr, '->', out)
+
+  return out
 }
 
 

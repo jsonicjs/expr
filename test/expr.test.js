@@ -1554,7 +1554,7 @@ describe('expr', () => {
         };
         let MF = {
             'addition-infix': (a, b) => {
-                console.log('ADD', a, b);
+                // console.log('ADD', a, b)
                 return a + b;
             },
             'subtraction-infix': (a, b) => a - b,
@@ -1566,7 +1566,8 @@ describe('expr', () => {
                     const func = funcMap[fname];
                     out = null == func ? undefined : func(...a.slice(1));
                 }
-                console.log('FUNC', fname, a, '->', out);
+                out = null == out ? null : out;
+                // console.log('FUNC', fname, a, '->', out)
                 return out;
             }
         };
@@ -1583,57 +1584,57 @@ describe('expr', () => {
                 },
             },
             evaluate: (r, _ctx, op, terms) => {
-                var _a, _b;
                 let mf = MF[op.name];
-                console.log('EVAL-j0', op.name, terms, 'R', r.i, r.u, r.k, r.n, 'P', r.parent.i, r.parent.u, 'mf', mf);
+                // console.log('EVAL-j0', op.name, terms, 'R', r.name, r.i, r.u, r.k, r.n, 'P', r.parent.i, r.parent.u, 'mf', mf)
                 // r.parent.prev?.u?.paren_preval, op.name, terms, mf)
                 // if (r.parent.prev?.u?.paren_preval) {
                 if (
                 // r.n.expr_paren
                 'func-paren' === op.name
-                    && !((_b = (_a = r.parent.parent) === null || _a === void 0 ? void 0 : _a.u) === null || _b === void 0 ? void 0 : _b.paren_preval)
+                    && !r.u.paren_preval
+                // && !r.parent.parent?.u?.paren_preval
                 // && !r.parent.prev?.u?.paren_preval
                 // && !r.parent.u?.paren_preval
                 ) {
                     terms = ['', ...terms];
                 }
-                // console.log('EVAL-j0-terms', terms)
-                return mf ? mf(...terms) : undefined;
+                // return mf ? mf(...terms) : undefined
+                let out = mf ? mf(...terms) : null;
+                out = undefined === out ? null : out;
+                // console.log('EVAL-j0-terms', terms, '->', out, mf)
+                return out;
             }
         });
-        // expect(j0('11+22')).toEqual(33)
-        // expect(j0('44-33')).toEqual(11)
-        // expect(j0('(44-33)+11')).toEqual(22)
-        // expect(j0('44-(33+11)')).toEqual(0)
-        // expect(j0('44-33+11')).toEqual(22)
-        // expect(j0('(1.1)')).toEqual(1.1)
-        // expect(j0('[0,(1)]')).toEqual([0, 1])
-        // expect(j0('[0 (1)]')).toEqual([0, 1])
-        // expect(j0('floor<1.5>')).toEqual(1)
-        // expect(j0('a:floor<2.5>')).toEqual({ a: 2 })
-        // expect(j0('{b:floor<3.5>}')).toEqual({ b: 3 })
-        // expect(j0('[floor<4.5>]')).toEqual([4])
-        // expect(j0('[0 floor<5.5>]')).toEqual([0, 5])
-        // expect(j0('1+floor<1.5>')).toEqual(2)
-        // expect(j0('1+floor<1.5>+3')).toEqual(5)
-        // expect(j0('floor<1.5>+4')).toEqual(5)
-        // expect(j0('a:floor<1.5>+4')).toEqual({ a: 5 })
-        // expect(j0('a:(1+2) b:floor<1.9>')).toEqual({ a: 3, b: 1 })
-        // expect(j0('()')).toEqual(undefined)
-        // expect(j0('<>')).toEqual(undefined)
-        // expect(j0('<1>')).toEqual(1)
-        // expect(j0('c:<2>')).toEqual({ c: 2 })
-        // TODO: jsonic update
-        // expect(j0('a:floor<>')).toEqual({ a: undefined })
-        // expect(j0('floor<>')).toEqual(undefined)
-        // expect(j0('[floor<>]')).toEqual([])
-        // expect(j0('floor<"a">')).toEqual(undefined)
-        // expect(j0('a:floor<"a">')).toEqual({ a: undefined })
-        // expect(j0('[1 (2) (2+1) floor<4.5>]')).toEqual([1, 2, 3, 4])
-        // expect(j0('1 (2) (2+1) floor<4.5>')).toEqual([1, 2, 3, 4])
-        // expect(j0('bad<9>')).toEqual(undefined)
-        return;
-        console.log('===========');
+        expect(j0('11+22')).toEqual(33);
+        expect(j0('44-33')).toEqual(11);
+        expect(j0('(44-33)+11')).toEqual(22);
+        expect(j0('44-(33+11)')).toEqual(0);
+        expect(j0('44-33+11')).toEqual(22);
+        expect(j0('(1.1)')).toEqual(1.1);
+        expect(j0('[0,(1)]')).toEqual([0, 1]);
+        expect(j0('[0 (1)]')).toEqual([0, 1]);
+        expect(j0('floor<1.5>')).toEqual(1);
+        expect(j0('a:floor<2.5>')).toEqual({ a: 2 });
+        expect(j0('{b:floor<3.5>}')).toEqual({ b: 3 });
+        expect(j0('[floor<4.5>]')).toEqual([4]);
+        expect(j0('[0 floor<5.5>]')).toEqual([0, 5]);
+        expect(j0('1+floor<1.5>')).toEqual(2);
+        expect(j0('1+floor<1.5>+3')).toEqual(5);
+        expect(j0('floor<1.5>+4')).toEqual(5);
+        expect(j0('a:floor<1.5>+4')).toEqual({ a: 5 });
+        expect(j0('a:(1+2) b:floor<1.9>')).toEqual({ a: 3, b: 1 });
+        expect(j0('()')).toEqual(null);
+        expect(j0('<>')).toEqual(null);
+        expect(j0('<1>')).toEqual(1);
+        expect(j0('c:<2>')).toEqual({ c: 2 });
+        expect(j0('a:floor<>')).toEqual({ a: null });
+        expect(j0('floor<>')).toEqual(null);
+        expect(j0('[floor<>]')).toEqual([null]);
+        expect(j0('floor<"a">')).toEqual(null);
+        expect(j0('a:floor<"a">')).toEqual({ a: null });
+        expect(j0('[1 (2) (2+1) floor<4.5>]')).toEqual([1, 2, 3, 4]);
+        expect(j0('1 (2) (2+1) floor<4.5>')).toEqual([1, 2, 3, 4]);
+        expect(j0('bad<9>')).toEqual(null);
         const j1 = jsonic_1.Jsonic.make()
             // .use(Debug, { trace: true })
             .use(expr_1.Expr, {
@@ -1650,7 +1651,6 @@ describe('expr', () => {
                 },
             },
             evaluate: (r, _ctx, op, terms) => {
-                var _a, _b;
                 let mf = MF[op.name];
                 // console.log('EVAL-j1', op.name, terms, 'R', r.i, r.u, r.k, r.n, 'P', r.parent.i, r.parent.u, 'mf', mf)
                 // r.parent.prev?.u?.paren_preval, op.name, terms, mf)
@@ -1658,109 +1658,115 @@ describe('expr', () => {
                 if (
                 // r.n.expr_paren
                 'func-paren' === op.name
-                    && !((_b = (_a = r.parent.parent) === null || _a === void 0 ? void 0 : _a.u) === null || _b === void 0 ? void 0 : _b.paren_preval)
+                    && !r.u.paren_preval
+                // && !r.parent.parent?.u?.paren_preval
                 // && !r.parent.prev?.u?.paren_preval
                 // && !r.parent?.u.paren_preval
                 ) {
                     terms = ['', ...terms];
                 }
-                const out = mf ? mf(...terms) : NaN;
+                let out = mf ? mf(...terms) : NaN;
+                out = undefined === out ? null : out;
                 // console.log('EVAL', op.name, terms, '->', out)
                 return out;
             }
         });
-        // expect(j1('()')).toEqual(undefined)
-        // expect(j1('(0)')).toEqual(0)
-        // expect(j1('(0+1)')).toEqual(1)
-        // expect(j1('[(0) 1]')).toEqual([0, 1])
+        expect(j1('()')).toEqual(null);
+        expect(j1('(0)')).toEqual(0);
+        expect(j1('(0+1)')).toEqual(1);
+        expect(j1('[(0) 1]')).toEqual([0, 1]);
+        // TODO
         // expect(() => j1('[0 (1) 2]')).toThrow('Invalid operation: 0')
-        // expect(j1('[0,(1),2]')).toEqual([0, 1, 2])
-        // expect(j1('[0,(1)]')).toEqual([0, 1])
+        expect(j1('[0,(1),2]')).toEqual([0, 1, 2]);
+        expect(j1('[0,(1)]')).toEqual([0, 1]);
+        // TODO
         // expect(() => j1('[0 (1)]')).toThrow('Invalid operation: 0')
-        // expect(j1('[(1)]')).toEqual([1])
-        // expect(j1('[0,(1)]')).toEqual([0, 1])
-        // expect(j1('[(0),(1)]')).toEqual([0, 1])
-        // expect(j1('(0),(1)')).toEqual([0, 1])
+        expect(j1('[(1)]')).toEqual([1]);
+        expect(j1('[0,(1)]')).toEqual([0, 1]);
+        expect(j1('[(0),(1)]')).toEqual([0, 1]);
+        expect(j1('(0),(1)')).toEqual([0, 1]);
         // expect(() => j1('[(0) (1)]')).toThrow('Invalid operation: (')
         // expect(() => j1('(0) (1)')).toThrow('Invalid operation: (')
-        // expect(j1('floor(1.1)')).toEqual(1)
-        // expect(j1('floor (1.1)')).toEqual(1)
+        expect(j1('floor(1.1)')).toEqual(1);
+        expect(j1('floor (1.1)')).toEqual(1);
+        // TODO
         // expect(j1('(floor) (1.1)')).toEqual(1)
         // expect(() => j1('(0+1) (1+1)')).toThrow('Invalid operation: (')
-        // expect(j1('floor(0.5)')).toEqual(0)
-        // expect(j1('a:floor(2.5)')).toEqual({ a: 2 })
-        // expect(j1('{b:floor(3.5)}')).toEqual({ b: 3 })
-        // expect(j1('[floor(4.5)]')).toEqual([4])
-        // expect(j1('[0 floor(5.5)]')).toEqual([0, 5])
-        // expect(j1('[(0) 1 floor(5.5)]')).toEqual([0, 1, 5])
-        // expect(j1('[(0) floor(5.5)]')).toEqual([0, 5])
-        // expect(j1('[0,(1),floor(5.5)]')).toEqual([0, 1, 5])
-        // expect(j1('[1,(2),(2+1)]')).toEqual([1, 2, 3])
-        // expect(j1('[1,(2),(2+1),floor(4.5)]')).toEqual([1, 2, 3, 4])
-        // expect(j1('a:floor(1.5)')).toEqual({ a: 1 })
+        expect(j1('floor(0.5)')).toEqual(0);
+        expect(j1('a:floor(2.5)')).toEqual({ a: 2 });
+        expect(j1('{b:floor(3.5)}')).toEqual({ b: 3 });
+        expect(j1('[floor(4.5)]')).toEqual([4]);
+        expect(j1('[0 floor(5.5)]')).toEqual([0, 5]);
+        expect(j1('[(0) 1 floor(5.5)]')).toEqual([0, 1, 5]);
+        expect(j1('[(0) floor(5.5)]')).toEqual([0, 5]);
+        expect(j1('[0,(1),floor(5.5)]')).toEqual([0, 1, 5]);
+        expect(j1('[1,(2),(2+1)]')).toEqual([1, 2, 3]);
+        expect(j1('[1,(2),(2+1),floor(4.5)]')).toEqual([1, 2, 3, 4]);
+        expect(j1('a:floor(1.5)')).toEqual({ a: 1 });
+        // TODO
         // expect(() => j1('b:bad(2.5)')).toThrow('Invalid operation: bad')
-        // expect(j1('[3+2]')).toEqual([5])
-        // expect(j1('[3+(2)]')).toEqual([5])
-        // expect(j1('[(3)+2]')).toEqual([5])
-        // expect(j1('[(3)+(2)]')).toEqual([5])
-        // expect(j1('[(3+2)]')).toEqual([5])
-        // expect(j1('[(3+(2))]')).toEqual([5])
-        // expect(j1('[((3)+2)]')).toEqual([5])
-        // expect(j1('[((3)+(2))]')).toEqual([5])
-        // expect(j1('[1,3+2]')).toEqual([1, 5])
-        // expect(j1('[1,3+(2)]')).toEqual([1, 5])
-        // expect(j1('[1,(3)+2]')).toEqual([1, 5])
-        // expect(j1('[1,(3)+(2)]')).toEqual([1, 5])
-        // expect(j1('[1,(3+2)]')).toEqual([1, 5])
-        // expect(j1('[1,(3+(2))]')).toEqual([1, 5])
-        // expect(j1('[1,((3)+2)]')).toEqual([1, 5])
-        // expect(j1('[1,((3)+(2))]')).toEqual([1, 5])
-        // expect(j1('[3+2,4]')).toEqual([5, 4])
-        // expect(j1('[3+(2),4]')).toEqual([5, 4])
-        // expect(j1('[(3)+2,4]')).toEqual([5, 4])
-        // expect(j1('[(3)+(2),4]')).toEqual([5, 4])
-        // expect(j1('[(3+2),4]')).toEqual([5, 4])
-        // expect(j1('[(3+(2)),4]')).toEqual([5, 4])
-        // expect(j1('[((3)+2),4]')).toEqual([5, 4])
-        // expect(j1('[((3)+(2)),4]')).toEqual([5, 4])
-        // expect(j1('[1,3+2,4]')).toEqual([1, 5, 4])
-        // expect(j1('[1,3+(2),4]')).toEqual([1, 5, 4])
-        // expect(j1('[1,(3)+2,4]')).toEqual([1, 5, 4])
-        // expect(j1('[1,(3)+(2),4]')).toEqual([1, 5, 4])
-        // expect(j1('[1,(3+2),4]')).toEqual([1, 5, 4])
-        // expect(j1('[1,(3+(2)),4]')).toEqual([1, 5, 4])
-        // expect(j1('[1,((3)+2),4]')).toEqual([1, 5, 4])
-        // expect(j1('[1,((3)+(2)),4]')).toEqual([1, 5, 4])
-        // expect(j1('1+floor(1.1)')).toEqual(2)
-        // expect(j1('floor(1.1)+1')).toEqual(2)
-        // expect(j1('1+floor(1.1)+1')).toEqual(3)
-        // expect(j1('a:(2)+1')).toEqual({ a: 3 })
-        // expect(j1('a:1+floor(1.1)')).toEqual({ a: 2 })
-        // expect(j1('a:(1.1)+1')).toEqual({ a: 2.1 })
-        // expect(j1('a:floor(1.1)+1')).toEqual({ a: 2 })
-        // expect(j1('a:1+floor(1.1)+1')).toEqual({ a: 3 })
-        // expect(j1('[1+floor(1.1)]')).toEqual([2])
-        // expect(j1('[floor(1.1)+2]')).toEqual([3])
-        // expect(j1('[3+floor(1.1)+2]')).toEqual([6])
-        // expect(j1('b:1.1+1,c:C0')).toEqual({ b: 2.1, c: 'C0' })
-        // expect(j1('b:(1.1+1),c:C0a')).toEqual({ b: 2.1, c: 'C0a' })
-        // expect(j1('b:(1.1)+1,c:C1')).toEqual({ b: 2.1, c: 'C1' })
-        // expect(j1('b:((1.1)+1),c:C1a')).toEqual({ b: 2.1, c: 'C1a' })
-        // expect(j1('b:1+floor(1.1),c:C2c')).toEqual({ b: 2, c: 'C2c' })
-        // expect(j1('b:floor(1.1)+1,c:C2d')).toEqual({ b: 2, c: 'C2d' })
-        // expect(j1('b:(floor(1.1)),c:C2a')).toEqual({ b: 1, c: 'C2a' })
-        // expect(j1('b:(1+floor(1.1)),c:C2b')).toEqual({ b: 2, c: 'C2b' })
-        // expect(j1('1+(floor(1.1))')).toEqual(2)
-        // expect(j1('(11,22)')).toEqual([11, 22])
-        // expect(j1('21+31')).toEqual(52)
-        // expect(j1('(21)+31')).toEqual(52)
-        // expect(j1('(21+31)')).toEqual(52)
-        // expect(j1('(floor(2.2))')).toEqual(2)
-        // expect(j1('((floor(2.2)))')).toEqual(2)
-        // expect(j1('(floor(2.2))+1')).toEqual(3)
-        // expect(j1('floor(2.2)+3')).toEqual(5)
-        // expect(j1('(floor(1.1)+2)')).toEqual(3)
-        // expect(j1('b:(floor(1.1)+2),c:C2c')).toEqual({ b: 3, c: 'C2c' })
+        expect(j1('[3+2]')).toEqual([5]);
+        expect(j1('[3+(2)]')).toEqual([5]);
+        expect(j1('[(3)+2]')).toEqual([5]);
+        expect(j1('[(3)+(2)]')).toEqual([5]);
+        expect(j1('[(3+2)]')).toEqual([5]);
+        expect(j1('[(3+(2))]')).toEqual([5]);
+        expect(j1('[((3)+2)]')).toEqual([5]);
+        expect(j1('[((3)+(2))]')).toEqual([5]);
+        expect(j1('[1,3+2]')).toEqual([1, 5]);
+        expect(j1('[1,3+(2)]')).toEqual([1, 5]);
+        expect(j1('[1,(3)+2]')).toEqual([1, 5]);
+        expect(j1('[1,(3)+(2)]')).toEqual([1, 5]);
+        expect(j1('[1,(3+2)]')).toEqual([1, 5]);
+        expect(j1('[1,(3+(2))]')).toEqual([1, 5]);
+        expect(j1('[1,((3)+2)]')).toEqual([1, 5]);
+        expect(j1('[1,((3)+(2))]')).toEqual([1, 5]);
+        expect(j1('[3+2,4]')).toEqual([5, 4]);
+        expect(j1('[3+(2),4]')).toEqual([5, 4]);
+        expect(j1('[(3)+2,4]')).toEqual([5, 4]);
+        expect(j1('[(3)+(2),4]')).toEqual([5, 4]);
+        expect(j1('[(3+2),4]')).toEqual([5, 4]);
+        expect(j1('[(3+(2)),4]')).toEqual([5, 4]);
+        expect(j1('[((3)+2),4]')).toEqual([5, 4]);
+        expect(j1('[((3)+(2)),4]')).toEqual([5, 4]);
+        expect(j1('[1,3+2,4]')).toEqual([1, 5, 4]);
+        expect(j1('[1,3+(2),4]')).toEqual([1, 5, 4]);
+        expect(j1('[1,(3)+2,4]')).toEqual([1, 5, 4]);
+        expect(j1('[1,(3)+(2),4]')).toEqual([1, 5, 4]);
+        expect(j1('[1,(3+2),4]')).toEqual([1, 5, 4]);
+        expect(j1('[1,(3+(2)),4]')).toEqual([1, 5, 4]);
+        expect(j1('[1,((3)+2),4]')).toEqual([1, 5, 4]);
+        expect(j1('[1,((3)+(2)),4]')).toEqual([1, 5, 4]);
+        expect(j1('1+floor(1.1)')).toEqual(2);
+        expect(j1('floor(1.1)+1')).toEqual(2);
+        expect(j1('1+floor(1.1)+1')).toEqual(3);
+        expect(j1('a:(2)+1')).toEqual({ a: 3 });
+        expect(j1('a:1+floor(1.1)')).toEqual({ a: 2 });
+        expect(j1('a:(1.1)+1')).toEqual({ a: 2.1 });
+        expect(j1('a:floor(1.1)+1')).toEqual({ a: 2 });
+        expect(j1('a:1+floor(1.1)+1')).toEqual({ a: 3 });
+        expect(j1('[1+floor(1.1)]')).toEqual([2]);
+        expect(j1('[floor(1.1)+2]')).toEqual([3]);
+        expect(j1('[3+floor(1.1)+2]')).toEqual([6]);
+        expect(j1('b:1.1+1,c:C0')).toEqual({ b: 2.1, c: 'C0' });
+        expect(j1('b:(1.1+1),c:C0a')).toEqual({ b: 2.1, c: 'C0a' });
+        expect(j1('b:(1.1)+1,c:C1')).toEqual({ b: 2.1, c: 'C1' });
+        expect(j1('b:((1.1)+1),c:C1a')).toEqual({ b: 2.1, c: 'C1a' });
+        expect(j1('b:1+floor(1.1),c:C2c')).toEqual({ b: 2, c: 'C2c' });
+        expect(j1('b:floor(1.1)+1,c:C2d')).toEqual({ b: 2, c: 'C2d' });
+        expect(j1('b:(floor(1.1)),c:C2a')).toEqual({ b: 1, c: 'C2a' });
+        expect(j1('b:(1+floor(1.1)),c:C2b')).toEqual({ b: 2, c: 'C2b' });
+        expect(j1('1+(floor(1.1))')).toEqual(2);
+        expect(j1('(11,22)')).toEqual([11, 22]);
+        expect(j1('21+31')).toEqual(52);
+        expect(j1('(21)+31')).toEqual(52);
+        expect(j1('(21+31)')).toEqual(52);
+        expect(j1('(floor(2.2))')).toEqual(2);
+        expect(j1('((floor(2.2)))')).toEqual(2);
+        expect(j1('(floor(2.2))+1')).toEqual(3);
+        expect(j1('floor(2.2)+3')).toEqual(5);
+        expect(j1('(floor(1.1)+2)')).toEqual(3);
+        expect(j1('b:(floor(1.1)+2),c:C2c')).toEqual({ b: 3, c: 'C2c' });
     });
 });
 //# sourceMappingURL=expr.test.js.map
