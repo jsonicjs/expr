@@ -144,6 +144,23 @@ let Expr = function expr(jsonic, options) {
                     g: 'expr,expr-prefix',
                 }
                 : NONE,
+            // WWW
+            hasParen
+                ? {
+                    s: [VAL, OP],
+                    b: 1,
+                    p: 'expr',
+                    c: (r) => {
+                        const pdef = parenOTM[r.o1.tin];
+                        return pdef.preval.active;
+                    },
+                    u: { paren_preval: true },
+                    g: 'expr,expr-paren,expr-paren-preval',
+                    a: (r, ctx) => {
+                        r.node = r.o0.resolveVal(r, ctx);
+                    }
+                }
+                : NONE,
             // An opening parenthesis.
             // NOTE: this can happen outside an expression.
             hasParen
@@ -153,6 +170,10 @@ let Expr = function expr(jsonic, options) {
                     // QQQ
                     // p: 'paren',
                     p: 'expr',
+                    c: (r) => {
+                        const pdef = parenOTM[r.o0.tin];
+                        return !pdef.preval.required;
+                    },
                     // QQQ
                     /*
                     c: (r: Rule, ctx: Context) => {
@@ -215,18 +236,19 @@ let Expr = function expr(jsonic, options) {
                     g: 'expr,expr-paren',
                 }
                 : NONE,
-            // The opening parenthesis of an expression with a preceding value.
-            // foo(1) => ['(','foo',1]
-            hasParen
-                ? {
-                    s: [OP],
-                    b: 1,
-                    r: 'val',
-                    c: (r) => parenOTM[r.c0.tin].preval.active,
-                    u: { paren_preval: true },
-                    g: 'expr,expr-paren,expr-paren-preval',
-                }
-                : NONE,
+            // WWW
+            // // The opening parenthesis of an expression with a preceding value.
+            // // foo(1) => ['(','foo',1]
+            // hasParen
+            //   ? {
+            //     s: [OP],
+            //     b: 1,
+            //     r: 'val',
+            //     c: (r: Rule) => parenOTM[r.c0.tin].preval.active,
+            //     u: { paren_preval: true },
+            //     g: 'expr,expr-paren,expr-paren-preval',
+            //   }
+            //   : NONE,
             hasTernary
                 ? {
                     s: [TERN1],
@@ -408,7 +430,7 @@ let Expr = function expr(jsonic, options) {
             // console.log('EXPR-BC', addterm, r.i, p(r.node),
             //   'C', r.child.i, p(r.child.node),
             //   'P', r.parent.i, p(r.parent.node),
-            // )
+            //)
         })
             .close([
             // QQQ
@@ -716,6 +738,7 @@ function makeOpenParen(parenOTM) {
 }
 function makeCloseParen(parenCTM) {
     return function closeParen(r) {
+        var _a, _b;
         if (isOp(r.child.node)) {
             r.node = r.child.node;
         }
@@ -729,18 +752,30 @@ function makeCloseParen(parenCTM) {
             const val = r.node;
             // r.node = [op.osrc]
             r.node = [op];
+            // WWW
+            if (((_b = (_a = r.parent.parent) === null || _a === void 0 ? void 0 : _a.u) === null || _b === void 0 ? void 0 : _b.paren_preval)
+                && undefined !== r.parent.parent.node) {
+                r.node.push(r.parent.parent.node);
+            }
             if (undefined !== val) {
-                r.node[1] = val;
+                r.node.push(val);
             }
-            if (r.parent.prev.u.paren_preval) {
-                if (isParenOp(r.parent.prev.node)) {
-                    r.node = updateExprNode(r.parent.prev.node, r.node[0], dupNode(r.parent.prev.node), r.node[1]);
-                }
-                else {
-                    r.node.splice(1, 0, r.parent.prev.node);
-                    r.parent.prev.node = r.node;
-                }
-            }
+            // console.log('MCP', r.i, r.name, p(r.node),
+            //   'PP', r.parent.parent?.u, p(r.parent.parent?.node), 'N', p(r.node))
+            // WWW
+            // if (r.parent.prev.u.paren_preval) {
+            //   if (isParenOp(r.parent.prev.node)) {
+            //     r.node = updateExprNode(
+            //       r.parent.prev.node,
+            //       r.node[0],
+            //       dupNode(r.parent.prev.node),
+            //       r.node[1],
+            //     )
+            //   } else {
+            //     r.node.splice(1, 0, r.parent.prev.node)
+            //     r.parent.prev.node = r.node
+            //   }
+            // }
         }
     };
 }

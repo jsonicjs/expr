@@ -243,6 +243,24 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
         }
         : NONE,
 
+      // WWW
+      hasParen
+        ? {
+          s: [VAL, OP],
+          b: 1,
+          p: 'expr',
+          c: (r: Rule) => {
+            const pdef = parenOTM[r.o1.tin]
+            return pdef.preval.active
+          },
+          u: { paren_preval: true },
+          g: 'expr,expr-paren,expr-paren-preval',
+          a: (r: Rule, ctx: Context) => {
+            r.node = r.o0.resolveVal(r, ctx)
+          }
+        }
+        : NONE,
+
       // An opening parenthesis.
       // NOTE: this can happen outside an expression.
       hasParen
@@ -253,6 +271,11 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           // QQQ
           // p: 'paren',
           p: 'expr',
+
+          c: (r: Rule) => {
+            const pdef = parenOTM[r.o0.tin]
+            return !pdef.preval.required
+          },
 
           // QQQ
           /*
@@ -321,18 +344,19 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
         }
         : NONE,
 
-      // The opening parenthesis of an expression with a preceding value.
-      // foo(1) => ['(','foo',1]
-      hasParen
-        ? {
-          s: [OP],
-          b: 1,
-          r: 'val',
-          c: (r: Rule) => parenOTM[r.c0.tin].preval.active,
-          u: { paren_preval: true },
-          g: 'expr,expr-paren,expr-paren-preval',
-        }
-        : NONE,
+      // WWW
+      // // The opening parenthesis of an expression with a preceding value.
+      // // foo(1) => ['(','foo',1]
+      // hasParen
+      //   ? {
+      //     s: [OP],
+      //     b: 1,
+      //     r: 'val',
+      //     c: (r: Rule) => parenOTM[r.c0.tin].preval.active,
+      //     u: { paren_preval: true },
+      //     g: 'expr,expr-paren,expr-paren-preval',
+      //   }
+      //   : NONE,
 
       hasTernary
         ? {
@@ -364,6 +388,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
       },
     ])
   })
+
 
   jsonic.rule('list', (rs: RuleSpec) => {
     // rs.bo(false, (...rest: any) => {
@@ -538,7 +563,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
         // console.log('EXPR-BC', addterm, r.i, p(r.node),
         //   'C', r.child.i, p(r.child.node),
         //   'P', r.parent.i, p(r.parent.node),
-        // )
+        //)
       })
 
       .close([
@@ -904,27 +929,39 @@ function makeCloseParen(parenCTM: OpMap) {
 
     // Construct completed paren expression.
     if (r.u[pd] === r.n[pd]) {
+
       const val = r.node
 
       // r.node = [op.osrc]
       r.node = [op]
-      if (undefined !== val) {
-        r.node[1] = val
+
+      // WWW
+      if (r.parent.parent?.u?.paren_preval
+        && undefined !== r.parent.parent.node) {
+        r.node.push(r.parent.parent.node)
       }
 
-      if (r.parent.prev.u.paren_preval) {
-        if (isParenOp(r.parent.prev.node)) {
-          r.node = updateExprNode(
-            r.parent.prev.node,
-            r.node[0],
-            dupNode(r.parent.prev.node),
-            r.node[1],
-          )
-        } else {
-          r.node.splice(1, 0, r.parent.prev.node)
-          r.parent.prev.node = r.node
-        }
+      if (undefined !== val) {
+        r.node.push(val)
       }
+
+      // console.log('MCP', r.i, r.name, p(r.node),
+      //   'PP', r.parent.parent?.u, p(r.parent.parent?.node), 'N', p(r.node))
+
+      // WWW
+      // if (r.parent.prev.u.paren_preval) {
+      //   if (isParenOp(r.parent.prev.node)) {
+      //     r.node = updateExprNode(
+      //       r.parent.prev.node,
+      //       r.node[0],
+      //       dupNode(r.parent.prev.node),
+      //       r.node[1],
+      //     )
+      //   } else {
+      //     r.node.splice(1, 0, r.parent.prev.node)
+      //     r.parent.prev.node = r.node
+      //   }
+      // }
     }
   }
 }
