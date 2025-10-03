@@ -150,21 +150,29 @@ let Expr = function expr(jsonic, options) {
                 ? {
                     s: [OP],
                     b: 1,
-                    p: 'paren',
-                    c: (r, ctx) => {
-                        const pdef = parenOTM[r.o0.tin];
-                        let pass = true;
-                        if (pdef.preval.required) {
-                            pass = 'val' === r.prev.name && r.prev.u.paren_preval;
+                    // QQQ
+                    // p: 'paren',
+                    p: 'expr',
+                    // QQQ
+                    /*
+                    c: (r: Rule, ctx: Context) => {
+                      const pdef = parenOTM[r.o0.tin]
+                      let pass = true
+          
+                      if (pdef.preval.required) {
+                        pass = 'val' === r.prev.name && r.prev.u.paren_preval
+                      }
+          
+                      // Paren with preval as first term becomes root.
+                      if (pass) {
+                        if (1 === r.prev.i) {
+                          ctx.root = () => r
                         }
-                        // Paren with preval as first term becomes root.
-                        if (pass) {
-                            if (1 === r.prev.i) {
-                                ctx.root = () => r;
-                            }
-                        }
-                        return pass;
-                    },
+                      }
+          
+                      return pass
+                      },
+                    */
                     g: 'expr,expr-paren',
                 }
                 : NONE,
@@ -322,7 +330,10 @@ let Expr = function expr(jsonic, options) {
             hasParen
                 ? {
                     s: [OP],
-                    p: 'val',
+                    // QQQ
+                    // p: 'val',
+                    p: 'paren',
+                    b: 1,
                     g: 'expr,expr-paren,expr-start',
                 }
                 : NONE,
@@ -336,8 +347,8 @@ let Expr = function expr(jsonic, options) {
                     a: (r) => {
                         const op = makeOp(r.o0, prefixTM);
                         r.node = isOp(r.parent.node)
-                            ? prattify(r.parent.node, op)
-                            : prior(r, r.parent, op);
+                            ? prattify(r.parent.node, op, 'expr-prefix')
+                            : prior(r, r.parent, op, 'expr-prefix');
                     },
                 }
                 : NONE,
@@ -352,16 +363,18 @@ let Expr = function expr(jsonic, options) {
                         const op = makeOp(r.o0, infixTM);
                         // Second and further operators.
                         if (isOp(parent.node) && !isTernaryOp(parent.node)) {
-                            r.node = prattify(parent.node, op);
+                            // console.log('INFIX-A', r.i, p(r.node), parent.i, p(parent.node))
+                            r.node = prattify(parent.node, op, 'expr-infix-more');
+                            // console.log('INFIX-B', r.i, p(r.node), parent.i, p(parent.node))
                         }
                         // First term was unary expression.
                         else if (isOp(prev.node)) {
-                            r.node = prattify(prev.node, op);
+                            r.node = prattify(prev.node, op, 'expr-infix-unary');
                             r.parent = prev;
                         }
                         // First term was plain value or ternary part.
                         else {
-                            r.node = prior(r, prev, op);
+                            r.node = prior(r, prev, op, 'expr-infix');
                         }
                     },
                     g: 'expr,expr-infix',
@@ -375,8 +388,8 @@ let Expr = function expr(jsonic, options) {
                         const prev = r.prev;
                         const op = makeOp(r.o0, suffixTM);
                         r.node = isOp(prev.node)
-                            ? prattify(prev.node, op)
-                            : prior(r, prev, op);
+                            ? prattify(prev.node, op, 'expr-suffix')
+                            : prior(r, prev, op, 'expr-suffix');
                     },
                     g: 'expr,expr-suffix',
                 }
@@ -384,12 +397,26 @@ let Expr = function expr(jsonic, options) {
         ])
             .bc((r) => {
             var _a;
+            const addterm = isOp(r.node)
+                && ((_a = r.node) === null || _a === void 0 ? void 0 : _a.length) - 1 < r.node[0].terms
+                // QQQ
+                && ('object' !== typeof r.node || r.node !== r.child.node);
             // Append final term to expression.
-            if (isOp(r.node) && ((_a = r.node) === null || _a === void 0 ? void 0 : _a.length) - 1 < r.node[0].terms) {
+            if (addterm) {
                 r.node.push(r.child.node);
             }
+            // console.log('EXPR-BC', addterm, r.i, p(r.node),
+            //   'C', r.child.i, p(r.child.node),
+            //   'P', r.parent.i, p(r.parent.node),
+            // )
         })
             .close([
+            // QQQ
+            {
+                c: (r) => 'paren' === r.child.name,
+                n: { expr: 0 },
+                g: 'expr,expr-end,expr-paren-end',
+            },
             hasInfix
                 ? {
                     s: [INFIX],
@@ -470,9 +497,17 @@ let Expr = function expr(jsonic, options) {
         ])
             .ac((r, ctx) => {
             // Only evaluate at root of expr (where r.n.expr === 0)
-            // console.log('EXPR AC', r)
+            // console.log('EXPR-AC', r.name, r.i, r.n, p(r.node),
+            //   'P', r.parent.name, r.parent.i, r.parent.n, p(r.parent.node))
             if (options.evaluate && 0 === r.n.expr) {
                 // The parent node will contain the root of the expr tree
+                // QQQ
+                // r.parent.node = evaluation(
+                //   r,
+                //   ctx,
+                //   r.node,
+                //   options.evaluate,
+                // )
                 r.parent.node = evaluation(r.parent, ctx, r.parent.node, options.evaluate);
             }
         });
@@ -524,10 +559,14 @@ let Expr = function expr(jsonic, options) {
                 : NONE,
         ])
             .ac((r, ctx) => {
+            // QQQ
+            // console.log('PAREN-AC', r.i, p(r.node), 'C', r.parent.i, p(r.parent.node))
+            r.parent.node = r.node;
+            r.parent.parent.node = r.node;
             // A Paren can occur outside an expression
-            if (options.evaluate && 0 === r.n.expr) {
-                r.node = evaluation(r.child, ctx, r.child.node, options.evaluate);
-            }
+            // if (options.evaluate && 0 === r.n.expr) {
+            //   r.node = evaluation(r.child, ctx, r.child.node, options.evaluate)
+            // }
         });
     });
     // Ternary operators are like fancy parens.
@@ -549,10 +588,10 @@ let Expr = function expr(jsonic, options) {
                         let op = makeOp(r.o0, ternaryTM);
                         r.u.expr_ternary_name = op.name;
                         if (isOp(r.prev.node)) {
-                            r.node = makeNode(r.prev.node, op, dupNode(r.prev.node));
+                            r.node = updateExprNode(r.prev.node, op, dupNode(r.prev.node));
                         }
                         else {
-                            r.node = r.prev.node = makeNode([], op, r.prev.node);
+                            r.node = r.prev.node = updateExprNode([], op, r.prev.node);
                         }
                         r.u.expr_ternary_paren =
                             r.n.expr_paren || r.prev.u.expr_ternary_paren || 0;
@@ -632,7 +671,8 @@ let Expr = function expr(jsonic, options) {
 };
 exports.Expr = Expr;
 // Convert prior (parent or previous) rule node into an expression.
-function prior(rule, prior, op) {
+function prior(rule, prior, op, whence) {
+    // console.log('PRIOR', whence, rule.i, p(rule.node), 'PR', prior.i, p(prior.node))
     let prior_node = prior.node;
     if (isOp(prior.node)) {
         prior_node = dupNode(prior.node);
@@ -640,7 +680,7 @@ function prior(rule, prior, op) {
     else {
         prior.node = [];
     }
-    makeNode(prior.node, op);
+    updateExprNode(prior.node, op);
     if (!op.prefix) {
         prior.node[1] = prior_node;
     }
@@ -652,7 +692,7 @@ function prior(rule, prior, op) {
 function makeOp(t, om) {
     return { ...om[t.tin], token: t, OP_MARK };
 }
-function makeNode(node, op, ...terms) {
+function updateExprNode(node, op, ...terms) {
     let out = node;
     out[0] = op;
     let tI = 0;
@@ -694,7 +734,7 @@ function makeCloseParen(parenCTM) {
             }
             if (r.parent.prev.u.paren_preval) {
                 if (isParenOp(r.parent.prev.node)) {
-                    r.node = makeNode(r.parent.prev.node, r.node[0], dupNode(r.parent.prev.node), r.node[1]);
+                    r.node = updateExprNode(r.parent.prev.node, r.node[0], dupNode(r.parent.prev.node), r.node[1]);
                 }
                 else {
                     r.node.splice(1, 0, r.parent.prev.node);
@@ -732,7 +772,6 @@ function implicitList(rule, ctx, a) {
 }
 function implicitTernaryCond(r) {
     let cond = (0 === r.d || 1 <= r.n.expr_paren) && !r.n.pk && 2 === r.u.expr_ternary_step;
-    // console.log('****** ITC', cond, r.n.pk)
     return cond;
 }
 function implicitTernaryAction(r, _ctx, a) {
@@ -918,28 +957,31 @@ Expr.defaults = {
 };
 // Pratt algorithm embeds next operator.
 // NOTE: preserves referential integrity of root expression.
-function prattify(expr, op) {
+function prattify(expr, op, whence) {
+    // console.log('PRATT-START', whence, p(expr), op?.name)
     let out = expr;
     let expr_op = expr[0];
     if (op) {
         if (op.infix) {
             // op is lower
             if (expr_op.suffix || op.left <= expr_op.right) {
-                makeNode(expr, op, dupNode(expr));
+                updateExprNode(expr, op, dupNode(expr));
             }
             // op is higher
             else {
                 const end = expr_op.terms;
                 if (isOp(expr[end]) && expr[end][0].right < op.left) {
-                    out = prattify(expr[end], op);
+                    out = prattify(expr[end], op, 'prattify-infix');
+                    // console.log('PRATT-INFIX-H0', end, out)
                 }
                 else {
-                    out = expr[end] = makeNode([], op, expr[end]);
+                    out = expr[end] = updateExprNode([], op, expr[end]);
+                    // console.log('PRATT-INFIX-H1', end, out)
                 }
             }
         }
         else if (op.prefix) {
-            out = expr[expr_op.terms] = makeNode([], op);
+            out = expr[expr_op.terms] = updateExprNode([], op);
         }
         else if (op.suffix) {
             if (!expr_op.suffix && expr_op.right <= op.left) {
@@ -949,17 +991,18 @@ function prattify(expr, op) {
                 if (isOp(expr[end]) &&
                     expr[end][0].prefix &&
                     expr[end][0].right < op.left) {
-                    prattify(expr[end], op);
+                    prattify(expr[end], op, 'prattify-suffix');
                 }
                 else {
-                    expr[end] = makeNode([], op, expr[end]);
+                    expr[end] = updateExprNode([], op, expr[end]);
                 }
             }
             else {
-                makeNode(expr, op, dupNode(expr));
+                updateExprNode(expr, op, dupNode(expr));
             }
         }
     }
+    // console.log('PRATT-END', whence, p(out), op?.name)
     return out;
 }
 function evaluation(rule, ctx, expr, evaluate) {
@@ -971,6 +1014,20 @@ function evaluation(rule, ctx, expr, evaluate) {
         return evaluate(rule, ctx, expr[0], expr.slice(1).map((term) => evaluation(rule, ctx, term, evaluate)));
     }
     return expr;
+}
+function p(node, seen) {
+    var _a, _b;
+    seen = seen !== null && seen !== void 0 ? seen : new WeakSet();
+    if (seen.has(node)) {
+        return '[CIRCLE]';
+    }
+    else if (null != node && 'object' === typeof node) {
+        seen.add(node);
+    }
+    if (Array.isArray(node) && 'string' === typeof ((_a = node[0]) === null || _a === void 0 ? void 0 : _a.src)) {
+        return ['OP' + ((_b = node[0]) === null || _b === void 0 ? void 0 : _b.src), ...(node.slice(1).map((n) => p(n, seen)))];
+    }
+    return node;
 }
 const testing = {
     prattify,

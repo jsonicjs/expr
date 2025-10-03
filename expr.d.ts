@@ -52,7 +52,7 @@ type Op = {
 type Evaluate = (rule: Rule, ctx: Context, op: Op, ...terms: any) => any;
 declare const OP_MARK: {};
 declare let Expr: Plugin;
-declare function prattify(expr: any, op?: Op): any[];
+declare function prattify(expr: any, op?: Op, whence?: string): any[];
 declare function evaluation(rule: Rule, ctx: Context, expr: any, evaluate: Evaluate): any;
 declare const testing: {
     prattify: typeof prattify;
