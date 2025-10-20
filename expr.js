@@ -429,10 +429,10 @@ let Expr = function expr(jsonic, options) {
             if (addterm) {
                 r.node.push(r.child.node);
             }
-            // console.log('EXPR-BC', addterm, r.i, p(r.node),
+            // console.log('EXPR-BC', addterm, r.i, p(r.node), r.u,
             //   'C', r.child.i, p(r.child.node),
             //   'P', r.parent.i, p(r.parent.node),
-            //)
+            // )
         })
             .close([
             // QQQ
@@ -448,6 +448,17 @@ let Expr = function expr(jsonic, options) {
                     c: (r) => !r.n.expr_prefix,
                     b: 1,
                     r: 'expr',
+                    g: 'expr,expr-infix,expr-prefix',
+                }
+                : NONE,
+            // TTT
+            hasInfix
+                ? {
+                    s: [INFIX],
+                    // Complete prefix first.
+                    c: (r) => !!r.n.expr_prefix,
+                    b: 1,
+                    // r: 'expr',
                     g: 'expr,expr-infix',
                 }
                 : NONE,
@@ -457,9 +468,19 @@ let Expr = function expr(jsonic, options) {
                     c: (r) => !r.n.expr_prefix,
                     b: 1,
                     r: 'expr',
-                    g: 'expr,expr-suffix',
+                    g: 'expr,expr-suffix,expr-prefix',
                 }
                 : NONE,
+            // TTT
+            // hasSuffix
+            //   ? {
+            //     s: [SUFFIX],
+            //     c: (r: Rule) => !!r.n.expr_prefix,
+            //     b: 1,
+            //     r: 'expr',
+            //     g: 'expr,expr-suffix',
+            //   }
+            //   : NONE,
             hasParen
                 ? {
                     s: [CP],

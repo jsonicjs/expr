@@ -564,10 +564,10 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           r.node.push(r.child.node)
         }
 
-        // console.log('EXPR-BC', addterm, r.i, p(r.node),
+        // console.log('EXPR-BC', addterm, r.i, p(r.node), r.u,
         //   'C', r.child.i, p(r.child.node),
         //   'P', r.parent.i, p(r.parent.node),
-        //)
+        // )
       })
 
       .close([
@@ -578,6 +578,7 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
           g: 'expr,expr-end,expr-paren-end',
         },
 
+
         hasInfix
           ? {
             s: [INFIX],
@@ -585,9 +586,22 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             c: (r: Rule) => !r.n.expr_prefix,
             b: 1,
             r: 'expr',
+            g: 'expr,expr-infix,expr-prefix',
+          }
+          : NONE,
+
+        // TTT
+        hasInfix
+          ? {
+            s: [INFIX],
+            // Complete prefix first.
+            c: (r: Rule) => !!r.n.expr_prefix,
+            b: 1,
+            // r: 'expr',
             g: 'expr,expr-infix',
           }
           : NONE,
+
 
         hasSuffix
           ? {
@@ -595,9 +609,20 @@ let Expr: Plugin = function expr(jsonic: Jsonic, options: ExprOptions) {
             c: (r: Rule) => !r.n.expr_prefix,
             b: 1,
             r: 'expr',
-            g: 'expr,expr-suffix',
+            g: 'expr,expr-suffix,expr-prefix',
           }
           : NONE,
+
+        // TTT
+        // hasSuffix
+        //   ? {
+        //     s: [SUFFIX],
+        //     c: (r: Rule) => !!r.n.expr_prefix,
+        //     b: 1,
+        //     r: 'expr',
+        //     g: 'expr,expr-suffix',
+        //   }
+        //   : NONE,
 
         hasParen
           ? {
@@ -974,6 +999,7 @@ function makeCloseParen(parenCTM: OpMap) {
   }
 }
 
+
 function implicitList(rule: Rule, ctx: Context, a: any) {
   let paren: Rule | null = null
 
@@ -1002,8 +1028,10 @@ function implicitList(rule: Rule, ctx: Context, a: any) {
 
     rule.node = paren.child.node
   }
+
   return a
 }
+
 
 function implicitTernaryCond(r: Rule) {
   let cond =
