@@ -1,17 +1,19 @@
 /* Copyright (c) 2021-2025 Richard Rodger and other contributors, MIT License */
 
+import { describe, test, beforeEach } from 'node:test'
+import { expect } from '@hapi/code'
 
 import { Jsonic, util } from 'jsonic'
 import { Debug } from 'jsonic/debug'
 
 import {
   Expr,
-} from '../expr'
+} from '..'
 
 import type {
   Op,
   Evaluate,
-} from '../expr'
+} from '..'
 
 
 const { omap } = util
@@ -31,8 +33,8 @@ const mj =
   (je: Jsonic) => (s: string, m?: any) => C(S(je(s, m)))
 
 
-const _mo_ = 'toMatchObject'
-
+// const _mo_ = 'toMatchObject'
+const _mo_ = 'equal'
 
 
 

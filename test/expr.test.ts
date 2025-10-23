@@ -1,5 +1,8 @@
+
 /* Copyright (c) 2021-2025 Richard Rodger and other contributors, MIT License */
 
+import { describe, test, beforeEach } from 'node:test'
+import { expect } from '@hapi/code'
 
 import { Jsonic, Rule, Context, util } from 'jsonic'
 import { Debug } from 'jsonic/debug'
@@ -8,12 +11,12 @@ import {
   Expr,
   evaluation,
   testing,
-} from '../expr'
+} from '..'
 
 import type {
   Op,
   Evaluate,
-} from '../expr'
+} from '..'
 
 
 const { omap } = util
@@ -36,7 +39,8 @@ const mj =
   (je: Jsonic) => (s: string, m?: any) => C(S(je(s, m)))
 
 
-const _mo_ = 'toMatchObject'
+// const _mo_ = 'toMatchObject'
+const _mo_ = 'equal'
 
 
 function makeOp(opspec: any): Op {
@@ -74,8 +78,8 @@ describe('expr', () => {
   test('happy', () => {
     const j = mj(Jsonic.make().use(Expr))
 
-    expect(j('1+2')).toMatchObject(['+', 1, 2])
-    expect(j('-1+2')).toMatchObject(['+', ['-', 1], 2])
+    expect(j('1+2'))[_mo_](['+', 1, 2])
+    expect(j('-1+2'))[_mo_](['+', ['-', 1], 2])
   })
 
 
@@ -606,144 +610,144 @@ describe('expr', () => {
   test('unary-prefix-basic', () => {
     const j = mj(Jsonic.make().use(Expr))
 
-    expect(j('1')).toEqual(1)
-    expect(j('z')).toEqual('z')
+    expect(j('1')).equal(1)
+    expect(j('z')).equal('z')
 
-    expect(j('-1')).toMatchObject(['-', 1])
-    expect(j('- 1')).toMatchObject(['-', 1])
-    expect(j('+1')).toMatchObject(['+', 1])
-    expect(j('+ 1')).toMatchObject(['+', 1])
+    expect(j('-1'))[_mo_](['-', 1])
+    expect(j('- 1'))[_mo_](['-', 1])
+    expect(j('+1'))[_mo_](['+', 1])
+    expect(j('+ 1'))[_mo_](['+', 1])
 
-    expect(j('--1')).toMatchObject(['-', ['-', 1]])
-    expect(j('---1')).toMatchObject(['-', ['-', ['-', 1]]])
-    expect(j('++1')).toMatchObject(['+', ['+', 1]])
-    expect(j('+++1')).toMatchObject(['+', ['+', ['+', 1]]])
+    expect(j('--1'))[_mo_](['-', ['-', 1]])
+    expect(j('---1'))[_mo_](['-', ['-', ['-', 1]]])
+    expect(j('++1'))[_mo_](['+', ['+', 1]])
+    expect(j('+++1'))[_mo_](['+', ['+', ['+', 1]]])
 
-    expect(j('-+1')).toMatchObject(['-', ['+', 1]])
-    expect(j('+-1')).toMatchObject(['+', ['-', 1]])
+    expect(j('-+1'))[_mo_](['-', ['+', 1]])
+    expect(j('+-1'))[_mo_](['+', ['-', 1]])
 
-    expect(j('--+1')).toMatchObject(['-', ['-', ['+', 1]]])
-    expect(j('-+-1')).toMatchObject(['-', ['+', ['-', 1]]])
-    expect(j('+--1')).toMatchObject(['+', ['-', ['-', 1]]])
+    expect(j('--+1'))[_mo_](['-', ['-', ['+', 1]]])
+    expect(j('-+-1'))[_mo_](['-', ['+', ['-', 1]]])
+    expect(j('+--1'))[_mo_](['+', ['-', ['-', 1]]])
 
-    expect(j('-++1')).toMatchObject(['-', ['+', ['+', 1]]])
-    expect(j('++-1')).toMatchObject(['+', ['+', ['-', 1]]])
-
-
-    expect(j('-z')).toMatchObject(['-', 'z'])
-    expect(j('- z')).toMatchObject(['-', 'z'])
-    expect(j('+z')).toMatchObject(['+', 'z'])
-    expect(j('+ z')).toMatchObject(['+', 'z'])
-
-    expect(j('--z')).toMatchObject(['-', ['-', 'z']])
-    expect(j('---z')).toMatchObject(['-', ['-', ['-', 'z']]])
-    expect(j('++z')).toMatchObject(['+', ['+', 'z']])
-    expect(j('+++z')).toMatchObject(['+', ['+', ['+', 'z']]])
-
-    expect(j('-+z')).toMatchObject(['-', ['+', 'z']])
-    expect(j('+-z')).toMatchObject(['+', ['-', 'z']])
-
-    expect(j('--+z')).toMatchObject(['-', ['-', ['+', 'z']]])
-    expect(j('-+-z')).toMatchObject(['-', ['+', ['-', 'z']]])
-    expect(j('+--z')).toMatchObject(['+', ['-', ['-', 'z']]])
-
-    expect(j('-++z')).toMatchObject(['-', ['+', ['+', 'z']]])
-    expect(j('++-z')).toMatchObject(['+', ['+', ['-', 'z']]])
+    expect(j('-++1'))[_mo_](['-', ['+', ['+', 1]]])
+    expect(j('++-1'))[_mo_](['+', ['+', ['-', 1]]])
 
 
-    expect(j('-{z:1}')).toMatchObject(['-', { z: 1 }])
-    expect(j('- {z:1}')).toMatchObject(['-', { z: 1 }])
-    expect(j('+{z:1}')).toMatchObject(['+', { z: 1 }])
-    expect(j('+ {z:1}')).toMatchObject(['+', { z: 1 }])
+    expect(j('-z'))[_mo_](['-', 'z'])
+    expect(j('- z'))[_mo_](['-', 'z'])
+    expect(j('+z'))[_mo_](['+', 'z'])
+    expect(j('+ z'))[_mo_](['+', 'z'])
 
-    expect(j('-{z:1,y:2}')).toMatchObject(['-', { z: 1, y: 2 }])
-    expect(j('- {z:1,y:2}')).toMatchObject(['-', { z: 1, y: 2 }])
-    expect(j('+{z:1,y:2}')).toMatchObject(['+', { z: 1, y: 2 }])
-    expect(j('+ {z:1,y:2}')).toMatchObject(['+', { z: 1, y: 2 }])
+    expect(j('--z'))[_mo_](['-', ['-', 'z']])
+    expect(j('---z'))[_mo_](['-', ['-', ['-', 'z']]])
+    expect(j('++z'))[_mo_](['+', ['+', 'z']])
+    expect(j('+++z'))[_mo_](['+', ['+', ['+', 'z']]])
 
-    expect(j('-{z:1 y:2}')).toMatchObject(['-', { z: 1, y: 2 }])
-    expect(j('- {z:1 y:2}')).toMatchObject(['-', { z: 1, y: 2 }])
-    expect(j('+{z:1 y:2}')).toMatchObject(['+', { z: 1, y: 2 }])
-    expect(j('+ {z:1 y:2}')).toMatchObject(['+', { z: 1, y: 2 }])
+    expect(j('-+z'))[_mo_](['-', ['+', 'z']])
+    expect(j('+-z'))[_mo_](['+', ['-', 'z']])
 
-    expect(j('-{z:1,y:2,x:3}')).toMatchObject(['-', { z: 1, y: 2, x: 3 }])
-    expect(j('- {z:1,y:2,x:3}')).toMatchObject(['-', { z: 1, y: 2, x: 3 }])
-    expect(j('+{z:1,y:2,x:3}')).toMatchObject(['+', { z: 1, y: 2, x: 3 }])
-    expect(j('+ {z:1,y:2,x:3}')).toMatchObject(['+', { z: 1, y: 2, x: 3 }])
+    expect(j('--+z'))[_mo_](['-', ['-', ['+', 'z']]])
+    expect(j('-+-z'))[_mo_](['-', ['+', ['-', 'z']]])
+    expect(j('+--z'))[_mo_](['+', ['-', ['-', 'z']]])
 
-    expect(j('-{z:1 y:2 x:3}')).toMatchObject(['-', { z: 1, y: 2, x: 3 }])
-    expect(j('- {z:1 y:2 x:3}')).toMatchObject(['-', { z: 1, y: 2, x: 3 }])
-    expect(j('+{z:1 y:2 x:3}')).toMatchObject(['+', { z: 1, y: 2, x: 3 }])
-    expect(j('+ {z:1 y:2 x:3}')).toMatchObject(['+', { z: 1, y: 2, x: 3 }])
+    expect(j('-++z'))[_mo_](['-', ['+', ['+', 'z']]])
+    expect(j('++-z'))[_mo_](['+', ['+', ['-', 'z']]])
 
 
-    expect(j('-{z:-1}')).toMatchObject(['-', { z: ['-', 1] }])
-    expect(j('- {z:-1}')).toMatchObject(['-', { z: ['-', 1] }])
-    expect(j('+{z:+1}')).toMatchObject(['+', { z: ['+', 1] }])
-    expect(j('+ {z:+1}')).toMatchObject(['+', { z: ['+', 1] }])
+    expect(j('-{z:1}'))[_mo_](['-', { z: 1 }])
+    expect(j('- {z:1}'))[_mo_](['-', { z: 1 }])
+    expect(j('+{z:1}'))[_mo_](['+', { z: 1 }])
+    expect(j('+ {z:1}'))[_mo_](['+', { z: 1 }])
 
-    expect(j('-{z:2-1}')).toMatchObject(['-', { z: ['-', 2, 1] }])
-    expect(j('- {z:2-1}')).toMatchObject(['-', { z: ['-', 2, 1] }])
-    expect(j('+{z:2+1}')).toMatchObject(['+', { z: ['+', 2, 1] }])
-    expect(j('+ {z:2+1}')).toMatchObject(['+', { z: ['+', 2, 1] }])
+    expect(j('-{z:1,y:2}'))[_mo_](['-', { z: 1, y: 2 }])
+    expect(j('- {z:1,y:2}'))[_mo_](['-', { z: 1, y: 2 }])
+    expect(j('+{z:1,y:2}'))[_mo_](['+', { z: 1, y: 2 }])
+    expect(j('+ {z:1,y:2}'))[_mo_](['+', { z: 1, y: 2 }])
 
+    expect(j('-{z:1 y:2}'))[_mo_](['-', { z: 1, y: 2 }])
+    expect(j('- {z:1 y:2}'))[_mo_](['-', { z: 1, y: 2 }])
+    expect(j('+{z:1 y:2}'))[_mo_](['+', { z: 1, y: 2 }])
+    expect(j('+ {z:1 y:2}'))[_mo_](['+', { z: 1, y: 2 }])
 
-    expect(j('--{z:1}')).toMatchObject(['-', ['-', { z: 1 }]])
-    expect(j('---{z:1}')).toMatchObject(['-', ['-', ['-', { z: 1 }]]])
-    expect(j('++{z:1}')).toMatchObject(['+', ['+', { z: 1 }]])
-    expect(j('+++{z:1}')).toMatchObject(['+', ['+', ['+', { z: 1 }]]])
+    expect(j('-{z:1,y:2,x:3}'))[_mo_](['-', { z: 1, y: 2, x: 3 }])
+    expect(j('- {z:1,y:2,x:3}'))[_mo_](['-', { z: 1, y: 2, x: 3 }])
+    expect(j('+{z:1,y:2,x:3}'))[_mo_](['+', { z: 1, y: 2, x: 3 }])
+    expect(j('+ {z:1,y:2,x:3}'))[_mo_](['+', { z: 1, y: 2, x: 3 }])
 
-    expect(j('-+{z:1}')).toMatchObject(['-', ['+', { z: 1 }]])
-    expect(j('+-{z:1}')).toMatchObject(['+', ['-', { z: 1 }]])
-
-    expect(j('--+{z:1}')).toMatchObject(['-', ['-', ['+', { z: 1 }]]])
-    expect(j('-+-{z:1}')).toMatchObject(['-', ['+', ['-', { z: 1 }]]])
-    expect(j('+--{z:1}')).toMatchObject(['+', ['-', ['-', { z: 1 }]]])
-
-    expect(j('-++{z:1}')).toMatchObject(['-', ['+', ['+', { z: 1 }]]])
-    expect(j('++-{z:1}')).toMatchObject(['+', ['+', ['-', { z: 1 }]]])
-
-
-    expect(j('-[11,22]')).toMatchObject(['-', [11, 22]])
-    expect(j('- [11,22]')).toMatchObject(['-', [11, 22]])
-    expect(j('+[11,22]')).toMatchObject(['+', [11, 22]])
-    expect(j('+ [11,22]')).toMatchObject(['+', [11, 22]])
-
-    expect(j('--[11,22]')).toMatchObject(['-', ['-', [11, 22]]])
-    expect(j('---[11,22]')).toMatchObject(['-', ['-', ['-', [11, 22]]]])
-    expect(j('++[11,22]')).toMatchObject(['+', ['+', [11, 22]]])
-    expect(j('+++[11,22]')).toMatchObject(['+', ['+', ['+', [11, 22]]]])
-
-    expect(j('-+[11,22]')).toMatchObject(['-', ['+', [11, 22]]])
-    expect(j('+-[11,22]')).toMatchObject(['+', ['-', [11, 22]]])
-
-    expect(j('--+[11,22]')).toMatchObject(['-', ['-', ['+', [11, 22]]]])
-    expect(j('-+-[11,22]')).toMatchObject(['-', ['+', ['-', [11, 22]]]])
-    expect(j('+--[11,22]')).toMatchObject(['+', ['-', ['-', [11, 22]]]])
-
-    expect(j('-++[11,22]')).toMatchObject(['-', ['+', ['+', [11, 22]]]])
-    expect(j('++-[11,22]')).toMatchObject(['+', ['+', ['-', [11, 22]]]])
+    expect(j('-{z:1 y:2 x:3}'))[_mo_](['-', { z: 1, y: 2, x: 3 }])
+    expect(j('- {z:1 y:2 x:3}'))[_mo_](['-', { z: 1, y: 2, x: 3 }])
+    expect(j('+{z:1 y:2 x:3}'))[_mo_](['+', { z: 1, y: 2, x: 3 }])
+    expect(j('+ {z:1 y:2 x:3}'))[_mo_](['+', { z: 1, y: 2, x: 3 }])
 
 
+    expect(j('-{z:-1}'))[_mo_](['-', { z: ['-', 1] }])
+    expect(j('- {z:-1}'))[_mo_](['-', { z: ['-', 1] }])
+    expect(j('+{z:+1}'))[_mo_](['+', { z: ['+', 1] }])
+    expect(j('+ {z:+1}'))[_mo_](['+', { z: ['+', 1] }])
 
-    expect(j('1+2')).toMatchObject(['+', 1, 2])
-    expect(j('-1+2')).toMatchObject(['+', ['-', 1], 2])
-    expect(j('--1+2')).toMatchObject(['+', ['-', ['-', 1]], 2])
-
-    expect(j('-1+-2')).toMatchObject(['+', ['-', 1], ['-', 2]])
-    expect(j('1+-2')).toMatchObject(['+', 1, ['-', 2]])
-    expect(j('1++2')).toMatchObject(['+', 1, ['+', 2]])
-    expect(j('-1++2')).toMatchObject(['+', ['-', 1], ['+', 2]])
+    expect(j('-{z:2-1}'))[_mo_](['-', { z: ['-', 2, 1] }])
+    expect(j('- {z:2-1}'))[_mo_](['-', { z: ['-', 2, 1] }])
+    expect(j('+{z:2+1}'))[_mo_](['+', { z: ['+', 2, 1] }])
+    expect(j('+ {z:2+1}'))[_mo_](['+', { z: ['+', 2, 1] }])
 
 
-    expect(j('-1+2+3')).toMatchObject(['+', ['+', ['-', 1], 2], 3])
-    expect(j('-1+-2+3')).toMatchObject(['+', ['+', ['-', 1], ['-', 2]], 3])
-    expect(j('-1+-2+-3')).toMatchObject(['+', ['+', ['-', 1], ['-', 2]], ['-', 3]])
-    expect(j('-1+2+-3')).toMatchObject(['+', ['+', ['-', 1], 2], ['-', 3]])
-    expect(j('1+2+3')).toMatchObject(['+', ['+', 1, 2], 3])
-    expect(j('1+-2+3')).toMatchObject(['+', ['+', 1, ['-', 2]], 3])
-    expect(j('1+-2+-3')).toMatchObject(['+', ['+', 1, ['-', 2]], ['-', 3]])
-    expect(j('1+2+-3')).toMatchObject(['+', ['+', 1, 2], ['-', 3]])
+    expect(j('--{z:1}'))[_mo_](['-', ['-', { z: 1 }]])
+    expect(j('---{z:1}'))[_mo_](['-', ['-', ['-', { z: 1 }]]])
+    expect(j('++{z:1}'))[_mo_](['+', ['+', { z: 1 }]])
+    expect(j('+++{z:1}'))[_mo_](['+', ['+', ['+', { z: 1 }]]])
+
+    expect(j('-+{z:1}'))[_mo_](['-', ['+', { z: 1 }]])
+    expect(j('+-{z:1}'))[_mo_](['+', ['-', { z: 1 }]])
+
+    expect(j('--+{z:1}'))[_mo_](['-', ['-', ['+', { z: 1 }]]])
+    expect(j('-+-{z:1}'))[_mo_](['-', ['+', ['-', { z: 1 }]]])
+    expect(j('+--{z:1}'))[_mo_](['+', ['-', ['-', { z: 1 }]]])
+
+    expect(j('-++{z:1}'))[_mo_](['-', ['+', ['+', { z: 1 }]]])
+    expect(j('++-{z:1}'))[_mo_](['+', ['+', ['-', { z: 1 }]]])
+
+
+    expect(j('-[11,22]'))[_mo_](['-', [11, 22]])
+    expect(j('- [11,22]'))[_mo_](['-', [11, 22]])
+    expect(j('+[11,22]'))[_mo_](['+', [11, 22]])
+    expect(j('+ [11,22]'))[_mo_](['+', [11, 22]])
+
+    expect(j('--[11,22]'))[_mo_](['-', ['-', [11, 22]]])
+    expect(j('---[11,22]'))[_mo_](['-', ['-', ['-', [11, 22]]]])
+    expect(j('++[11,22]'))[_mo_](['+', ['+', [11, 22]]])
+    expect(j('+++[11,22]'))[_mo_](['+', ['+', ['+', [11, 22]]]])
+
+    expect(j('-+[11,22]'))[_mo_](['-', ['+', [11, 22]]])
+    expect(j('+-[11,22]'))[_mo_](['+', ['-', [11, 22]]])
+
+    expect(j('--+[11,22]'))[_mo_](['-', ['-', ['+', [11, 22]]]])
+    expect(j('-+-[11,22]'))[_mo_](['-', ['+', ['-', [11, 22]]]])
+    expect(j('+--[11,22]'))[_mo_](['+', ['-', ['-', [11, 22]]]])
+
+    expect(j('-++[11,22]'))[_mo_](['-', ['+', ['+', [11, 22]]]])
+    expect(j('++-[11,22]'))[_mo_](['+', ['+', ['-', [11, 22]]]])
+
+
+
+    expect(j('1+2'))[_mo_](['+', 1, 2])
+    expect(j('-1+2'))[_mo_](['+', ['-', 1], 2])
+    expect(j('--1+2'))[_mo_](['+', ['-', ['-', 1]], 2])
+
+    expect(j('-1+-2'))[_mo_](['+', ['-', 1], ['-', 2]])
+    expect(j('1+-2'))[_mo_](['+', 1, ['-', 2]])
+    expect(j('1++2'))[_mo_](['+', 1, ['+', 2]])
+    expect(j('-1++2'))[_mo_](['+', ['-', 1], ['+', 2]])
+
+
+    expect(j('-1+2+3'))[_mo_](['+', ['+', ['-', 1], 2], 3])
+    expect(j('-1+-2+3'))[_mo_](['+', ['+', ['-', 1], ['-', 2]], 3])
+    expect(j('-1+-2+-3'))[_mo_](['+', ['+', ['-', 1], ['-', 2]], ['-', 3]])
+    expect(j('-1+2+-3'))[_mo_](['+', ['+', ['-', 1], 2], ['-', 3]])
+    expect(j('1+2+3'))[_mo_](['+', ['+', 1, 2], 3])
+    expect(j('1+-2+3'))[_mo_](['+', ['+', 1, ['-', 2]], 3])
+    expect(j('1+-2+-3'))[_mo_](['+', ['+', 1, ['-', 2]], ['-', 3]])
+    expect(j('1+2+-3'))[_mo_](['+', ['+', 1, 2], ['-', 3]])
 
   })
 
@@ -761,51 +765,51 @@ describe('expr', () => {
     })
     const j = mj(je)
 
-    expect(j('@1')).toEqual(['@', 1])
-    expect(j('@@1')).toEqual(['@', ['@', 1]])
-    expect(j('@@@1')).toEqual(['@', ['@', ['@', 1]]])
+    expect(j('@1')).equal(['@', 1])
+    expect(j('@@1')).equal(['@', ['@', 1]])
+    expect(j('@@@1')).equal(['@', ['@', ['@', 1]]])
 
 
     // Precedence does not matter within prefix sequences.
-    expect(j('-@1')).toEqual(['-', ['@', 1]])
-    expect(j('@-1')).toEqual(['@', ['-', 1]])
+    expect(j('-@1')).equal(['-', ['@', 1]])
+    expect(j('@-1')).equal(['@', ['-', 1]])
 
-    expect(j('--@1')).toEqual(['-', ['-', ['@', 1]]])
-    expect(j('@--1')).toEqual(['@', ['-', ['-', 1]]])
+    expect(j('--@1')).equal(['-', ['-', ['@', 1]]])
+    expect(j('@--1')).equal(['@', ['-', ['-', 1]]])
 
-    expect(j('@@-1')).toEqual(['@', ['@', ['-', 1]]])
-    expect(j('-@@1')).toEqual(['-', ['@', ['@', 1]]])
+    expect(j('@@-1')).equal(['@', ['@', ['-', 1]]])
+    expect(j('-@@1')).equal(['-', ['@', ['@', 1]]])
 
-    expect(j('-@-1')).toEqual(['-', ['@', ['-', 1]]])
-    expect(j('@-@1')).toEqual(['@', ['-', ['@', 1]]])
+    expect(j('-@-1')).equal(['-', ['@', ['-', 1]]])
+    expect(j('@-@1')).equal(['@', ['-', ['@', 1]]])
 
 
-    expect(j('@1+2')).toEqual(['+', ['@', 1], 2])
-    expect(j('1+@2')).toEqual(['+', 1, ['@', 2]])
-    expect(j('@1+@2')).toEqual(['+', ['@', 1], ['@', 2]])
+    expect(j('@1+2')).equal(['+', ['@', 1], 2])
+    expect(j('1+@2')).equal(['+', 1, ['@', 2]])
+    expect(j('@1+@2')).equal(['+', ['@', 1], ['@', 2]])
 
-    expect(j('@1+2+3')).toEqual(['+', ['+', ['@', 1], 2], 3])
-    expect(j('1+@2+3')).toEqual(['+', ['+', 1, ['@', 2]], 3])
-    expect(j('@1+@2+3')).toEqual(['+', ['+', ['@', 1], ['@', 2]], 3])
+    expect(j('@1+2+3')).equal(['+', ['+', ['@', 1], 2], 3])
+    expect(j('1+@2+3')).equal(['+', ['+', 1, ['@', 2]], 3])
+    expect(j('@1+@2+3')).equal(['+', ['+', ['@', 1], ['@', 2]], 3])
 
-    expect(j('@1+2+@3')).toEqual(['+', ['+', ['@', 1], 2], ['@', 3]])
-    expect(j('1+@2+@3')).toEqual(['+', ['+', 1, ['@', 2]], ['@', 3]])
-    expect(j('@1+@2+@3')).toEqual(['+', ['+', ['@', 1], ['@', 2]], ['@', 3]])
+    expect(j('@1+2+@3')).equal(['+', ['+', ['@', 1], 2], ['@', 3]])
+    expect(j('1+@2+@3')).equal(['+', ['+', 1, ['@', 2]], ['@', 3]])
+    expect(j('@1+@2+@3')).equal(['+', ['+', ['@', 1], ['@', 2]], ['@', 3]])
 
 
     // Tighter!
 
-    expect(j('@1~2')).toEqual(['@', ['~', 1, 2]])
-    expect(j('1~@2')).toEqual(['~', 1, ['@', 2]])
-    expect(j('@1~@2')).toEqual(['@', ['~', 1, ['@', 2]]])
+    expect(j('@1~2')).equal(['@', ['~', 1, 2]])
+    expect(j('1~@2')).equal(['~', 1, ['@', 2]])
+    expect(j('@1~@2')).equal(['@', ['~', 1, ['@', 2]]])
 
-    expect(j('@1~2+3')).toEqual(['+', ['@', ['~', 1, 2]], 3])
-    expect(j('1~@2+3')).toEqual(['+', ['~', 1, ['@', 2]], 3])
-    expect(j('@1~@2+3')).toEqual(['+', ['@', ['~', 1, ['@', 2]]], 3])
+    expect(j('@1~2+3')).equal(['+', ['@', ['~', 1, 2]], 3])
+    expect(j('1~@2+3')).equal(['+', ['~', 1, ['@', 2]], 3])
+    expect(j('@1~@2+3')).equal(['+', ['@', ['~', 1, ['@', 2]]], 3])
 
-    expect(j('@1~2~3')).toEqual(['@', ['~', ['~', 1, 2], 3]])
-    expect(j('1~@2~3')).toEqual(['~', ['~', 1, ['@', 2]], 3])
-    expect(j('@1~@2~3')).toEqual(['@', ['~', ['~', 1, ['@', 2]], 3]])
+    expect(j('@1~2~3')).equal(['@', ['~', ['~', 1, 2], 3]])
+    expect(j('1~@2~3')).equal(['~', ['~', 1, ['@', 2]], 3])
+    expect(j('@1~@2~3')).equal(['@', ['~', ['~', 1, ['@', 2]], 3]])
   })
 
 
@@ -822,52 +826,52 @@ describe('expr', () => {
     })
     const j = mj(je)
 
-    expect(j('1')).toEqual(1)
-    expect(j('z')).toEqual('z')
+    expect(j('1')).equal(1)
+    expect(j('z')).equal('z')
 
-    expect(j('1!')).toMatchObject(['!', 1])
-    expect(j('1 !')).toMatchObject(['!', 1])
+    expect(j('1!'))[_mo_](['!', 1])
+    expect(j('1 !'))[_mo_](['!', 1])
 
-    expect(j('1!!')).toMatchObject(['!', ['!', 1]])
-    expect(j('1!!!')).toMatchObject(['!', ['!', ['!', 1]]])
+    expect(j('1!!'))[_mo_](['!', ['!', 1]])
+    expect(j('1!!!'))[_mo_](['!', ['!', ['!', 1]]])
 
-    expect(j('z!')).toMatchObject(['!', 'z'])
-    expect(j('z !')).toMatchObject(['!', 'z'])
-
-
-    expect(j('1?')).toMatchObject(['?', 1])
-    expect(j('1 ?')).toMatchObject(['?', 1])
-
-    expect(j('1??')).toMatchObject(['?', ['?', 1]])
-    expect(j('1???')).toMatchObject(['?', ['?', ['?', 1]]])
+    expect(j('z!'))[_mo_](['!', 'z'])
+    expect(j('z !'))[_mo_](['!', 'z'])
 
 
+    expect(j('1?'))[_mo_](['?', 1])
+    expect(j('1 ?'))[_mo_](['?', 1])
 
-    expect(j('1+2!')).toMatchObject(['+', 1, ['!', 2]])
-    expect(j('1!+2')).toMatchObject(['+', ['!', 1], 2])
-    expect(j('1!+2!')).toMatchObject(['+', ['!', 1], ['!', 2]])
-
-    expect(j('1+2!!')).toMatchObject(['+', 1, ['!', ['!', 2]]])
-    expect(j('1!!+2')).toMatchObject(['+', ['!', ['!', 1]], 2])
-    expect(j('1!!+2!!')).toMatchObject(['+', ['!', ['!', 1]], ['!', ['!', 2]]])
+    expect(j('1??'))[_mo_](['?', ['?', 1]])
+    expect(j('1???'))[_mo_](['?', ['?', ['?', 1]]])
 
 
-    expect(j('1+2?')).toMatchObject(['+', 1, ['?', 2]])
-    expect(j('1?+2')).toMatchObject(['+', ['?', 1], 2])
-    expect(j('1?+2?')).toMatchObject(['+', ['?', 1], ['?', 2]])
 
-    expect(j('1+2??')).toMatchObject(['+', 1, ['?', ['?', 2]]])
-    expect(j('1??+2')).toMatchObject(['+', ['?', ['?', 1]], 2])
-    expect(j('1??+2??')).toMatchObject(['+', ['?', ['?', 1]], ['?', ['?', 2]]])
+    expect(j('1+2!'))[_mo_](['+', 1, ['!', 2]])
+    expect(j('1!+2'))[_mo_](['+', ['!', 1], 2])
+    expect(j('1!+2!'))[_mo_](['+', ['!', 1], ['!', 2]])
+
+    expect(j('1+2!!'))[_mo_](['+', 1, ['!', ['!', 2]]])
+    expect(j('1!!+2'))[_mo_](['+', ['!', ['!', 1]], 2])
+    expect(j('1!!+2!!'))[_mo_](['+', ['!', ['!', 1]], ['!', ['!', 2]]])
 
 
-    expect(j('0+1+2!')).toMatchObject(['+', ['+', 0, 1], ['!', 2]])
-    expect(j('0+1!+2')).toMatchObject(['+', ['+', 0, ['!', 1]], 2])
-    expect(j('0+1!+2!')).toMatchObject(['+', ['+', 0, ['!', 1]], ['!', 2]])
-    expect(j('0!+1!+2!')).toMatchObject(['+', ['+', ['!', 0], ['!', 1]], ['!', 2]])
-    expect(j('0!+1!+2')).toMatchObject(['+', ['+', ['!', 0], ['!', 1]], 2])
-    expect(j('0!+1+2!')).toMatchObject(['+', ['+', ['!', 0], 1], ['!', 2]])
-    expect(j('0!+1+2')).toMatchObject(['+', ['+', ['!', 0], 1], 2])
+    expect(j('1+2?'))[_mo_](['+', 1, ['?', 2]])
+    expect(j('1?+2'))[_mo_](['+', ['?', 1], 2])
+    expect(j('1?+2?'))[_mo_](['+', ['?', 1], ['?', 2]])
+
+    expect(j('1+2??'))[_mo_](['+', 1, ['?', ['?', 2]]])
+    expect(j('1??+2'))[_mo_](['+', ['?', ['?', 1]], 2])
+    expect(j('1??+2??'))[_mo_](['+', ['?', ['?', 1]], ['?', ['?', 2]]])
+
+
+    expect(j('0+1+2!'))[_mo_](['+', ['+', 0, 1], ['!', 2]])
+    expect(j('0+1!+2'))[_mo_](['+', ['+', 0, ['!', 1]], 2])
+    expect(j('0+1!+2!'))[_mo_](['+', ['+', 0, ['!', 1]], ['!', 2]])
+    expect(j('0!+1!+2!'))[_mo_](['+', ['+', ['!', 0], ['!', 1]], ['!', 2]])
+    expect(j('0!+1!+2'))[_mo_](['+', ['+', ['!', 0], ['!', 1]], 2])
+    expect(j('0!+1+2!'))[_mo_](['+', ['+', ['!', 0], 1], ['!', 2]])
+    expect(j('0!+1+2'))[_mo_](['+', ['+', ['!', 0], 1], 2])
   })
 
 
@@ -887,50 +891,50 @@ describe('expr', () => {
     })
     const j = mj(je)
 
-    expect(j('1!')).toEqual(['!', 1])
-    expect(j('1!!')).toEqual(['!', ['!', 1]])
-    expect(j('1!!!')).toEqual(['!', ['!', ['!', 1]]])
+    expect(j('1!')).equal(['!', 1])
+    expect(j('1!!')).equal(['!', ['!', 1]])
+    expect(j('1!!!')).equal(['!', ['!', ['!', 1]]])
 
     // Precedence does not matter within prefix sequences.
-    expect(j('1!?')).toEqual(['?', ['!', 1]])
-    expect(j('1?!')).toEqual(['!', ['?', 1]])
+    expect(j('1!?')).equal(['?', ['!', 1]])
+    expect(j('1?!')).equal(['!', ['?', 1]])
 
-    expect(j('1!??')).toEqual(['?', ['?', ['!', 1]]])
-    expect(j('1??!')).toEqual(['!', ['?', ['?', 1]]])
+    expect(j('1!??')).equal(['?', ['?', ['!', 1]]])
+    expect(j('1??!')).equal(['!', ['?', ['?', 1]]])
 
-    expect(j('1?!!')).toEqual(['!', ['!', ['?', 1]]])
-    expect(j('1!!?')).toEqual(['?', ['!', ['!', 1]]])
+    expect(j('1?!!')).equal(['!', ['!', ['?', 1]]])
+    expect(j('1!!?')).equal(['?', ['!', ['!', 1]]])
 
-    expect(j('1?!?')).toEqual(['?', ['!', ['?', 1]]])
-    expect(j('1!?!')).toEqual(['!', ['?', ['!', 1]]])
+    expect(j('1?!?')).equal(['?', ['!', ['?', 1]]])
+    expect(j('1!?!')).equal(['!', ['?', ['!', 1]]])
 
 
-    expect(j('1!+2')).toEqual(['+', ['!', 1], 2])
-    expect(j('1+2!')).toEqual(['+', 1, ['!', 2]])
-    expect(j('1!+2!')).toEqual(['+', ['!', 1], ['!', 2]])
+    expect(j('1!+2')).equal(['+', ['!', 1], 2])
+    expect(j('1+2!')).equal(['+', 1, ['!', 2]])
+    expect(j('1!+2!')).equal(['+', ['!', 1], ['!', 2]])
 
-    expect(j('1!+2+3')).toEqual(['+', ['+', ['!', 1], 2], 3])
-    expect(j('1+2!+3')).toEqual(['+', ['+', 1, ['!', 2]], 3])
-    expect(j('1!+2!+3')).toEqual(['+', ['+', ['!', 1], ['!', 2]], 3])
+    expect(j('1!+2+3')).equal(['+', ['+', ['!', 1], 2], 3])
+    expect(j('1+2!+3')).equal(['+', ['+', 1, ['!', 2]], 3])
+    expect(j('1!+2!+3')).equal(['+', ['+', ['!', 1], ['!', 2]], 3])
 
-    expect(j('1!+2+3!')).toEqual(['+', ['+', ['!', 1], 2], ['!', 3]])
-    expect(j('1+2!+3!')).toEqual(['+', ['+', 1, ['!', 2]], ['!', 3]])
-    expect(j('1!+2!+3!')).toEqual(['+', ['+', ['!', 1], ['!', 2]], ['!', 3]])
+    expect(j('1!+2+3!')).equal(['+', ['+', ['!', 1], 2], ['!', 3]])
+    expect(j('1+2!+3!')).equal(['+', ['+', 1, ['!', 2]], ['!', 3]])
+    expect(j('1!+2!+3!')).equal(['+', ['+', ['!', 1], ['!', 2]], ['!', 3]])
 
 
     // Tighter!
 
-    expect(j('1!~2')).toEqual(['~', ['!', 1], 2])
-    expect(j('1~2!')).toEqual(['!', ['~', 1, 2]])
-    expect(j('1!~2!')).toEqual(['!', ['~', ['!', 1], 2]])
+    expect(j('1!~2')).equal(['~', ['!', 1], 2])
+    expect(j('1~2!')).equal(['!', ['~', 1, 2]])
+    expect(j('1!~2!')).equal(['!', ['~', ['!', 1], 2]])
 
-    expect(j('1!~2+3')).toEqual(['+', ['~', ['!', 1], 2], 3])
-    expect(j('1~2!+3')).toEqual(['+', ['!', ['~', 1, 2]], 3])
-    expect(j('1!~2!+3')).toEqual(['+', ['!', ['~', ['!', 1], 2]], 3])
+    expect(j('1!~2+3')).equal(['+', ['~', ['!', 1], 2], 3])
+    expect(j('1~2!+3')).equal(['+', ['!', ['~', 1, 2]], 3])
+    expect(j('1!~2!+3')).equal(['+', ['!', ['~', ['!', 1], 2]], 3])
 
-    expect(j('1!~2~3')).toEqual(['~', ['~', ['!', 1], 2], 3])
-    expect(j('1~2!~3')).toEqual(['~', ['!', ['~', 1, 2]], 3])
-    expect(j('1!~2!~3')).toEqual(['~', ['!', ['~', ['!', 1], 2]], 3])
+    expect(j('1!~2~3')).equal(['~', ['~', ['!', 1], 2], 3])
+    expect(j('1~2!~3')).equal(['~', ['!', ['~', 1, 2]], 3])
+    expect(j('1!~2!~3')).equal(['~', ['!', ['~', ['!', 1], 2]], 3])
   })
 
 
@@ -947,40 +951,40 @@ describe('expr', () => {
     })
     const j = mj(je)
 
-    expect(j('1!,2!')).toMatchObject([['!', 1], ['!', 2]])
-    expect(j('1!,2!,3!')).toMatchObject([['!', 1], ['!', 2], ['!', 3]])
-    expect(j('1!,2!,3!,4!')).toMatchObject([['!', 1], ['!', 2], ['!', 3], ['!', 4]])
+    expect(j('1!,2!'))[_mo_]([['!', 1], ['!', 2]])
+    expect(j('1!,2!,3!'))[_mo_]([['!', 1], ['!', 2], ['!', 3]])
+    expect(j('1!,2!,3!,4!'))[_mo_]([['!', 1], ['!', 2], ['!', 3], ['!', 4]])
 
-    expect(j('1! 2!')).toMatchObject([['!', 1], ['!', 2]])
-    expect(j('1! 2! 3!')).toMatchObject([['!', 1], ['!', 2], ['!', 3]])
-    expect(j('1! 2! 3! 4!')).toMatchObject([['!', 1], ['!', 2], ['!', 3], ['!', 4]])
+    expect(j('1! 2!'))[_mo_]([['!', 1], ['!', 2]])
+    expect(j('1! 2! 3!'))[_mo_]([['!', 1], ['!', 2], ['!', 3]])
+    expect(j('1! 2! 3! 4!'))[_mo_]([['!', 1], ['!', 2], ['!', 3], ['!', 4]])
 
-    expect(j('[1!,2!]')).toMatchObject([['!', 1], ['!', 2]])
-    expect(j('[1!,2!,3!]')).toMatchObject([['!', 1], ['!', 2], ['!', 3]])
-    expect(j('[1!,2!,3!,4!]')).toMatchObject([['!', 1], ['!', 2], ['!', 3], ['!', 4]])
+    expect(j('[1!,2!]'))[_mo_]([['!', 1], ['!', 2]])
+    expect(j('[1!,2!,3!]'))[_mo_]([['!', 1], ['!', 2], ['!', 3]])
+    expect(j('[1!,2!,3!,4!]'))[_mo_]([['!', 1], ['!', 2], ['!', 3], ['!', 4]])
 
-    expect(j('[1! 2!]')).toMatchObject([['!', 1], ['!', 2]])
-    expect(j('[1! 2! 3!]')).toMatchObject([['!', 1], ['!', 2], ['!', 3]])
-    expect(j('[1! 2! 3! 4!]')).toMatchObject([['!', 1], ['!', 2], ['!', 3], ['!', 4]])
+    expect(j('[1! 2!]'))[_mo_]([['!', 1], ['!', 2]])
+    expect(j('[1! 2! 3!]'))[_mo_]([['!', 1], ['!', 2], ['!', 3]])
+    expect(j('[1! 2! 3! 4!]'))[_mo_]([['!', 1], ['!', 2], ['!', 3], ['!', 4]])
 
 
-    expect(j('a:1!')).toMatchObject({ a: ['!', 1] })
-    expect(j('a:1!,b:2!')).toMatchObject({ a: ['!', 1], b: ['!', 2] })
-    expect(j('a:1!,b:2!,c:3!')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3] })
-    expect(j('a:1!,b:2!,c:3!,d:4!')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3], d: ['!', 4] })
+    expect(j('a:1!'))[_mo_]({ a: ['!', 1] })
+    expect(j('a:1!,b:2!'))[_mo_]({ a: ['!', 1], b: ['!', 2] })
+    expect(j('a:1!,b:2!,c:3!'))[_mo_]({ a: ['!', 1], b: ['!', 2], c: ['!', 3] })
+    expect(j('a:1!,b:2!,c:3!,d:4!'))[_mo_]({ a: ['!', 1], b: ['!', 2], c: ['!', 3], d: ['!', 4] })
 
-    expect(j('a:1! b:2!')).toMatchObject({ a: ['!', 1], b: ['!', 2] })
-    expect(j('a:1! b:2! c:3!')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3] })
-    expect(j('a:1! b:2! c:3!,d:4!')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3], d: ['!', 4] })
+    expect(j('a:1! b:2!'))[_mo_]({ a: ['!', 1], b: ['!', 2] })
+    expect(j('a:1! b:2! c:3!'))[_mo_]({ a: ['!', 1], b: ['!', 2], c: ['!', 3] })
+    expect(j('a:1! b:2! c:3!,d:4!'))[_mo_]({ a: ['!', 1], b: ['!', 2], c: ['!', 3], d: ['!', 4] })
 
-    expect(j('{a:1!}')).toMatchObject({ a: ['!', 1] })
-    expect(j('{a:1!,b:2!}')).toMatchObject({ a: ['!', 1], b: ['!', 2] })
-    expect(j('{a:1!,b:2!,c:3!}')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3] })
-    expect(j('{a:1!,b:2!,c:3!,d:4!}')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3], d: ['!', 4] })
+    expect(j('{a:1!}'))[_mo_]({ a: ['!', 1] })
+    expect(j('{a:1!,b:2!}'))[_mo_]({ a: ['!', 1], b: ['!', 2] })
+    expect(j('{a:1!,b:2!,c:3!}'))[_mo_]({ a: ['!', 1], b: ['!', 2], c: ['!', 3] })
+    expect(j('{a:1!,b:2!,c:3!,d:4!}'))[_mo_]({ a: ['!', 1], b: ['!', 2], c: ['!', 3], d: ['!', 4] })
 
-    expect(j('{a:1! b:2!}')).toMatchObject({ a: ['!', 1], b: ['!', 2] })
-    expect(j('{a:1! b:2! c:3!}')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3] })
-    expect(j('{a:1! b:2! c:3! d:4!}')).toMatchObject({ a: ['!', 1], b: ['!', 2], c: ['!', 3], d: ['!', 4] })
+    expect(j('{a:1! b:2!}'))[_mo_]({ a: ['!', 1], b: ['!', 2] })
+    expect(j('{a:1! b:2! c:3!}'))[_mo_]({ a: ['!', 1], b: ['!', 2], c: ['!', 3] })
+    expect(j('{a:1! b:2! c:3! d:4!}'))[_mo_]({ a: ['!', 1], b: ['!', 2], c: ['!', 3], d: ['!', 4] })
 
   })
 
@@ -1010,34 +1014,34 @@ describe('expr', () => {
     const j = mj(je)
 
 
-    expect(j('-1!')).toEqual(['-', ['!', 1]])
+    expect(j('-1!')).equal(['-', ['!', 1]])
 
-    expect(j('--1!')).toEqual(['-', ['-', ['!', 1]]])
-    expect(j('-1!!')).toEqual(['-', ['!', ['!', 1]]])
-    expect(j('--1!!')).toEqual(['-', ['-', ['!', ['!', 1]]]])
+    expect(j('--1!')).equal(['-', ['-', ['!', 1]]])
+    expect(j('-1!!')).equal(['-', ['!', ['!', 1]]])
+    expect(j('--1!!')).equal(['-', ['-', ['!', ['!', 1]]]])
 
-    expect(j('-1!+2')).toEqual(['+', ['-', ['!', 1]], 2])
-    expect(j('--1!+2')).toEqual(['+', ['-', ['-', ['!', 1]]], 2])
-    expect(j('---1!+2')).toEqual(['+', ['-', ['-', ['-', ['!', 1]]]], 2])
-
-
-    expect(j('-1?')).toEqual(['?', ['-', 1]])
-    expect(j('--1?')).toEqual(['?', ['-', ['-', 1]]])
-    expect(j('-1??')).toEqual(['?', ['?', ['-', 1]]])
-    expect(j('--1??')).toEqual(['?', ['?', ['-', ['-', 1]]]])
+    expect(j('-1!+2')).equal(['+', ['-', ['!', 1]], 2])
+    expect(j('--1!+2')).equal(['+', ['-', ['-', ['!', 1]]], 2])
+    expect(j('---1!+2')).equal(['+', ['-', ['-', ['-', ['!', 1]]]], 2])
 
 
-    expect(j('-1!?')).toEqual(['?', ['-', ['!', 1]]])
-    expect(j('-1!?!')).toEqual(['!', ['?', ['-', ['!', 1]]]])
+    expect(j('-1?')).equal(['?', ['-', 1]])
+    expect(j('--1?')).equal(['?', ['-', ['-', 1]]])
+    expect(j('-1??')).equal(['?', ['?', ['-', 1]]])
+    expect(j('--1??')).equal(['?', ['?', ['-', ['-', 1]]]])
 
 
-    expect(j('-1?+2')).toEqual(['+', ['?', ['-', 1]], 2])
-    expect(j('--1?+2')).toEqual(['+', ['?', ['-', ['-', 1]]], 2])
-    expect(j('-1??+2')).toEqual(['+', ['?', ['?', ['-', 1]]], 2])
-    expect(j('--1??+2')).toEqual(['+', ['?', ['?', ['-', ['-', 1]]]], 2])
+    expect(j('-1!?')).equal(['?', ['-', ['!', 1]]])
+    expect(j('-1!?!')).equal(['!', ['?', ['-', ['!', 1]]]])
 
-    expect(j('(-20)!')).toEqual(['!', ['(', ['-', 20]]])
-    expect(j('-(21!)')).toEqual(['-', ['(', ['!', 21]]])
+
+    expect(j('-1?+2')).equal(['+', ['?', ['-', 1]], 2])
+    expect(j('--1?+2')).equal(['+', ['?', ['-', ['-', 1]]], 2])
+    expect(j('-1??+2')).equal(['+', ['?', ['?', ['-', 1]]], 2])
+    expect(j('--1??+2')).equal(['+', ['?', ['?', ['-', ['-', 1]]]], 2])
+
+    expect(j('(-20)!')).equal(['!', ['(', ['-', 20]]])
+    expect(j('-(21!)')).equal(['-', ['(', ['!', 21]]])
 
   })
 
@@ -1057,26 +1061,26 @@ describe('expr', () => {
     const j = mj(je)
 
 
-    expect(j('(1)')).toEqual(['(', 1])
-    expect(j('(z)')).toEqual(['(', 'z'])
+    expect(j('(1)')).equal(['(', 1])
+    expect(j('(z)')).equal(['(', 'z'])
 
-    expect(j('(1!)')).toMatchObject(['(', ['!', 1]])
-    expect(j('(1 !)')).toMatchObject(['(', ['!', 1]])
+    expect(j('(1!)'))[_mo_](['(', ['!', 1]])
+    expect(j('(1 !)'))[_mo_](['(', ['!', 1]])
 
-    expect(j('(z!)')).toMatchObject(['(', ['!', 'z']])
-    expect(j('(z !)')).toMatchObject(['(', ['!', 'z']])
+    expect(j('(z!)'))[_mo_](['(', ['!', 'z']])
+    expect(j('(z !)'))[_mo_](['(', ['!', 'z']])
 
-    expect(j('(1+2!)')).toMatchObject(['(', ['+', 1, ['!', 2]]])
-    expect(j('(1!+2)')).toMatchObject(['(', ['+', ['!', 1], 2]])
-    expect(j('(1!+2!)')).toMatchObject(['(', ['+', ['!', 1], ['!', 2]]])
+    expect(j('(1+2!)'))[_mo_](['(', ['+', 1, ['!', 2]]])
+    expect(j('(1!+2)'))[_mo_](['(', ['+', ['!', 1], 2]])
+    expect(j('(1!+2!)'))[_mo_](['(', ['+', ['!', 1], ['!', 2]]])
 
-    expect(j('(0+1+2!)')).toMatchObject(['(', ['+', ['+', 0, 1], ['!', 2]]])
-    expect(j('(0+1!+2)')).toMatchObject(['(', ['+', ['+', 0, ['!', 1]], 2]])
-    expect(j('(0+1!+2!)')).toMatchObject(['(', ['+', ['+', 0, ['!', 1]], ['!', 2]]])
-    expect(j('(0!+1!+2!)')).toMatchObject(['(', ['+', ['+', ['!', 0], ['!', 1]], ['!', 2]]])
-    expect(j('(0!+1!+2)')).toMatchObject(['(', ['+', ['+', ['!', 0], ['!', 1]], 2]])
-    expect(j('(0!+1+2!)')).toMatchObject(['(', ['+', ['+', ['!', 0], 1], ['!', 2]]])
-    expect(j('(0!+1+2)')).toMatchObject(['(', ['+', ['+', ['!', 0], 1], 2]])
+    expect(j('(0+1+2!)'))[_mo_](['(', ['+', ['+', 0, 1], ['!', 2]]])
+    expect(j('(0+1!+2)'))[_mo_](['(', ['+', ['+', 0, ['!', 1]], 2]])
+    expect(j('(0+1!+2!)'))[_mo_](['(', ['+', ['+', 0, ['!', 1]], ['!', 2]]])
+    expect(j('(0!+1!+2!)'))[_mo_](['(', ['+', ['+', ['!', 0], ['!', 1]], ['!', 2]]])
+    expect(j('(0!+1!+2)'))[_mo_](['(', ['+', ['+', ['!', 0], ['!', 1]], 2]])
+    expect(j('(0!+1+2!)'))[_mo_](['(', ['+', ['+', ['!', 0], 1], ['!', 2]]])
+    expect(j('(0!+1+2)'))[_mo_](['(', ['+', ['+', ['!', 0], 1], 2]])
   })
 
 
@@ -1086,74 +1090,74 @@ describe('expr', () => {
       // .use(Debug, { trace: true })
       .use(Expr))
 
-    expect(j('100+200')).toMatchObject(['+', 100, 200])
-    expect(j('(100)')).toMatchObject(['(', 100])
-    expect(j('(100)+200')).toMatchObject(['+', ['(', 100], 200])
-    expect(j('100+(200)')).toMatchObject(['+', 100, ['(', 200]])
+    expect(j('100+200'))[_mo_](['+', 100, 200])
+    expect(j('(100)'))[_mo_](['(', 100])
+    expect(j('(100)+200'))[_mo_](['+', ['(', 100], 200])
+    expect(j('100+(200)'))[_mo_](['+', 100, ['(', 200]])
 
-    expect(j('(1+2)')).toMatchObject(['(', ['+', 1, 2]])
-    expect(j('(1+2+3)')).toMatchObject(['(', ['+', ['+', 1, 2], 3]])
-    expect(j('(1+2+3+4)')).toMatchObject(['(', ['+', ['+', ['+', 1, 2], 3], 4]])
+    expect(j('(1+2)'))[_mo_](['(', ['+', 1, 2]])
+    expect(j('(1+2+3)'))[_mo_](['(', ['+', ['+', 1, 2], 3]])
+    expect(j('(1+2+3+4)'))[_mo_](['(', ['+', ['+', ['+', 1, 2], 3], 4]])
 
-    expect(j('((1))')).toMatchObject(['(', ['(', 1]])
-    expect(j('(((1)))')).toMatchObject(['(', ['(', ['(', 1]]])
-    expect(j('((((1))))')).toMatchObject(['(', ['(', ['(', ['(', 1]]]])
+    expect(j('((1))'))[_mo_](['(', ['(', 1]])
+    expect(j('(((1)))'))[_mo_](['(', ['(', ['(', 1]]])
+    expect(j('((((1))))'))[_mo_](['(', ['(', ['(', ['(', 1]]]])
 
-    expect(j('(1+2)+3')).toMatchObject(['+', ['(', ['+', 1, 2]], 3])
-    expect(j('1+(2+3)')).toMatchObject(['+', 1, ['(', ['+', 2, 3]]])
+    expect(j('(1+2)+3'))[_mo_](['+', ['(', ['+', 1, 2]], 3])
+    expect(j('1+(2+3)'))[_mo_](['+', 1, ['(', ['+', 2, 3]]])
 
-    expect(j('((1+2))+3')).toMatchObject(['+', ['(', ['(', ['+', 1, 2]]], 3])
-    expect(j('1+((2+3))')).toMatchObject(['+', 1, ['(', ['(', ['+', 2, 3]]]])
+    expect(j('((1+2))+3'))[_mo_](['+', ['(', ['(', ['+', 1, 2]]], 3])
+    expect(j('1+((2+3))'))[_mo_](['+', 1, ['(', ['(', ['+', 2, 3]]]])
 
 
-    expect(j('(1)+2+3')).toMatchObject(['+', ['+', ['(', 1], 2], 3])
+    expect(j('(1)+2+3'))[_mo_](['+', ['+', ['(', 1], 2], 3])
 
-    expect(j('100+200+300')).toMatchObject(['+', ['+', 100, 200], 300])
-    expect(j('100+(200)+300')).toMatchObject(['+', ['+', 100, ['(', 200]], 300])
+    expect(j('100+200+300'))[_mo_](['+', ['+', 100, 200], 300])
+    expect(j('100+(200)+300'))[_mo_](['+', ['+', 100, ['(', 200]], 300])
 
-    expect(j('1+2+(3)')).toMatchObject(['+', ['+', 1, 2], ['(', 3]])
-    expect(j('1+(2)+(3)')).toMatchObject(['+', ['+', 1, ['(', 2]], ['(', 3]])
-    expect(j('(1)+2+(3)')).toMatchObject(['+', ['+', ['(', 1], 2], ['(', 3]])
-    expect(j('(1)+(2)+3')).toMatchObject(['+', ['+', ['(', 1], ['(', 2]], 3])
-    expect(j('(1)+(2)+(3)')).toMatchObject(['+', ['+', ['(', 1], ['(', 2]], ['(', 3]])
+    expect(j('1+2+(3)'))[_mo_](['+', ['+', 1, 2], ['(', 3]])
+    expect(j('1+(2)+(3)'))[_mo_](['+', ['+', 1, ['(', 2]], ['(', 3]])
+    expect(j('(1)+2+(3)'))[_mo_](['+', ['+', ['(', 1], 2], ['(', 3]])
+    expect(j('(1)+(2)+3'))[_mo_](['+', ['+', ['(', 1], ['(', 2]], 3])
+    expect(j('(1)+(2)+(3)'))[_mo_](['+', ['+', ['(', 1], ['(', 2]], ['(', 3]])
 
-    expect(j('(1+2)*3')).toMatchObject(['*', ['(', ['+', 1, 2]], 3])
-    expect(j('1*(2+3)')).toMatchObject(['*', 1, ['(', ['+', 2, 3]]])
+    expect(j('(1+2)*3'))[_mo_](['*', ['(', ['+', 1, 2]], 3])
+    expect(j('1*(2+3)'))[_mo_](['*', 1, ['(', ['+', 2, 3]]])
 
-    expect(j('(a)')).toMatchObject(['(', 'a'])
-    expect(j('("a")')).toMatchObject(['(', 'a'])
-    expect(j('([])')).toMatchObject(['(', []])
-    expect(j('([a])')).toMatchObject(['(', ['a']])
-    expect(j('([a,b])')).toMatchObject(['(', ['a', 'b']])
-    expect(j('([a b])')).toMatchObject(['(', ['a', 'b']])
-    expect(j('([a,b,c])')).toMatchObject(['(', ['a', 'b', 'c']])
-    expect(j('([a b c])')).toMatchObject(['(', ['a', 'b', 'c']])
+    expect(j('(a)'))[_mo_](['(', 'a'])
+    expect(j('("a")'))[_mo_](['(', 'a'])
+    expect(j('([])'))[_mo_](['(', []])
+    expect(j('([a])'))[_mo_](['(', ['a']])
+    expect(j('([a,b])'))[_mo_](['(', ['a', 'b']])
+    expect(j('([a b])'))[_mo_](['(', ['a', 'b']])
+    expect(j('([a,b,c])'))[_mo_](['(', ['a', 'b', 'c']])
+    expect(j('([a b c])'))[_mo_](['(', ['a', 'b', 'c']])
 
-    expect(j('({})')).toMatchObject(['(', {}])
-    expect(j('({a:1})')).toMatchObject(['(', { a: 1 }])
-    expect(j('({a:1,b:2})')).toMatchObject(['(', { a: 1, b: 2 }])
-    expect(j('({a:1 b:2})')).toMatchObject(['(', { a: 1, b: 2 }])
-    expect(j('({a:1,b:2,c:3})')).toMatchObject(['(', { a: 1, b: 2, c: 3 }])
-    expect(j('({a:1 b:2 c:3})')).toMatchObject(['(', { a: 1, b: 2, c: 3 }])
-    expect(j('(a:1)')).toMatchObject(['(', { a: 1 }])
+    expect(j('({})'))[_mo_](['(', {}])
+    expect(j('({a:1})'))[_mo_](['(', { a: 1 }])
+    expect(j('({a:1,b:2})'))[_mo_](['(', { a: 1, b: 2 }])
+    expect(j('({a:1 b:2})'))[_mo_](['(', { a: 1, b: 2 }])
+    expect(j('({a:1,b:2,c:3})'))[_mo_](['(', { a: 1, b: 2, c: 3 }])
+    expect(j('({a:1 b:2 c:3})'))[_mo_](['(', { a: 1, b: 2, c: 3 }])
+    expect(j('(a:1)'))[_mo_](['(', { a: 1 }])
 
-    expect(j('()')).toMatchObject(['('])
-    expect(j('(),()')).toMatchObject([['('], ['(']])
-    expect(j('(),(),()')).toMatchObject([['('], ['('], ['(']])
-    expect(j('() ()')).toMatchObject([['('], ['(']])
-    expect(j('() () ()')).toMatchObject([['('], ['('], ['(']])
+    expect(j('()'))[_mo_](['('])
+    expect(j('(),()'))[_mo_]([['('], ['(']])
+    expect(j('(),(),()'))[_mo_]([['('], ['('], ['(']])
+    expect(j('() ()'))[_mo_]([['('], ['(']])
+    expect(j('() () ()'))[_mo_]([['('], ['('], ['(']])
 
-    expect(j('[()]')).toMatchObject([['(']])
-    expect(j('[(),()]')).toMatchObject([['('], ['(']])
-    expect(j('[(),(),()]')).toMatchObject([['('], ['('], ['(']])
-    expect(j('[() ()]')).toMatchObject([['('], ['(']])
-    expect(j('[() () ()]')).toMatchObject([['('], ['('], ['(']])
+    expect(j('[()]'))[_mo_]([['(']])
+    expect(j('[(),()]'))[_mo_]([['('], ['(']])
+    expect(j('[(),(),()]'))[_mo_]([['('], ['('], ['(']])
+    expect(j('[() ()]'))[_mo_]([['('], ['(']])
+    expect(j('[() () ()]'))[_mo_]([['('], ['('], ['(']])
 
-    expect(j('{a:()}')).toMatchObject({ a: ['('] })
-    expect(j('{a:(),b:()}')).toMatchObject({ a: ['('], b: ['('] })
-    expect(j('{a:(),b:(),c:()}')).toMatchObject({ a: ['('], b: ['('], c: ['('] })
-    expect(j('{a:() b:()}')).toMatchObject({ a: ['('], b: ['('] })
-    expect(j('{a:() b:() c:()}')).toMatchObject({ a: ['('], b: ['('], c: ['('] })
+    expect(j('{a:()}'))[_mo_]({ a: ['('] })
+    expect(j('{a:(),b:()}'))[_mo_]({ a: ['('], b: ['('] })
+    expect(j('{a:(),b:(),c:()}'))[_mo_]({ a: ['('], b: ['('], c: ['('] })
+    expect(j('{a:() b:()}'))[_mo_]({ a: ['('], b: ['('] })
+    expect(j('{a:() b:() c:()}'))[_mo_]({ a: ['('], b: ['('], c: ['('] })
   })
 
 
@@ -1775,7 +1779,7 @@ describe('expr', () => {
     expect(j('(<1>)'))[_mo_](['(', ['<', 1]])
     expect(j('<(1)>'))[_mo_](['<', ['(', 1]])
 
-    expect(() => j('<1)')).toThrow('unexpected')
+    expect(() => j('<1)')).throw(/unexpected/)
 
     expect(j('1*(2+3)'))[_mo_](['*', 1, ['(', ['+', 2, 3]]])
     expect(j('1*<2+3>'))[_mo_](['*', 1, ['<', ['+', 2, 3]]])
@@ -1992,9 +1996,9 @@ describe('expr', () => {
   test('json-base', () => {
     const j = mj(Jsonic.make().use(Expr))
 
-    expect(j('1')).toEqual(1)
-    expect(j('"a"')).toEqual('a')
-    expect(j('true')).toEqual(true)
+    expect(j('1')).equal(1)
+    expect(j('"a"')).equal('a')
+    expect(j('true')).equal(true)
     expect(j('[1,"a",false,[],{},[2],{a:3}]'))
     [_mo_]([1, "a", false, [], {}, [2], { a: 3 }])
     expect(j('{ "a": 1, "b": "B", "c": null, "d": [1, 2]' +
@@ -2095,12 +2099,12 @@ describe('expr', () => {
     let r = (null as unknown as Rule)
     let c = (null as unknown as Context)
 
-    expect(evaluation(r, c, je0('a.b'), resolve)).toEqual('a/b')
-    expect(evaluation(r, c, je0('a.b.c'), resolve)).toEqual('a/b/c')
-    expect(evaluation(r, c, je0('a.b.c.d'), resolve)).toEqual('a/b/c/d')
+    expect(evaluation(r, c, je0('a.b'), resolve)).equal('a/b')
+    expect(evaluation(r, c, je0('a.b.c'), resolve)).equal('a/b/c')
+    expect(evaluation(r, c, je0('a.b.c.d'), resolve)).equal('a/b/c/d')
 
-    expect(evaluation(r, c, je0('.a'), resolve)).toEqual('/a')
-    expect(evaluation(r, c, je0('.a.b'), resolve)).toEqual('/a/b')
+    expect(evaluation(r, c, je0('.a'), resolve)).equal('/a')
+    expect(evaluation(r, c, je0('.a.b'), resolve)).equal('/a/b')
 
     const je1 = Jsonic.make()
       // .use(Debug, {
@@ -2119,35 +2123,35 @@ describe('expr', () => {
         evaluate: resolve
       })
 
-    expect(je1('a.b')).toEqual('a/b')
-    expect(je1('a.b.c')).toEqual('a/b/c')
-    expect(je1('a.b.c.d')).toEqual('a/b/c/d')
+    expect(je1('a.b')).equal('a/b')
+    expect(je1('a.b.c')).equal('a/b/c')
+    expect(je1('a.b.c.d')).equal('a/b/c/d')
 
-    expect(je1('{x:a.b}')).toEqual({ x: 'a/b' })
-    expect(je1('{x:a.b.c}')).toEqual({ x: 'a/b/c' })
-    expect(je1('{x:a.b.c.d}')).toEqual({ x: 'a/b/c/d' })
+    expect(je1('{x:a.b}')).equal({ x: 'a/b' })
+    expect(je1('{x:a.b.c}')).equal({ x: 'a/b/c' })
+    expect(je1('{x:a.b.c.d}')).equal({ x: 'a/b/c/d' })
 
-    expect(je1('x:a.b')).toEqual({ x: 'a/b' })
-    expect(je1('x:a.b.c')).toEqual({ x: 'a/b/c' })
-    expect(je1('x:a.b.c.d')).toEqual({ x: 'a/b/c/d' })
+    expect(je1('x:a.b')).equal({ x: 'a/b' })
+    expect(je1('x:a.b.c')).equal({ x: 'a/b/c' })
+    expect(je1('x:a.b.c.d')).equal({ x: 'a/b/c/d' })
 
-    expect(je1('a.b')).toEqual('a/b')
-    expect(je1('a.b.c')).toEqual('a/b/c')
-    expect(je1('a.b.c.d')).toEqual('a/b/c/d')
+    expect(je1('a.b')).equal('a/b')
+    expect(je1('a.b.c')).equal('a/b/c')
+    expect(je1('a.b.c.d')).equal('a/b/c/d')
 
-    expect(je1('(a)')).toEqual('a')
-    expect(je1('(a.b)')).toEqual('a/b')
-    expect(je1('(a.b.c)')).toEqual('a/b/c')
+    expect(je1('(a)')).equal('a')
+    expect(je1('(a.b)')).equal('a/b')
+    expect(je1('(a.b.c)')).equal('a/b/c')
 
-    expect(je1('+1')).toEqual(1)
-    expect(je1('+a')).toEqual('a')
-    expect(je1('(+a)')).toEqual('a')
-    expect(je1('1+2')).toEqual(3)
-    expect(je1('+3+4')).toEqual(7)
-    expect(je1('(1+2)')).toEqual(3)
-    expect(je1('(+3)')).toEqual(3)
-    expect(je1('+3+4')).toEqual(7)
-    expect(je1('(+3+4)')).toEqual(7)
+    expect(je1('+1')).equal(1)
+    expect(je1('+a')).equal('a')
+    expect(je1('(+a)')).equal('a')
+    expect(je1('1+2')).equal(3)
+    expect(je1('+3+4')).equal(7)
+    expect(je1('(1+2)')).equal(3)
+    expect(je1('(+3)')).equal(3)
+    expect(je1('+3+4')).equal(7)
+    expect(je1('(+3+4)')).equal(7)
   })
 
 
@@ -2176,25 +2180,25 @@ describe('expr', () => {
     let r = (null as unknown as Rule)
     let c = (null as unknown as Context)
 
-    expect(evaluation(r, c, ME(PLUS, 1, 2), mr)).toEqual(3)
-    expect(evaluation(r, c, j('1+2'), mr)).toEqual(3)
+    expect(evaluation(r, c, ME(PLUS, 1, 2), mr)).equal(3)
+    expect(evaluation(r, c, j('1+2'), mr)).equal(3)
 
-    expect(evaluation(r, c, ME(PLUS, ME(PLUS, 1, 2), 3), mr)).toEqual(6)
-    expect(evaluation(r, c, j('1+2+3'), mr)).toEqual(6)
+    expect(evaluation(r, c, ME(PLUS, ME(PLUS, 1, 2), 3), mr)).equal(6)
+    expect(evaluation(r, c, j('1+2+3'), mr)).equal(6)
 
-    expect(evaluation(r, c, j('1*2+3'), mr)).toEqual(5)
-    expect(evaluation(r, c, j('1+2*3'), mr)).toEqual(7)
+    expect(evaluation(r, c, j('1*2+3'), mr)).equal(5)
+    expect(evaluation(r, c, j('1+2*3'), mr)).equal(7)
 
 
-    expect(evaluation(r, c, j('(1)'), mr)).toEqual(1)
+    expect(evaluation(r, c, j('(1)'), mr)).equal(1)
 
-    expect(evaluation(r, c, j('(1+2)'), mr)).toEqual(3)
+    expect(evaluation(r, c, j('(1+2)'), mr)).equal(3)
 
-    expect(evaluation(r, c, j('3+(1+2)'), mr)).toEqual(6)
-    expect(evaluation(r, c, j('(1+2)+3'), mr)).toEqual(6)
+    expect(evaluation(r, c, j('3+(1+2)'), mr)).equal(6)
+    expect(evaluation(r, c, j('(1+2)+3'), mr)).equal(6)
 
-    expect(evaluation(r, c, j('(1+2)*3'), mr)).toEqual(9)
-    expect(evaluation(r, c, j('3*(1+2)'), mr)).toEqual(9)
+    expect(evaluation(r, c, j('(1+2)*3'), mr)).equal(9)
+    expect(evaluation(r, c, j('3*(1+2)'), mr)).equal(9)
 
 
     const je = Jsonic.make()
@@ -2203,39 +2207,39 @@ describe('expr', () => {
         evaluate: mr
       })
 
-    expect(je('11+22')).toEqual(33)
+    expect(je('11+22')).equal(33)
 
-    expect(je('a:11+22')).toEqual({ a: 33 })
-    expect(je('[11+22]')).toEqual([33])
+    expect(je('a:11+22')).equal({ a: 33 })
+    expect(je('[11+22]')).equal([33])
 
-    expect(je('112')).toEqual(112)
-    expect(je('+112')).toEqual(112)
+    expect(je('112')).equal(112)
+    expect(je('+112')).equal(112)
 
-    expect(je('a:(113)')).toEqual({ a: 113 })
-    expect(je('(113)')).toEqual(113)
+    expect(je('a:(113)')).equal({ a: 113 })
+    expect(je('(113)')).equal(113)
 
 
-    expect(je('((114))')).toEqual(114)
-    expect(je('(((115)))')).toEqual(115)
+    expect(je('((114))')).equal(114)
+    expect(je('(((115)))')).equal(115)
 
-    expect(je('111+(222)')).toEqual(333)
-    expect(je('(111)+222')).toEqual(333)
-    expect(je('(111)+(222)')).toEqual(333)
+    expect(je('111+(222)')).equal(333)
+    expect(je('(111)+222')).equal(333)
+    expect(je('(111)+(222)')).equal(333)
 
-    expect(je('111+222')).toEqual(333)
-    expect(je('(111+222)')).toEqual(333)
-    expect(je('(111+222)')).toEqual(333)
+    expect(je('111+222')).equal(333)
+    expect(je('(111+222)')).equal(333)
+    expect(je('(111+222)')).equal(333)
 
-    expect(je('(1+2)*4')).toEqual(12)
-    expect(je('1+(2*4)')).toEqual(9)
+    expect(je('(1+2)*4')).equal(12)
+    expect(je('1+(2*4)')).equal(9)
 
-    expect(je('((1+2)*4)')).toEqual(12)
-    expect(je('(1+(2*4))')).toEqual(9)
+    expect(je('((1+2)*4)')).equal(12)
+    expect(je('(1+(2*4))')).equal(9)
 
-    expect(je('1-3')).toEqual(-2)
-    expect(je('-1')).toEqual(-1)
-    expect(je('+1')).toEqual(1)
-    expect(je('1+(-3)')).toEqual(-2)
+    expect(je('1-3')).equal(-2)
+    expect(je('-1')).equal(-1)
+    expect(je('+1')).equal(1)
+    expect(je('1+(-3)')).equal(-2)
 
   })
 
@@ -2275,15 +2279,15 @@ describe('expr', () => {
     let r = (null as unknown as Rule)
     let c = (null as unknown as Context)
 
-    expect(evaluation(r, c, j('[1]U[2]'), mr)).toEqual([1, 2])
-    expect(evaluation(r, c, j('[1,3]U[1,2]'), mr)).toEqual([1, 2, 3])
+    expect(evaluation(r, c, j('[1]U[2]'), mr)).equal([1, 2])
+    expect(evaluation(r, c, j('[1,3]U[1,2]'), mr)).equal([1, 2, 3])
 
-    expect(evaluation(r, c, j('[1,3]N[1,2]'), mr)).toEqual([1])
-    expect(evaluation(r, c, j('[1,3]N[2]'), mr)).toEqual([])
-    expect(evaluation(r, c, j('[1,3]N[2,1]'), mr)).toEqual([1])
+    expect(evaluation(r, c, j('[1,3]N[1,2]'), mr)).equal([1])
+    expect(evaluation(r, c, j('[1,3]N[2]'), mr)).equal([])
+    expect(evaluation(r, c, j('[1,3]N[2,1]'), mr)).equal([1])
 
-    expect(evaluation(r, c, j('[1,3]N[2]U[1,2]'), mr)).toEqual([1, 2])
-    expect(evaluation(r, c, j('[1,3]N([2]U[1,2])'), mr)).toEqual([1])
+    expect(evaluation(r, c, j('[1,3]N[2]U[1,2]'), mr)).equal([1, 2])
+    expect(evaluation(r, c, j('[1,3]N([2]U[1,2])'), mr)).equal([1])
   })
 
 
@@ -2352,44 +2356,44 @@ describe('expr', () => {
         }
       })
 
-    expect(j0('11+22')).toEqual(33)
-    expect(j0('44-33')).toEqual(11)
-    expect(j0('(44-33)+11')).toEqual(22)
-    expect(j0('44-(33+11)')).toEqual(0)
-    expect(j0('44-33+11')).toEqual(22)
+    expect(j0('11+22')).equal(33)
+    expect(j0('44-33')).equal(11)
+    expect(j0('(44-33)+11')).equal(22)
+    expect(j0('44-(33+11)')).equal(0)
+    expect(j0('44-33+11')).equal(22)
 
-    expect(j0('(1.1)')).toEqual(1.1)
-    expect(j0('[0,(1)]')).toEqual([0, 1])
-    expect(j0('[0 (1)]')).toEqual([0, 1])
+    expect(j0('(1.1)')).equal(1.1)
+    expect(j0('[0,(1)]')).equal([0, 1])
+    expect(j0('[0 (1)]')).equal([0, 1])
 
-    expect(j0('floor<1.5>')).toEqual(1)
-    expect(j0('a:floor<2.5>')).toEqual({ a: 2 })
-    expect(j0('{b:floor<3.5>}')).toEqual({ b: 3 })
-    expect(j0('[floor<4.5>]')).toEqual([4])
-    expect(j0('[0 floor<5.5>]')).toEqual([0, 5])
+    expect(j0('floor<1.5>')).equal(1)
+    expect(j0('a:floor<2.5>')).equal({ a: 2 })
+    expect(j0('{b:floor<3.5>}')).equal({ b: 3 })
+    expect(j0('[floor<4.5>]')).equal([4])
+    expect(j0('[0 floor<5.5>]')).equal([0, 5])
 
-    expect(j0('1+floor<1.5>')).toEqual(2)
-    expect(j0('1+floor<1.5>+3')).toEqual(5)
-    expect(j0('floor<1.5>+4')).toEqual(5)
-    expect(j0('a:floor<1.5>+4')).toEqual({ a: 5 })
+    expect(j0('1+floor<1.5>')).equal(2)
+    expect(j0('1+floor<1.5>+3')).equal(5)
+    expect(j0('floor<1.5>+4')).equal(5)
+    expect(j0('a:floor<1.5>+4')).equal({ a: 5 })
 
-    expect(j0('a:(1+2) b:floor<1.9>')).toEqual({ a: 3, b: 1 })
+    expect(j0('a:(1+2) b:floor<1.9>')).equal({ a: 3, b: 1 })
 
-    expect(j0('()')).toEqual(null)
-    expect(j0('<>')).toEqual(null)
-    expect(j0('<1>')).toEqual(1)
-    expect(j0('c:<2>')).toEqual({ c: 2 })
+    expect(j0('()')).equal(null)
+    expect(j0('<>')).equal(null)
+    expect(j0('<1>')).equal(1)
+    expect(j0('c:<2>')).equal({ c: 2 })
 
-    expect(j0('a:floor<>')).toEqual({ a: null })
-    expect(j0('floor<>')).toEqual(null)
-    expect(j0('[floor<>]')).toEqual([null])
-    expect(j0('floor<"a">')).toEqual(null)
-    expect(j0('a:floor<"a">')).toEqual({ a: null })
+    expect(j0('a:floor<>')).equal({ a: null })
+    expect(j0('floor<>')).equal(null)
+    expect(j0('[floor<>]')).equal([null])
+    expect(j0('floor<"a">')).equal(null)
+    expect(j0('a:floor<"a">')).equal({ a: null })
 
-    expect(j0('[1 (2) (2+1) floor<4.5>]')).toEqual([1, 2, 3, 4])
-    expect(j0('1 (2) (2+1) floor<4.5>')).toEqual([1, 2, 3, 4])
+    expect(j0('[1 (2) (2+1) floor<4.5>]')).equal([1, 2, 3, 4])
+    expect(j0('1 (2) (2+1) floor<4.5>')).equal([1, 2, 3, 4])
 
-    expect(j0('bad<9>')).toEqual(null)
+    expect(j0('bad<9>')).equal(null)
 
 
 
@@ -2434,133 +2438,131 @@ describe('expr', () => {
       })
 
 
-    expect(j1('()')).toEqual(null)
-    expect(j1('(0)')).toEqual(0)
-    expect(j1('(0+1)')).toEqual(1)
-    expect(j1('[(0) 1]')).toEqual([0, 1])
+    expect(j1('()')).equal(null)
+    expect(j1('(0)')).equal(0)
+    expect(j1('(0+1)')).equal(1)
+    expect(j1('[(0) 1]')).equal([0, 1])
 
     // TODO
     // expect(() => j1('[0 (1) 2]')).toThrow('Invalid operation: 0')
 
-    expect(j1('[0,(1),2]')).toEqual([0, 1, 2])
-    expect(j1('[0,(1)]')).toEqual([0, 1])
+    expect(j1('[0,(1),2]')).equal([0, 1, 2])
+    expect(j1('[0,(1)]')).equal([0, 1])
 
     // TODO
     // expect(() => j1('[0 (1)]')).toThrow('Invalid operation: 0')
 
-    expect(j1('[(1)]')).toEqual([1])
-    expect(j1('[0,(1)]')).toEqual([0, 1])
-    expect(j1('[(0),(1)]')).toEqual([0, 1])
-    expect(j1('(0),(1)')).toEqual([0, 1])
+    expect(j1('[(1)]')).equal([1])
+    expect(j1('[0,(1)]')).equal([0, 1])
+    expect(j1('[(0),(1)]')).equal([0, 1])
+    expect(j1('(0),(1)')).equal([0, 1])
 
     // expect(() => j1('[(0) (1)]')).toThrow('Invalid operation: (')
     // expect(() => j1('(0) (1)')).toThrow('Invalid operation: (')
 
-    expect(j1('floor(1.1)')).toEqual(1)
-    expect(j1('floor (1.1)')).toEqual(1)
+    expect(j1('floor(1.1)')).equal(1)
+    expect(j1('floor (1.1)')).equal(1)
 
     // TODO
-    // expect(j1('(floor) (1.1)')).toEqual(1)
+    // expect(j1('(floor) (1.1)')).equal(1)
     // expect(() => j1('(0+1) (1+1)')).toThrow('Invalid operation: (')
 
-    expect(j1('floor(0.5)')).toEqual(0)
-    expect(j1('a:floor(2.5)')).toEqual({ a: 2 })
+    expect(j1('floor(0.5)')).equal(0)
+    expect(j1('a:floor(2.5)')).equal({ a: 2 })
 
-    expect(j1('{b:floor(3.5)}')).toEqual({ b: 3 })
-    expect(j1('[floor(4.5)]')).toEqual([4])
-    expect(j1('[0 floor(5.5)]')).toEqual([0, 5])
-    expect(j1('[(0) 1 floor(5.5)]')).toEqual([0, 1, 5])
-    expect(j1('[(0) floor(5.5)]')).toEqual([0, 5])
-    expect(j1('[0,(1),floor(5.5)]')).toEqual([0, 1, 5])
+    expect(j1('{b:floor(3.5)}')).equal({ b: 3 })
+    expect(j1('[floor(4.5)]')).equal([4])
+    expect(j1('[0 floor(5.5)]')).equal([0, 5])
+    expect(j1('[(0) 1 floor(5.5)]')).equal([0, 1, 5])
+    expect(j1('[(0) floor(5.5)]')).equal([0, 5])
+    expect(j1('[0,(1),floor(5.5)]')).equal([0, 1, 5])
 
-    expect(j1('[1,(2),(2+1)]')).toEqual([1, 2, 3])
-    expect(j1('[1,(2),(2+1),floor(4.5)]')).toEqual([1, 2, 3, 4])
+    expect(j1('[1,(2),(2+1)]')).equal([1, 2, 3])
+    expect(j1('[1,(2),(2+1),floor(4.5)]')).equal([1, 2, 3, 4])
 
-    expect(j1('a:floor(1.5)')).toEqual({ a: 1 })
+    expect(j1('a:floor(1.5)')).equal({ a: 1 })
 
     // TODO
     // expect(() => j1('b:bad(2.5)')).toThrow('Invalid operation: bad')
 
-    expect(j1('[3+2]')).toEqual([5])
-    expect(j1('[3+(2)]')).toEqual([5])
-    expect(j1('[(3)+2]')).toEqual([5])
-    expect(j1('[(3)+(2)]')).toEqual([5])
-    expect(j1('[(3+2)]')).toEqual([5])
-    expect(j1('[(3+(2))]')).toEqual([5])
-    expect(j1('[((3)+2)]')).toEqual([5])
-    expect(j1('[((3)+(2))]')).toEqual([5])
+    expect(j1('[3+2]')).equal([5])
+    expect(j1('[3+(2)]')).equal([5])
+    expect(j1('[(3)+2]')).equal([5])
+    expect(j1('[(3)+(2)]')).equal([5])
+    expect(j1('[(3+2)]')).equal([5])
+    expect(j1('[(3+(2))]')).equal([5])
+    expect(j1('[((3)+2)]')).equal([5])
+    expect(j1('[((3)+(2))]')).equal([5])
 
-    expect(j1('[1,3+2]')).toEqual([1, 5])
-    expect(j1('[1,3+(2)]')).toEqual([1, 5])
-    expect(j1('[1,(3)+2]')).toEqual([1, 5])
-    expect(j1('[1,(3)+(2)]')).toEqual([1, 5])
-    expect(j1('[1,(3+2)]')).toEqual([1, 5])
-    expect(j1('[1,(3+(2))]')).toEqual([1, 5])
-    expect(j1('[1,((3)+2)]')).toEqual([1, 5])
-    expect(j1('[1,((3)+(2))]')).toEqual([1, 5])
+    expect(j1('[1,3+2]')).equal([1, 5])
+    expect(j1('[1,3+(2)]')).equal([1, 5])
+    expect(j1('[1,(3)+2]')).equal([1, 5])
+    expect(j1('[1,(3)+(2)]')).equal([1, 5])
+    expect(j1('[1,(3+2)]')).equal([1, 5])
+    expect(j1('[1,(3+(2))]')).equal([1, 5])
+    expect(j1('[1,((3)+2)]')).equal([1, 5])
+    expect(j1('[1,((3)+(2))]')).equal([1, 5])
 
-    expect(j1('[3+2,4]')).toEqual([5, 4])
-    expect(j1('[3+(2),4]')).toEqual([5, 4])
-    expect(j1('[(3)+2,4]')).toEqual([5, 4])
-    expect(j1('[(3)+(2),4]')).toEqual([5, 4])
-    expect(j1('[(3+2),4]')).toEqual([5, 4])
-    expect(j1('[(3+(2)),4]')).toEqual([5, 4])
-    expect(j1('[((3)+2),4]')).toEqual([5, 4])
-    expect(j1('[((3)+(2)),4]')).toEqual([5, 4])
+    expect(j1('[3+2,4]')).equal([5, 4])
+    expect(j1('[3+(2),4]')).equal([5, 4])
+    expect(j1('[(3)+2,4]')).equal([5, 4])
+    expect(j1('[(3)+(2),4]')).equal([5, 4])
+    expect(j1('[(3+2),4]')).equal([5, 4])
+    expect(j1('[(3+(2)),4]')).equal([5, 4])
+    expect(j1('[((3)+2),4]')).equal([5, 4])
+    expect(j1('[((3)+(2)),4]')).equal([5, 4])
 
-    expect(j1('[1,3+2,4]')).toEqual([1, 5, 4])
-    expect(j1('[1,3+(2),4]')).toEqual([1, 5, 4])
-    expect(j1('[1,(3)+2,4]')).toEqual([1, 5, 4])
-    expect(j1('[1,(3)+(2),4]')).toEqual([1, 5, 4])
-    expect(j1('[1,(3+2),4]')).toEqual([1, 5, 4])
-    expect(j1('[1,(3+(2)),4]')).toEqual([1, 5, 4])
-    expect(j1('[1,((3)+2),4]')).toEqual([1, 5, 4])
-    expect(j1('[1,((3)+(2)),4]')).toEqual([1, 5, 4])
+    expect(j1('[1,3+2,4]')).equal([1, 5, 4])
+    expect(j1('[1,3+(2),4]')).equal([1, 5, 4])
+    expect(j1('[1,(3)+2,4]')).equal([1, 5, 4])
+    expect(j1('[1,(3)+(2),4]')).equal([1, 5, 4])
+    expect(j1('[1,(3+2),4]')).equal([1, 5, 4])
+    expect(j1('[1,(3+(2)),4]')).equal([1, 5, 4])
+    expect(j1('[1,((3)+2),4]')).equal([1, 5, 4])
+    expect(j1('[1,((3)+(2)),4]')).equal([1, 5, 4])
 
-    expect(j1('1+floor(1.1)')).toEqual(2)
-    expect(j1('floor(1.1)+1')).toEqual(2)
-    expect(j1('1+floor(1.1)+1')).toEqual(3)
+    expect(j1('1+floor(1.1)')).equal(2)
+    expect(j1('floor(1.1)+1')).equal(2)
+    expect(j1('1+floor(1.1)+1')).equal(3)
 
-    expect(j1('a:(2)+1')).toEqual({ a: 3 })
+    expect(j1('a:(2)+1')).equal({ a: 3 })
 
-    expect(j1('a:1+floor(1.1)')).toEqual({ a: 2 })
-    expect(j1('a:(1.1)+1')).toEqual({ a: 2.1 })
-    expect(j1('a:floor(1.1)+1')).toEqual({ a: 2 })
-    expect(j1('a:1+floor(1.1)+1')).toEqual({ a: 3 })
+    expect(j1('a:1+floor(1.1)')).equal({ a: 2 })
+    expect(j1('a:(1.1)+1')).equal({ a: 2.1 })
+    expect(j1('a:floor(1.1)+1')).equal({ a: 2 })
+    expect(j1('a:1+floor(1.1)+1')).equal({ a: 3 })
 
-    expect(j1('[1+floor(1.1)]')).toEqual([2])
-    expect(j1('[floor(1.1)+2]')).toEqual([3])
-    expect(j1('[3+floor(1.1)+2]')).toEqual([6])
+    expect(j1('[1+floor(1.1)]')).equal([2])
+    expect(j1('[floor(1.1)+2]')).equal([3])
+    expect(j1('[3+floor(1.1)+2]')).equal([6])
 
-    expect(j1('b:1.1+1,c:C0')).toEqual({ b: 2.1, c: 'C0' })
-    expect(j1('b:(1.1+1),c:C0a')).toEqual({ b: 2.1, c: 'C0a' })
+    expect(j1('b:1.1+1,c:C0')).equal({ b: 2.1, c: 'C0' })
+    expect(j1('b:(1.1+1),c:C0a')).equal({ b: 2.1, c: 'C0a' })
 
-    expect(j1('b:(1.1)+1,c:C1')).toEqual({ b: 2.1, c: 'C1' })
-    expect(j1('b:((1.1)+1),c:C1a')).toEqual({ b: 2.1, c: 'C1a' })
+    expect(j1('b:(1.1)+1,c:C1')).equal({ b: 2.1, c: 'C1' })
+    expect(j1('b:((1.1)+1),c:C1a')).equal({ b: 2.1, c: 'C1a' })
 
-    expect(j1('b:1+floor(1.1),c:C2c')).toEqual({ b: 2, c: 'C2c' })
-    expect(j1('b:floor(1.1)+1,c:C2d')).toEqual({ b: 2, c: 'C2d' })
+    expect(j1('b:1+floor(1.1),c:C2c')).equal({ b: 2, c: 'C2c' })
+    expect(j1('b:floor(1.1)+1,c:C2d')).equal({ b: 2, c: 'C2d' })
 
-    expect(j1('b:(floor(1.1)),c:C2a')).toEqual({ b: 1, c: 'C2a' })
-    expect(j1('b:(1+floor(1.1)),c:C2b')).toEqual({ b: 2, c: 'C2b' })
+    expect(j1('b:(floor(1.1)),c:C2a')).equal({ b: 1, c: 'C2a' })
+    expect(j1('b:(1+floor(1.1)),c:C2b')).equal({ b: 2, c: 'C2b' })
 
 
-    expect(j1('1+(floor(1.1))')).toEqual(2)
+    expect(j1('1+(floor(1.1))')).equal(2)
 
-    expect(j1('(11,22)')).toEqual([11, 22])
-    expect(j1('21+31')).toEqual(52)
-    expect(j1('(21)+31')).toEqual(52)
-    expect(j1('(21+31)')).toEqual(52)
-    expect(j1('(floor(2.2))')).toEqual(2)
-    expect(j1('((floor(2.2)))')).toEqual(2)
-    expect(j1('(floor(2.2))+1')).toEqual(3)
-    expect(j1('floor(2.2)+3')).toEqual(5)
-    expect(j1('(floor(1.1)+2)')).toEqual(3)
-    expect(j1('b:(floor(1.1)+2),c:C2c')).toEqual({ b: 3, c: 'C2c' })
+    expect(j1('(11,22)')).equal([11, 22])
+    expect(j1('21+31')).equal(52)
+    expect(j1('(21)+31')).equal(52)
+    expect(j1('(21+31)')).equal(52)
+    expect(j1('(floor(2.2))')).equal(2)
+    expect(j1('((floor(2.2)))')).equal(2)
+    expect(j1('(floor(2.2))+1')).equal(3)
+    expect(j1('floor(2.2)+3')).equal(5)
+    expect(j1('(floor(1.1)+2)')).equal(3)
+    expect(j1('b:(floor(1.1)+2),c:C2c')).equal({ b: 3, c: 'C2c' })
 
   })
 
 
 })
-
-
