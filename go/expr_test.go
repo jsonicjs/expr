@@ -242,6 +242,27 @@ func TestSpecJSONBase(t *testing.T) {
 	runSpec(t, "json-base.tsv", j)
 }
 
+func TestSpecParenImplicitMap(t *testing.T) {
+	j := makeExprJsonic()
+	runSpec(t, "paren-implicit-map.tsv", j)
+}
+
+func TestSpecJsonicBase(t *testing.T) {
+	j := makeExprJsonic()
+	runSpec(t, "jsonic-base.tsv", j)
+}
+
+func TestSpecAddInfix(t *testing.T) {
+	j := makeExprJsonic(map[string]interface{}{
+		"op": map[string]interface{}{
+			"foo": map[string]interface{}{
+				"infix": true, "left": 180, "right": 190, "src": "foo",
+			},
+		},
+	})
+	runSpec(t, "add-infix.tsv", j)
+}
+
 // TestSimplify verifies the Simplify function.
 func TestSimplify(t *testing.T) {
 	op := &Op{Name: "addition-infix", Src: "+", Infix: true}
@@ -291,6 +312,25 @@ func TestEvaluation(t *testing.T) {
 		{"1+2*3", 7},
 		{"(1+2)*3", 9},
 		{"3*(1+2)", 9},
+		{"(1)", 1},
+		{"(1+2)", 3},
+		{"3+(1+2)", 6},
+		{"(1+2)+3", 6},
+		{"111+222", 333},
+		{"(111+222)", 333},
+		{"111+(222)", 333},
+		{"(111)+222", 333},
+		{"(111)+(222)", 333},
+		{"(1+2)*4", 12},
+		{"1+(2*4)", 9},
+		{"((1+2)*4)", 12},
+		{"(1+(2*4))", 9},
+		{"((114))", 114},
+		{"(((115)))", 115},
+		{"1-3", -2},
+		{"-1", -1},
+		{"+1", 1},
+		{"1+(-3)", -2},
 	}
 
 	for _, tt := range tests {
@@ -334,4 +374,192 @@ func TestParseConvenience(t *testing.T) {
 		t.Errorf("got %s, want %s", gotJSON, expectedJSON)
 	}
 	_ = fmt.Sprintf("") // use fmt
+}
+
+// TestEvaluateSets verifies set union/intersection evaluation with custom operators.
+func TestEvaluateSets(t *testing.T) {
+	setResolve := func(r *jsonic.Rule, ctx *jsonic.Context, op *Op, terms []interface{}) interface{} {
+		switch op.Name {
+		case "plain-paren":
+			if len(terms) > 0 {
+				return terms[0]
+			}
+			return nil
+		case "union-infix":
+			a := toIntSlice(terms[0])
+			b := toIntSlice(terms[1])
+			seen := make(map[int]bool)
+			var result []int
+			for _, v := range a {
+				if !seen[v] {
+					seen[v] = true
+					result = append(result, v)
+				}
+			}
+			for _, v := range b {
+				if !seen[v] {
+					seen[v] = true
+					result = append(result, v)
+				}
+			}
+			sortInts(result)
+			return intsToInterface(result)
+		case "intersection-infix":
+			a := toIntSlice(terms[0])
+			b := toIntSlice(terms[1])
+			setA := make(map[int]bool)
+			for _, v := range a {
+				setA[v] = true
+			}
+			var result []int
+			seen := make(map[int]bool)
+			for _, v := range b {
+				if setA[v] && !seen[v] {
+					seen[v] = true
+					result = append(result, v)
+				}
+			}
+			sortInts(result)
+			return intsToInterface(result)
+		default:
+			return []interface{}{}
+		}
+	}
+
+	j := jsonic.Make()
+	j.Use(Expr, map[string]interface{}{
+		"op": map[string]interface{}{
+			"union": map[string]interface{}{
+				"infix": true, "src": "U", "left": 140, "right": 150,
+			},
+			"intersection": map[string]interface{}{
+				"infix": true, "src": "N", "left": 140, "right": 150,
+			},
+		},
+	})
+
+	tests := []struct {
+		input    string
+		expected []int
+	}{
+		{"[1]U[2]", []int{1, 2}},
+		{"[1,3]U[1,2]", []int{1, 2, 3}},
+		{"[1,3]N[1,2]", []int{1}},
+		{"[1,3]N[2]", []int{}},
+		{"[1,3]N[2,1]", []int{1}},
+		{"[1,3]N[2]U[1,2]", []int{1, 2}},
+		{"[1,3]N([2]U[1,2])", []int{1}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result, err := j.Parse(tt.input)
+			if err != nil {
+				t.Fatalf("parse error for %q: %v", tt.input, err)
+			}
+			val := Evaluation(nil, nil, result, setResolve)
+			got := toIntSlice(val)
+			if !reflect.DeepEqual(got, tt.expected) {
+				t.Errorf("got %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func toIntSlice(v interface{}) []int {
+	switch s := v.(type) {
+	case []interface{}:
+		result := make([]int, 0, len(s))
+		for _, el := range s {
+			result = append(result, int(toFloat(el)))
+		}
+		return result
+	case []int:
+		return s
+	default:
+		return []int{}
+	}
+}
+
+func intsToInterface(nums []int) []interface{} {
+	result := make([]interface{}, len(nums))
+	for i, n := range nums {
+		result[i] = float64(n)
+	}
+	return result
+}
+
+func sortInts(a []int) {
+	for i := 0; i < len(a); i++ {
+		for j := i + 1; j < len(a); j++ {
+			if a[j] < a[i] {
+				a[i], a[j] = a[j], a[i]
+			}
+		}
+	}
+}
+
+// TestExampleDotpath verifies custom dot-path operator with evaluation.
+func TestExampleDotpath(t *testing.T) {
+	// Go's makeAllOps appends "-infix"/"-prefix" to the user-provided name,
+	// so "dot" becomes "dot-infix" and "dot-prefix" respectively.
+	dotResolve := func(r *jsonic.Rule, ctx *jsonic.Context, op *Op, terms []interface{}) interface{} {
+		switch op.Name {
+		case "dot-infix":
+			parts := make([]string, len(terms))
+			for i, term := range terms {
+				parts[i] = fmt.Sprintf("%v", term)
+			}
+			return strings.Join(parts, "/")
+		case "dotpre-prefix":
+			return "/" + fmt.Sprintf("%v", terms[0])
+		case "plain-paren":
+			if len(terms) > 0 {
+				return terms[0]
+			}
+			return nil
+		case "positive-prefix":
+			return terms[0]
+		case "addition-infix":
+			return toFloat(terms[0]) + toFloat(terms[1])
+		default:
+			return nil
+		}
+	}
+
+	j := jsonic.Make()
+	j.Use(Expr, map[string]interface{}{
+		"op": map[string]interface{}{
+			"dot": map[string]interface{}{
+				"src": ".", "infix": true, "left": 15000000, "right": 14000000,
+			},
+			"dotpre": map[string]interface{}{
+				"src": ".", "prefix": true, "right": 14000000,
+			},
+		},
+	})
+
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{"a.b", "a/b"},
+		{"a.b.c", "a/b/c"},
+		{"a.b.c.d", "a/b/c/d"},
+		{".a", "/a"},
+		{".a.b", "/a/b"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result, err := j.Parse(tt.input)
+			if err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			val := Evaluation(nil, nil, result, dotResolve)
+			if val != tt.expected {
+				t.Errorf("got %v, want %v", val, tt.expected)
+			}
+		})
+	}
 }

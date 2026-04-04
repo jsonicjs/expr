@@ -174,4 +174,115 @@ describe('spec', () => {
     runSpec('json-base.tsv', j)
   })
 
+
+  test('implicit-list-top-paren', () => {
+    const j = mj(Jsonic.make().use(Expr))
+    runSpec('implicit-list-top-paren.tsv', j)
+  })
+
+
+  test('paren-implicit-list', () => {
+    const j = mj(Jsonic.make().use(Expr))
+    runSpec('paren-implicit-list.tsv', j)
+  })
+
+
+  test('paren-implicit-map', () => {
+    const j = mj(Jsonic.make().use(Expr))
+    runSpec('paren-implicit-map.tsv', j)
+  })
+
+
+  test('map-implicit-list-paren', () => {
+    const j = mj(Jsonic.make().use(Expr))
+    runSpec('map-implicit-list-paren.tsv', j)
+  })
+
+
+  test('paren-map-implicit-structure-comma', () => {
+    const j = mj(Jsonic.make().use(Expr))
+    runSpec('paren-map-implicit-structure-comma.tsv', j)
+  })
+
+
+  test('paren-map-implicit-structure-space', () => {
+    const j = mj(Jsonic.make().use(Expr))
+    runSpec('paren-map-implicit-structure-space.tsv', j)
+  })
+
+
+  test('paren-list-implicit-structure-comma', () => {
+    const j = mj(Jsonic.make().use(Expr))
+    runSpec('paren-list-implicit-structure-comma.tsv', j)
+  })
+
+
+  test('paren-list-implicit-structure-space', () => {
+    const j = mj(Jsonic.make().use(Expr))
+    runSpec('paren-list-implicit-structure-space.tsv', j)
+  })
+
+
+  test('jsonic-base', () => {
+    const j = mj(Jsonic.make().use(Expr))
+    runSpec('jsonic-base.tsv', j)
+  })
+
+
+  test('add-infix', () => {
+    const je = Jsonic.make().use(Expr, {
+      op: {
+        foo: { infix: true, left: 180, right: 190, src: 'foo' },
+      }
+    })
+    const j = mj(je)
+    runSpec('add-infix.tsv', j)
+  })
+
+
+  test('add-paren', () => {
+    const je = Jsonic.make().use(Expr, {
+      op: {
+        angle: { paren: true, osrc: '<', csrc: '>' },
+      }
+    })
+    const j = mj(je)
+    runSpec('add-paren.tsv', j)
+  })
+
+
+  test('paren-preval-basic', () => {
+    const je = Jsonic.make().use(Expr, {
+      op: {
+        angle: { osrc: '<', csrc: '>', paren: true, preval: { active: true } },
+      }
+    })
+    const j = mj(je)
+    runSpec('paren-preval-basic.tsv', j)
+  })
+
+
+  test('paren-preval-overload', () => {
+    const je = Jsonic.make().use(Expr, {
+      op: {
+        factorial: { suffix: true, left: 15000, src: '!' },
+        square: { osrc: '[', csrc: ']', paren: true, preval: { required: true } },
+        brace: { osrc: '{', csrc: '}', paren: true, preval: { required: true } },
+      }
+    })
+    const j = mj(je)
+    runSpec('paren-preval-overload.tsv', j)
+  })
+
+
+  test('paren-preval-implicit', () => {
+    const je = Jsonic.make().use(Expr, {
+      op: {
+        plain: { preval: true },
+      }
+    })
+    const j = mj(je)
+    runSpec('paren-preval-implicit.tsv', j)
+  })
+
 })
