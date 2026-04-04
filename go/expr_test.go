@@ -1,0 +1,337 @@
+/* Copyright (c) 2021-2025 Richard Rodger and other contributors, MIT License */
+
+package expr
+
+import (
+	"bufio"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"reflect"
+	"runtime"
+	"strings"
+	"testing"
+
+	jsonic "github.com/jsonicjs/jsonic/go"
+)
+
+// specEntry holds one line from a TSV spec file.
+type specEntry struct {
+	input    string
+	expected interface{}
+}
+
+// loadSpec reads a TSV spec file and returns parsed entries.
+func loadSpec(t *testing.T, name string) []specEntry {
+	t.Helper()
+
+	// Find spec dir relative to this test file.
+	_, filename, _, _ := runtime.Caller(0)
+	specDir := filepath.Join(filepath.Dir(filename), "..", "test", "spec")
+	specPath := filepath.Join(specDir, name)
+
+	f, err := os.Open(specPath)
+	if err != nil {
+		t.Fatalf("failed to open spec file %s: %v", specPath, err)
+	}
+	defer f.Close()
+
+	var entries []specEntry
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.SplitN(line, "\t", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		var expected interface{}
+		if err := json.Unmarshal([]byte(parts[1]), &expected); err != nil {
+			t.Fatalf("failed to parse expected JSON in %s: %q: %v", name, parts[1], err)
+		}
+		entries = append(entries, specEntry{input: parts[0], expected: expected})
+	}
+	if err := scanner.Err(); err != nil {
+		t.Fatalf("error reading spec file %s: %v", name, err)
+	}
+	return entries
+}
+
+// simplifyAndNormalize converts the parse result to simplified form
+// and normalizes it to match JSON-parsed expected values.
+func simplifyAndNormalize(node interface{}) interface{} {
+	simplified := Simplify(node)
+	// Round-trip through JSON to normalize types (float64 for numbers, etc.)
+	b, err := json.Marshal(simplified)
+	if err != nil {
+		return simplified
+	}
+	var normalized interface{}
+	if err := json.Unmarshal(b, &normalized); err != nil {
+		return simplified
+	}
+	return normalized
+}
+
+// runSpec runs all entries from a TSV spec file against a jsonic instance.
+func runSpec(t *testing.T, specName string, j *jsonic.Jsonic) {
+	t.Helper()
+	entries := loadSpec(t, specName)
+	for _, e := range entries {
+		t.Run(e.input, func(t *testing.T) {
+			result, err := j.Parse(e.input)
+			if err != nil {
+				t.Fatalf("parse error for %q: %v", e.input, err)
+			}
+			got := simplifyAndNormalize(result)
+			if !reflect.DeepEqual(got, e.expected) {
+				gotJSON, _ := json.Marshal(got)
+				expJSON, _ := json.Marshal(e.expected)
+				t.Errorf("input: %q\n  got:  %s\n  want: %s", e.input, gotJSON, expJSON)
+			}
+		})
+	}
+}
+
+func makeExprJsonic(opOpts ...map[string]interface{}) *jsonic.Jsonic {
+	j := jsonic.Make()
+	var opts map[string]interface{}
+	if len(opOpts) > 0 {
+		opts = opOpts[0]
+	}
+	j.Use(Expr, opts)
+	return j
+}
+
+func TestSpecHappy(t *testing.T) {
+	j := makeExprJsonic()
+	runSpec(t, "happy.tsv", j)
+}
+
+func TestSpecBinary(t *testing.T) {
+	j := makeExprJsonic()
+	runSpec(t, "binary.tsv", j)
+}
+
+func TestSpecStructure(t *testing.T) {
+	j := makeExprJsonic()
+	runSpec(t, "structure.tsv", j)
+}
+
+func TestSpecUnaryPrefixBasic(t *testing.T) {
+	j := makeExprJsonic()
+	runSpec(t, "unary-prefix-basic.tsv", j)
+}
+
+func TestSpecUnaryPrefixEdge(t *testing.T) {
+	j := makeExprJsonic(map[string]interface{}{
+		"op": map[string]interface{}{
+			"at": map[string]interface{}{
+				"prefix": true, "right": 15000, "src": "@",
+			},
+			"tight": map[string]interface{}{
+				"infix": true, "left": 120000, "right": 130000, "src": "~",
+			},
+		},
+	})
+	runSpec(t, "unary-prefix-edge.tsv", j)
+}
+
+func TestSpecUnarySuffixBasic(t *testing.T) {
+	j := makeExprJsonic(map[string]interface{}{
+		"op": map[string]interface{}{
+			"factorial": map[string]interface{}{
+				"suffix": true, "left": 15000, "src": "!",
+			},
+			"question": map[string]interface{}{
+				"suffix": true, "left": 13000, "src": "?",
+			},
+		},
+	})
+	runSpec(t, "unary-suffix-basic.tsv", j)
+}
+
+func TestSpecUnarySuffixEdge(t *testing.T) {
+	j := makeExprJsonic(map[string]interface{}{
+		"op": map[string]interface{}{
+			"factorial": map[string]interface{}{
+				"suffix": true, "left": 15000, "src": "!",
+			},
+			"question": map[string]interface{}{
+				"suffix": true, "left": 13000, "src": "?",
+			},
+			"tight": map[string]interface{}{
+				"infix": true, "left": 120000, "right": 130000, "src": "~",
+			},
+		},
+	})
+	runSpec(t, "unary-suffix-edge.tsv", j)
+}
+
+func TestSpecUnarySuffixStructure(t *testing.T) {
+	j := makeExprJsonic(map[string]interface{}{
+		"op": map[string]interface{}{
+			"factorial": map[string]interface{}{
+				"suffix": true, "left": 15000, "src": "!",
+			},
+			"question": map[string]interface{}{
+				"suffix": true, "left": 13000, "src": "?",
+			},
+		},
+	})
+	runSpec(t, "unary-suffix-structure.tsv", j)
+}
+
+func TestSpecUnarySuffixPrefix(t *testing.T) {
+	j := makeExprJsonic(map[string]interface{}{
+		"op": map[string]interface{}{
+			"factorial": map[string]interface{}{
+				"suffix": true, "left": 15000, "src": "!",
+			},
+			"question": map[string]interface{}{
+				"suffix": true, "left": 13000, "src": "?",
+			},
+		},
+	})
+	runSpec(t, "unary-suffix-prefix.tsv", j)
+}
+
+func TestSpecUnarySuffixParen(t *testing.T) {
+	j := makeExprJsonic(map[string]interface{}{
+		"op": map[string]interface{}{
+			"factorial": map[string]interface{}{
+				"suffix": true, "left": 15000, "src": "!",
+			},
+			"question": map[string]interface{}{
+				"suffix": true, "left": 13000, "src": "?",
+			},
+		},
+	})
+	runSpec(t, "unary-suffix-paren.tsv", j)
+}
+
+func TestSpecParenBasic(t *testing.T) {
+	j := makeExprJsonic()
+	runSpec(t, "paren-basic.tsv", j)
+}
+
+func TestSpecImplicitListTopBasic(t *testing.T) {
+	j := makeExprJsonic()
+	runSpec(t, "implicit-list-top-basic.tsv", j)
+}
+
+func TestSpecTernaryBasic(t *testing.T) {
+	j := makeExprJsonic(map[string]interface{}{
+		"op": map[string]interface{}{
+			"factorial": map[string]interface{}{
+				"suffix": true, "src": "!", "left": 15000,
+			},
+			"ternary": map[string]interface{}{
+				"ternary": true, "src": []interface{}{"?", ":"},
+			},
+		},
+	})
+	runSpec(t, "ternary-basic.tsv", j)
+}
+
+func TestSpecJSONBase(t *testing.T) {
+	j := makeExprJsonic()
+	runSpec(t, "json-base.tsv", j)
+}
+
+// TestSimplify verifies the Simplify function.
+func TestSimplify(t *testing.T) {
+	op := &Op{Name: "addition-infix", Src: "+", Infix: true}
+	expr := []interface{}{op, 1.0, 2.0}
+	got := Simplify(expr)
+
+	expected := []interface{}{"+", 1.0, 2.0}
+	if !reflect.DeepEqual(got, expected) {
+		t.Errorf("Simplify: got %v, want %v", got, expected)
+	}
+}
+
+// TestEvaluation verifies basic evaluation.
+func TestEvaluation(t *testing.T) {
+	mathResolve := func(r *jsonic.Rule, ctx *jsonic.Context, op *Op, terms []interface{}) interface{} {
+		switch op.Name {
+		case "addition-infix":
+			return toFloat(terms[0]) + toFloat(terms[1])
+		case "subtraction-infix":
+			return toFloat(terms[0]) - toFloat(terms[1])
+		case "multiplication-infix":
+			return toFloat(terms[0]) * toFloat(terms[1])
+		case "negative-prefix":
+			return -1 * toFloat(terms[0])
+		case "positive-prefix":
+			return toFloat(terms[0])
+		case "plain-paren":
+			if len(terms) > 0 {
+				return terms[0]
+			}
+			return nil
+		default:
+			return nil
+		}
+	}
+
+	j := jsonic.Make()
+	j.Use(Expr, nil)
+
+	tests := []struct {
+		input    string
+		expected float64
+	}{
+		{"1+2", 3},
+		{"1+2+3", 6},
+		{"1*2+3", 5},
+		{"1+2*3", 7},
+		{"(1+2)*3", 9},
+		{"3*(1+2)", 9},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result, err := j.Parse(tt.input)
+			if err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			val := Evaluation(nil, nil, result, mathResolve)
+			if got := toFloat(val); got != tt.expected {
+				t.Errorf("got %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func toFloat(v interface{}) float64 {
+	switch n := v.(type) {
+	case float64:
+		return n
+	case int:
+		return float64(n)
+	case int64:
+		return float64(n)
+	default:
+		return 0
+	}
+}
+
+// TestParseConvenience tests the Parse convenience function.
+func TestParseConvenience(t *testing.T) {
+	result, err := Parse("1+2")
+	if err != nil {
+		t.Fatalf("Parse error: %v", err)
+	}
+	got := simplifyAndNormalize(result)
+	expected := []interface{}{"+", float64(1), float64(2)}
+	expectedJSON, _ := json.Marshal(expected)
+	gotJSON, _ := json.Marshal(got)
+	if string(gotJSON) != string(expectedJSON) {
+		t.Errorf("got %s, want %s", gotJSON, expectedJSON)
+	}
+	_ = fmt.Sprintf("") // use fmt
+}
