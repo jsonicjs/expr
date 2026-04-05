@@ -1,0 +1,5 @@
+# JSON base compatibility - default Expr config
+# input	expected_output
+1	1
+"a"	"a"
+true	true
