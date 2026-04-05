@@ -760,13 +760,16 @@ func TestTernaryParenPreval(t *testing.T) {
 		{"1?2:3", []interface{}{"?", float64(1), float64(2), float64(3)}},
 
 		{"a 1?2:3", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}}},
-		// NOTE: "1?2:3 b" and "1?2:3,b" — ternary followed by implicit list
-		// is a pre-existing gap (not related to preval). Skipped for now.
 		{"a 1?2:3 b", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}, "b"}},
+		{"1?2:3 b", []interface{}{[]interface{}{"?", float64(1), float64(2), float64(3)}, "b"}},
+		{"1?2:3,b", []interface{}{[]interface{}{"?", float64(1), float64(2), float64(3)}, "b"}},
 
 		{"a,1?2:3", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}}},
 		{"a,1?2:3,b", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}, "b"}},
 
+		{"(1?2:3)", []interface{}{"(", []interface{}{"?", float64(1), float64(2), float64(3)}}},
+		{"(1?2:3 b)", []interface{}{"(", []interface{}{[]interface{}{"?", float64(1), float64(2), float64(3)}, "b"}}},
+		{"(1?2:3,b)", []interface{}{"(", []interface{}{[]interface{}{"?", float64(1), float64(2), float64(3)}, "b"}}},
 		{"(a 1?2:3)", []interface{}{"(", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}}}},
 		{"(a 1?2:3 b)", []interface{}{"(", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}, "b"}}},
 

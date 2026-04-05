@@ -944,6 +944,13 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) {
 				if jsonic.IsUndefined(r.Node) {
 					r.Node = childNode
 				} else if isOp(childNode) {
+					// Don't overwrite if paren.Node is already a plain list
+					// (set by implicit list handling in elem/ternary).
+					if !isOp(r.Node) {
+						if sl, ok := r.Node.([]interface{}); ok && len(sl) > 0 {
+							return // keep the implicit list
+						}
+					}
 					r.Node = childNode
 				}
 			},
@@ -1002,9 +1009,77 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) {
 					} else if step == 1 {
 						fillNextSlot(sl, childNode)
 						r.U["ternary_step"] = 2
+					} else if step == 2 {
+						// Final slot filled when ternary ends
+						// (e.g., inside an existing elem/list).
+						fillNextSlot(sl, childNode)
 					}
 				}
 			},
+		}
+
+		// Condition for implicit list after ternary completes.
+		// Only fire when ternary is the FIRST expression — i.e., not already
+		// inside an elem/list that handles implicit list continuation.
+		implicitTernaryCond := func(r *jsonic.Rule) bool {
+			step, _ := r.U["ternary_step"].(int)
+			if step != 2 || r.N["pk"] >= 1 {
+				return false
+			}
+			if r.D == 0 {
+				// Top-level: check no elem/list parent exists.
+				for p := r.Parent; p != nil && p != jsonic.NoRule; p = p.Parent {
+					if p.Name == "elem" || p.Name == "list" {
+						return false
+					}
+				}
+				return true
+			}
+			if r.N["expr_paren"] >= 1 {
+				// Inside paren: check no elem/list between ternary and paren.
+				for p := r.Parent; p != nil && p != jsonic.NoRule; p = p.Parent {
+					if p.Name == "elem" || p.Name == "list" {
+						return false
+					}
+					if p.Name == "paren" {
+						return true
+					}
+				}
+				return true
+			}
+			return false
+		}
+
+		// Action to wrap ternary result as first element of implicit list.
+		implicitTernaryAction := func(r *jsonic.Rule, ctx *jsonic.Context) {
+			// Fill the last slot with child node.
+			if r.Child != nil && r.Child != jsonic.NoRule {
+				childNode := r.Child.Node
+				if jsonic.IsUndefined(childNode) {
+					childNode = nil
+				}
+				if sl, ok := r.Node.([]interface{}); ok {
+					fillNextSlot(sl, childNode)
+				}
+			}
+			// Wrap the completed ternary node as the first element of a list.
+			ternaryNode := r.Node
+			if isOp(ternaryNode) {
+				ternaryNode = cleanExpr(ternaryNode.([]interface{}))
+			}
+			listNode := []interface{}{ternaryNode}
+
+			// If inside a paren, store the list on paren.Node directly
+			// (same approach as implicitListAction for expr).
+			if r.N["expr_paren"] >= 1 {
+				for rI := ctx.RSI - 1; rI >= 0; rI-- {
+					if ctx.RS[rI].Name == "paren" {
+						ctx.RS[rI].Node = listNode
+						break
+					}
+				}
+			}
+			r.Node = listNode
 		}
 
 		ternarySpec.Close = []*jsonic.AltSpec{
@@ -1019,7 +1094,40 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) {
 				},
 				G: "expr,ternary,sep2",
 			},
-			// End of ternary.
+
+			// Implicit list after ternary (comma): 1?2:3,b → [[?,1,2,3],"b"]
+			{
+				S: mkS([]int{jsonic.TinCA}),
+				C: func(r *jsonic.Rule, ctx *jsonic.Context) bool {
+					return implicitTernaryCond(r)
+				},
+				R: "elem",
+				A: implicitTernaryAction,
+				G: "expr,ternary,list,imp,comma",
+			},
+
+			// Paren close after ternary: backtrack so paren can consume it.
+			{
+				S: mkS(CP),
+				C: func(r *jsonic.Rule, ctx *jsonic.Context) bool {
+					step, _ := r.U["ternary_step"].(int)
+					return step == 2 && r.N["expr_paren"] >= 1
+				},
+				B: 1,
+				G: "expr,ternary,paren,close",
+			},
+
+			// Implicit list after ternary (space): 1?2:3 b → [[?,1,2,3],"b"]
+			{
+				C: func(r *jsonic.Rule, ctx *jsonic.Context) bool {
+					return implicitTernaryCond(r) && ctx.T0.Tin != jsonic.TinZZ
+				},
+				R: "elem",
+				A: implicitTernaryAction,
+				G: "expr,ternary,list,imp,space",
+			},
+
+			// End of ternary (deeper depth, or no more tokens).
 			{
 				C: func(r *jsonic.Rule, ctx *jsonic.Context) bool {
 					step, _ := r.U["ternary_step"].(int)
