@@ -196,6 +196,15 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) {
 	hasParen := len(OP) > 0
 	hasTernary := len(TERN0) > 0
 
+	// Check if any paren op has preval active.
+	hasPreval := false
+	for _, op := range allOps {
+		if op.Paren && op.Preval.Active {
+			hasPreval = true
+			break
+		}
+	}
+
 	mkS := func(tins []int) [][]int { return [][]int{tins} }
 
 	// === VAL rule modifications ===
@@ -208,6 +217,51 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) {
 				P: "expr",
 				N: map[string]int{"expr_prefix": 1, "expr_suffix": 0},
 				G: "expr,prefix",
+			}}, rs.Open...)
+		}
+
+		// Preval: value followed by paren open (e.g., foo(1,2)).
+		if hasPreval {
+			valTinsLocal := j.TokenSet("VAL")
+			rs.Open = append([]*jsonic.AltSpec{{
+				S: [][]int{valTinsLocal, OP},
+				B: 1,
+				P: "expr",
+				C: func(r *jsonic.Rule, ctx *jsonic.Context) bool {
+					pdef := parenOpenByTin[r.O1.Tin]
+					if pdef == nil || !pdef.Preval.Active {
+						return false
+					}
+					if len(pdef.Preval.Allow) > 0 {
+						val, _ := r.O0.ResolveVal().(string)
+						for _, a := range pdef.Preval.Allow {
+							if a == val {
+								return true
+							}
+						}
+						return false
+					}
+					return true
+				},
+				U: map[string]interface{}{"paren_preval": true},
+				A: func(r *jsonic.Rule, ctx *jsonic.Context) {
+					r.Node = r.O0.ResolveVal()
+				},
+				G: "expr,paren,preval",
+			}}, rs.Open...)
+		}
+
+		// Block pair detection when inside ternary and the colon
+		// is a ternary close token (e.g., `1?2:3` — the `2:` should
+		// NOT be treated as a key-value pair).
+		if hasTernary {
+			rs.Open = append([]*jsonic.AltSpec{{
+				S: [][]int{j.TokenSet("VAL"), TERN1},
+				B: 1,
+				C: func(r *jsonic.Rule, ctx *jsonic.Context) bool {
+					return r.N["expr_ternary"] > 0
+				},
+				G: "expr,ternary,block-pair",
 			}}, rs.Open...)
 		}
 
@@ -267,6 +321,16 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) {
 				},
 				R: "ternary",
 				G: "expr,ternary",
+			}}, rs.Close...)
+
+			// Ternary close: backtrack so ternary rule can consume it.
+			rs.Close = append([]*jsonic.AltSpec{{
+				S: mkS(TERN1),
+				B: 1,
+				C: func(r *jsonic.Rule, ctx *jsonic.Context) bool {
+					return r.N["expr_ternary"] > 0
+				},
+				G: "expr,ternary,close",
 			}}, rs.Close...)
 		}
 
@@ -846,13 +910,23 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) {
 					}
 
 					val := r.Node
-					if isOp(val) {
-						r.Node = makeExpr(pop, val)
-					} else if jsonic.IsUndefined(val) {
-						r.Node = makeExpr(pop)
-					} else {
-						r.Node = makeExpr(pop, val)
+
+					// Build paren expression node.
+					result := []interface{}{pop}
+
+					// Inject function name if preval is active.
+					if r.Parent != nil && r.Parent != jsonic.NoRule &&
+						r.Parent.Parent != nil && r.Parent.Parent != jsonic.NoRule &&
+						r.Parent.Parent.U["paren_preval"] == true &&
+						r.Parent.Parent.Node != nil {
+						result = append(result, r.Parent.Parent.Node)
 					}
+
+					if !jsonic.IsUndefined(val) {
+						result = append(result, val)
+					}
+
+					r.Node = result
 				},
 				G: "expr,paren,close",
 			},
@@ -1243,6 +1317,13 @@ func makeAllOps(j *jsonic.Jsonic, eopts *ExprOptions) []*Op {
 		if tin, ok := srcTins[src]; ok {
 			return tin
 		}
+		// Reuse existing fixed token tin if src matches a built-in token
+		// (e.g., ":" is TinCL, "[" is TinOS). This prevents overriding
+		// jsonic's built-in token types when operators share syntax.
+		if existingTin, ok := jsonic.FixedTokens[src]; ok {
+			srcTins[src] = int(existingTin)
+			return int(existingTin)
+		}
 		tin := j.Token(name, src)
 		srcTins[src] = tin
 		return tin
@@ -1280,10 +1361,25 @@ func makeAllOps(j *jsonic.Jsonic, eopts *ExprOptions) []*Op {
 				case map[string]interface{}:
 					if v, ok := pv["active"].(bool); ok {
 						op.Preval.Active = v
+					} else {
+						// Default: active=true when preval object is specified
+						op.Preval.Active = true
 					}
 					if v, ok := pv["required"].(bool); ok {
 						op.Preval.Required = v
 					}
+					if v, ok := pv["allow"].([]interface{}); ok {
+						for _, a := range v {
+							if s, ok := a.(string); ok {
+								op.Preval.Allow = append(op.Preval.Allow, s)
+							}
+						}
+					}
+					if v, ok := pv["allow"].([]string); ok {
+						op.Preval.Allow = v
+					}
+				case PrevalDef:
+					op.Preval = pv
 				}
 			}
 		} else if def.Ternary {

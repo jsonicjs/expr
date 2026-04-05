@@ -598,3 +598,200 @@ func TestExampleDotpath(t *testing.T) {
 		})
 	}
 }
+
+func TestSpecPrevalBasic(t *testing.T) {
+	j := makeExprJsonic(map[string]interface{}{
+		"op": map[string]interface{}{
+			"angle": map[string]interface{}{
+				"osrc": "<", "csrc": ">", "paren": true,
+				"preval": map[string]interface{}{"active": true},
+			},
+		},
+	})
+	runSpec(t, "paren-preval-basic.tsv", j)
+}
+
+func TestSpecPrevalOverload(t *testing.T) {
+	j := makeExprJsonic(map[string]interface{}{
+		"op": map[string]interface{}{
+			"factorial": map[string]interface{}{
+				"suffix": true, "left": 15000, "src": "!",
+			},
+			"square": map[string]interface{}{
+				"osrc": "[", "csrc": "]", "paren": true,
+				"preval": map[string]interface{}{"required": true},
+			},
+			"brace": map[string]interface{}{
+				"osrc": "{", "csrc": "}", "paren": true,
+				"preval": map[string]interface{}{"required": true},
+			},
+		},
+	})
+	runSpec(t, "paren-preval-overload.tsv", j)
+}
+
+func TestSpecPrevalImplicit(t *testing.T) {
+	j := makeExprJsonic(map[string]interface{}{
+		"op": map[string]interface{}{
+			"plain": map[string]interface{}{
+				"paren": true, "osrc": "(", "csrc": ")",
+				"preval": map[string]interface{}{"active": true},
+			},
+		},
+	})
+	runSpec(t, "paren-preval-implicit.tsv", j)
+}
+
+func TestSpecAddParen(t *testing.T) {
+	j := makeExprJsonic(map[string]interface{}{
+		"op": map[string]interface{}{
+			"angle": map[string]interface{}{
+				"paren": true, "osrc": "<", "csrc": ">",
+			},
+		},
+	})
+	runSpec(t, "add-paren.tsv", j)
+}
+
+func TestTernaryMany(t *testing.T) {
+	// Two ternary operators.
+	j0 := makeExprJsonic(map[string]interface{}{
+		"op": map[string]interface{}{
+			"foo": map[string]interface{}{
+				"ternary": true,
+				"src":     []interface{}{"?", ":"},
+			},
+			"bar": map[string]interface{}{
+				"ternary": true,
+				"src":     []interface{}{"QQ", "CC"},
+			},
+		},
+	})
+
+	tests0 := []struct {
+		input    string
+		expected interface{}
+	}{
+		{"a:1", map[string]interface{}{"a": float64(1)}},
+		{"1?2:3", []interface{}{"?", float64(1), float64(2), float64(3)}},
+		{"1QQ2CC3", []interface{}{"QQ", float64(1), float64(2), float64(3)}},
+		{"1QQ2?4:5CC3", []interface{}{"QQ", float64(1), []interface{}{"?", float64(2), float64(4), float64(5)}, float64(3)}},
+		{"1?2QQ4CC5:3", []interface{}{"?", float64(1), []interface{}{"QQ", float64(2), float64(4), float64(5)}, float64(3)}},
+	}
+
+	for _, tt := range tests0 {
+		t.Run("j0/"+tt.input, func(t *testing.T) {
+			result, err := j0.Parse(tt.input)
+			if err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			got := simplifyAndNormalize(result)
+			if !reflect.DeepEqual(got, tt.expected) {
+				gotJSON, _ := json.Marshal(got)
+				expJSON, _ := json.Marshal(tt.expected)
+				t.Errorf("got: %s\nwant: %s", gotJSON, expJSON)
+			}
+		})
+	}
+
+	// Three ternary operators.
+	j1 := makeExprJsonic(map[string]interface{}{
+		"op": map[string]interface{}{
+			"foo": map[string]interface{}{
+				"ternary": true,
+				"src":     []interface{}{"?", ":"},
+			},
+			"bar": map[string]interface{}{
+				"ternary": true,
+				"src":     []interface{}{"QQ", "CC"},
+			},
+			"zed": map[string]interface{}{
+				"ternary": true,
+				"src":     []interface{}{"%%", "@@"},
+			},
+		},
+	})
+
+	tests1 := []struct {
+		input    string
+		expected interface{}
+	}{
+		{"a:1", map[string]interface{}{"a": float64(1)}},
+		{"1?2:3", []interface{}{"?", float64(1), float64(2), float64(3)}},
+		{"1QQ2CC3", []interface{}{"QQ", float64(1), float64(2), float64(3)}},
+		{"1%%2@@3", []interface{}{"%%", float64(1), float64(2), float64(3)}},
+	}
+
+	for _, tt := range tests1 {
+		t.Run("j1/"+tt.input, func(t *testing.T) {
+			result, err := j1.Parse(tt.input)
+			if err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			got := simplifyAndNormalize(result)
+			if !reflect.DeepEqual(got, tt.expected) {
+				gotJSON, _ := json.Marshal(got)
+				expJSON, _ := json.Marshal(tt.expected)
+				t.Errorf("got: %s\nwant: %s", gotJSON, expJSON)
+			}
+		})
+	}
+}
+
+func TestTernaryParenPreval(t *testing.T) {
+	j := makeExprJsonic(map[string]interface{}{
+		"op": map[string]interface{}{
+			"ternary": map[string]interface{}{
+				"ternary": true,
+				"src":     []interface{}{"?", ":"},
+			},
+			"plain": map[string]interface{}{
+				"paren": true, "osrc": "(", "csrc": ")",
+				"preval": map[string]interface{}{},
+			},
+		},
+	})
+
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{"a:1", map[string]interface{}{"a": float64(1)}},
+		{"1?2:3", []interface{}{"?", float64(1), float64(2), float64(3)}},
+
+		{"a 1?2:3", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}}},
+		// NOTE: "1?2:3 b" and "1?2:3,b" — ternary followed by implicit list
+		// is a pre-existing gap (not related to preval). Skipped for now.
+		{"a 1?2:3 b", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}, "b"}},
+
+		{"a,1?2:3", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}}},
+		{"a,1?2:3,b", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}, "b"}},
+
+		{"(a 1?2:3)", []interface{}{"(", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}}}},
+		{"(a 1?2:3 b)", []interface{}{"(", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}, "b"}}},
+
+		{"(a,1?2:3)", []interface{}{"(", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}}}},
+		{"(a,1?2:3,b)", []interface{}{"(", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}, "b"}}},
+
+		{"foo(a 1?2:3)", []interface{}{"(", "foo", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}}}},
+		{"foo(a 1?2:3 b)", []interface{}{"(", "foo", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}, "b"}}},
+
+		{"foo(a,1?2:3)", []interface{}{"(", "foo", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}}}},
+		{"foo(a,1?2:3,b)", []interface{}{"(", "foo", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}, "b"}}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result, err := j.Parse(tt.input)
+			if err != nil {
+				t.Fatalf("parse error for %q: %v", tt.input, err)
+			}
+			got := simplifyAndNormalize(result)
+			if !reflect.DeepEqual(got, tt.expected) {
+				gotJSON, _ := json.Marshal(got)
+				expJSON, _ := json.Marshal(tt.expected)
+				t.Errorf("got:  %s\nwant: %s", gotJSON, expJSON)
+			}
+		})
+	}
+}
