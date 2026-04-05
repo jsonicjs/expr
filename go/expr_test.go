@@ -252,6 +252,41 @@ func TestSpecJsonicBase(t *testing.T) {
 	runSpec(t, "jsonic-base.tsv", j)
 }
 
+func TestSpecImplicitListTopParen(t *testing.T) {
+	j := makeExprJsonic()
+	runSpec(t, "implicit-list-top-paren.tsv", j)
+}
+
+func TestSpecParenImplicitList(t *testing.T) {
+	j := makeExprJsonic()
+	runSpec(t, "paren-implicit-list.tsv", j)
+}
+
+func TestSpecMapImplicitListParen(t *testing.T) {
+	j := makeExprJsonic()
+	runSpec(t, "map-implicit-list-paren.tsv", j)
+}
+
+func TestSpecParenListImplicitStructureComma(t *testing.T) {
+	j := makeExprJsonic()
+	runSpec(t, "paren-list-implicit-structure-comma.tsv", j)
+}
+
+func TestSpecParenListImplicitStructureSpace(t *testing.T) {
+	j := makeExprJsonic()
+	runSpec(t, "paren-list-implicit-structure-space.tsv", j)
+}
+
+func TestSpecParenMapImplicitStructureComma(t *testing.T) {
+	j := makeExprJsonic()
+	runSpec(t, "paren-map-implicit-structure-comma.tsv", j)
+}
+
+func TestSpecParenMapImplicitStructureSpace(t *testing.T) {
+	j := makeExprJsonic()
+	runSpec(t, "paren-map-implicit-structure-space.tsv", j)
+}
+
 func TestSpecAddInfix(t *testing.T) {
 	j := makeExprJsonic(map[string]interface{}{
 		"op": map[string]interface{}{

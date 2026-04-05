@@ -328,6 +328,14 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) {
 				},
 				G: "expr,paren,list",
 			}}, rs.Close...)
+			// Propagate implicit list node to enclosing paren.
+			// Go slice append may reallocate, making paren.Child.Node
+			// (which points to the original val) stale.
+			rs.AC = append(rs.AC, func(r *jsonic.Rule, ctx *jsonic.Context) {
+				if r.N["expr_paren"] > 0 && r.Parent != nil && r.Parent != jsonic.NoRule && r.Parent.Name == "paren" {
+					r.Parent.Node = r.Node
+				}
+			})
 		}
 	})
 
@@ -365,6 +373,44 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) {
 				},
 				G: "expr,paren,pair",
 			}}, rs.Close...)
+		}
+	})
+
+	// === ELEM rule modifications ===
+	j.Rule("elem", func(rs *jsonic.RuleSpec) {
+		if hasParen {
+			// Close implicit list within parens when ')' is seen.
+			rs.Close = append([]*jsonic.AltSpec{
+				{
+					S: mkS(CP),
+					B: 1,
+					C: func(r *jsonic.Rule, ctx *jsonic.Context) bool {
+						return r.N["expr_paren"] > 0
+					},
+					G: "expr,paren,elem,close",
+				},
+				// Following elem is a paren expression.
+				{
+					S: mkS(OP),
+					B: 1,
+					R: "elem",
+					G: "expr,paren,elem,open",
+				},
+			}, rs.Close...)
+			// Propagate elem node to enclosing paren after close.
+			// Go slice append may reallocate, making earlier
+			// references to the list stale.
+			rs.AC = append(rs.AC, func(r *jsonic.Rule, ctx *jsonic.Context) {
+				if r.N["expr_paren"] > 0 {
+					// Walk parent chain to find paren rule.
+					for p := r.Parent; p != nil && p != jsonic.NoRule; p = p.Parent {
+						if p.Name == "paren" {
+							p.Node = r.Node
+							break
+						}
+					}
+				}
+			})
 		}
 	})
 
@@ -593,6 +639,80 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) {
 		G: "expr,space,list,top",
 	})
 
+	// Implicit list inside paren (comma).
+	// When expr finishes inside a paren (expr_paren > 0) and sees a
+	// comma, wrap the expression in a list on the paren node and
+	// replace with elem to process subsequent items.
+	implicitListAction := func(r *jsonic.Rule, ctx *jsonic.Context) {
+		// Find enclosing paren rule in the stack.
+		var paren *jsonic.Rule
+		for rI := ctx.RSI - 1; rI >= 0; rI-- {
+			if ctx.RS[rI].Name == "paren" {
+				paren = ctx.RS[rI]
+				break
+			}
+		}
+		if paren == nil {
+			return
+		}
+		node := r.Node
+		if isOp(node) {
+			node = cleanExpr(node.([]interface{}))
+		}
+		// If paren already has a list node, append to it.
+		// Otherwise create a new list.
+		if sl, ok := paren.Node.([]interface{}); ok && len(sl) > 0 {
+			if _, isOpV := sl[0].(*Op); !isOpV {
+				// It's a plain list, append.
+				paren.Node = append(sl, node)
+				r.Node = paren.Node
+				return
+			}
+		}
+		paren.Node = []interface{}{node}
+		r.Node = paren.Node
+	}
+	if hasParen {
+		// Only fire when there's no existing list/elem handling
+		// the implicit list. Walk the parent chain to check if
+		// there's an elem/list between this expr and the paren.
+		isFirstImplicitInParen := func(r *jsonic.Rule) bool {
+			if r.N["expr_paren"] < 1 || r.N["pk"] >= 1 {
+				return false
+			}
+			for p := r.Parent; p != nil && p != jsonic.NoRule; p = p.Parent {
+				if p.Name == "elem" || p.Name == "list" {
+					return false // existing list machinery handles it
+				}
+				if p.Name == "paren" {
+					return true // reached paren without finding elem/list
+				}
+			}
+			return true
+		}
+		exprClose = append(exprClose, &jsonic.AltSpec{
+			S: mkS([]int{jsonic.TinCA}),
+			C: func(r *jsonic.Rule, ctx *jsonic.Context) bool {
+				return isFirstImplicitInParen(r)
+			},
+			N: map[string]int{"expr": 0, "expr_prefix": 0, "expr_suffix": 0},
+			R: "elem",
+			A: implicitListAction,
+			G: "expr,paren,imp,comma",
+		})
+		exprClose = append(exprClose, &jsonic.AltSpec{
+			S: mkS(valTins),
+			C: func(r *jsonic.Rule, ctx *jsonic.Context) bool {
+				return isFirstImplicitInParen(r) && r.N["expr_suffix"] < 1
+			},
+			N: map[string]int{"expr": 0, "expr_prefix": 0, "expr_suffix": 0},
+			B: 1,
+			R: "elem",
+			A: implicitListAction,
+			G: "expr,paren,imp,space",
+		})
+	}
+
 	// Implicit list (comma, not top).
 	exprClose = append(exprClose, &jsonic.AltSpec{
 		S: mkS([]int{jsonic.TinCA}),
@@ -615,12 +735,25 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) {
 
 	exprSpec.Close = exprClose
 
-	// AC: evaluate if evaluator provided.
+	// AC: propagate result and evaluate.
 	exprSpec.AC = []jsonic.StateAction{
+		// Propagate expr result to the val it replaced (r.Prev).
+		// This ensures parent rules (elem, paren) see the expression
+		// result via their Child.Node, not the stale pre-replacement value.
+		func(r *jsonic.Rule, ctx *jsonic.Context) {
+			if r.Prev != nil && r.Prev != jsonic.NoRule {
+				r.Prev.Node = r.Node
+			}
+		},
+		// Evaluate if evaluator provided.
 		func(r *jsonic.Rule, ctx *jsonic.Context) {
 			if eopts.Evaluate != nil {
 				if isOp(r.Node) {
 					r.Node = evaluation(r, ctx, r.Node, eopts.Evaluate)
+					// Also update Prev to reflect evaluated result.
+					if r.Prev != nil && r.Prev != jsonic.NoRule {
+						r.Prev.Node = r.Node
+					}
 				}
 			}
 		},
