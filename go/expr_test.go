@@ -237,6 +237,54 @@ func TestSpecTernaryBasic(t *testing.T) {
 	runSpec(t, "ternary-basic.tsv", j)
 }
 
+func TestTernaryBasicImplicitList(t *testing.T) {
+	j := makeExprJsonic(map[string]interface{}{
+		"op": map[string]interface{}{
+			"factorial": map[string]interface{}{
+				"suffix": true, "src": "!", "left": 15000,
+			},
+			"ternary": map[string]interface{}{
+				"ternary": true, "src": []interface{}{"?", ":"},
+			},
+		},
+	})
+
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		// Top-level implicit lists with ternary.
+		{"a 1?2:3", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}}},
+		{"1?2:3 b", []interface{}{[]interface{}{"?", float64(1), float64(2), float64(3)}, "b"}},
+		{"a 1?2:3 b", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}, "b"}},
+		{"a,1?2:3", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}}},
+		{"1?2:3,b", []interface{}{[]interface{}{"?", float64(1), float64(2), float64(3)}, "b"}},
+		{"a,1?2:3,b", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}, "b"}},
+		// Inside parens.
+		{"(a 1?2:3)", []interface{}{"(", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}}}},
+		{"(1?2:3 b)", []interface{}{"(", []interface{}{[]interface{}{"?", float64(1), float64(2), float64(3)}, "b"}}},
+		{"(a 1?2:3 b)", []interface{}{"(", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}, "b"}}},
+		{"(a,1?2:3)", []interface{}{"(", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}}}},
+		{"(1?2:3,b)", []interface{}{"(", []interface{}{[]interface{}{"?", float64(1), float64(2), float64(3)}, "b"}}},
+		{"(a,1?2:3,b)", []interface{}{"(", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}, "b"}}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result, err := j.Parse(tt.input)
+			if err != nil {
+				t.Fatalf("parse error for %q: %v", tt.input, err)
+			}
+			got := simplifyAndNormalize(result)
+			if !reflect.DeepEqual(got, tt.expected) {
+				gotJSON, _ := json.Marshal(got)
+				expJSON, _ := json.Marshal(tt.expected)
+				t.Errorf("got:  %s\nwant: %s", gotJSON, expJSON)
+			}
+		})
+	}
+}
+
 func TestSpecJSONBase(t *testing.T) {
 	j := makeExprJsonic()
 	runSpec(t, "json-base.tsv", j)
@@ -777,9 +825,11 @@ func TestTernaryParenPreval(t *testing.T) {
 		{"(a,1?2:3,b)", []interface{}{"(", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}, "b"}}},
 
 		{"foo(a 1?2:3)", []interface{}{"(", "foo", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}}}},
+		{"foo(1?2:3 b)", []interface{}{"(", "foo", []interface{}{[]interface{}{"?", float64(1), float64(2), float64(3)}, "b"}}},
 		{"foo(a 1?2:3 b)", []interface{}{"(", "foo", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}, "b"}}},
 
 		{"foo(a,1?2:3)", []interface{}{"(", "foo", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}}}},
+		{"foo(1?2:3,b)", []interface{}{"(", "foo", []interface{}{[]interface{}{"?", float64(1), float64(2), float64(3)}, "b"}}},
 		{"foo(a,1?2:3,b)", []interface{}{"(", "foo", []interface{}{"a", []interface{}{"?", float64(1), float64(2), float64(3)}, "b"}}},
 	}
 
