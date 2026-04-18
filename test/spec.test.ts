@@ -1,7 +1,6 @@
 /* Copyright (c) 2021-2025 Richard Rodger and other contributors, MIT License */
 
 import { describe, test, beforeEach } from 'node:test'
-import { expect } from '@hapi/code'
 
 import { Jsonic, util } from 'jsonic'
 
@@ -9,7 +8,7 @@ import {
   Expr,
 } from '..'
 
-import { loadSpec } from './spec-util'
+import { loadSpec, expect } from './spec-util'
 
 
 const { omap } = util

@@ -141,7 +141,7 @@ func makeExpr(op *Op, terms ...interface{}) []interface{} {
 }
 
 // Expr is the expression parser plugin for jsonic.
-func Expr(j *jsonic.Jsonic, opts map[string]interface{}) {
+func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 	eopts := resolveOptions(opts)
 	allOps := makeAllOps(j, eopts)
 
@@ -797,6 +797,16 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) {
 		G: "expr,list,imp,space",
 	})
 
+	// Expression ends on non-expression token (catch-all).
+	// Required so ParseAlts finds a match when the expr rule has consumed
+	// its tokens but the next token isn't one that extends the expression
+	// (e.g. ZZ after a suffix like "1!"). Without this, jsonic/go >= v0.1.13
+	// raises jsonic/unexpected.
+	exprClose = append(exprClose, &jsonic.AltSpec{
+		N: map[string]int{"expr": 0},
+		G: "expr,expr-end",
+	})
+
 	exprSpec.Close = exprClose
 
 	// AC: propagate result and evaluate.
@@ -1149,6 +1159,8 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) {
 
 		j.RSM()["ternary"] = ternarySpec
 	}
+
+	return nil
 }
 
 // prior converts a prior rule's node into the start of a new expression.
@@ -1321,7 +1333,7 @@ func MakeJsonic(opts ...map[string]interface{}) *jsonic.Jsonic {
 	if len(opts) > 0 {
 		pluginOpts = opts[0]
 	}
-	j.Use(Expr, pluginOpts)
+	_ = j.Use(Expr, pluginOpts)
 	return j
 }
 
