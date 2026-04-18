@@ -141,7 +141,7 @@ func makeExpr(op *Op, terms ...interface{}) []interface{} {
 }
 
 // Expr is the expression parser plugin for jsonic.
-func Expr(j *jsonic.Jsonic, opts map[string]interface{}) {
+func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 	eopts := resolveOptions(opts)
 	allOps := makeAllOps(j, eopts)
 
@@ -1149,6 +1149,8 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) {
 
 		j.RSM()["ternary"] = ternarySpec
 	}
+
+	return nil
 }
 
 // prior converts a prior rule's node into the start of a new expression.
@@ -1321,7 +1323,7 @@ func MakeJsonic(opts ...map[string]interface{}) *jsonic.Jsonic {
 	if len(opts) > 0 {
 		pluginOpts = opts[0]
 	}
-	j.Use(Expr, pluginOpts)
+	_ = j.Use(Expr, pluginOpts)
 	return j
 }
 

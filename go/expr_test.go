@@ -102,7 +102,7 @@ func makeExprJsonic(opOpts ...map[string]interface{}) *jsonic.Jsonic {
 	if len(opOpts) > 0 {
 		opts = opOpts[0]
 	}
-	j.Use(Expr, opts)
+	_ = j.Use(Expr, opts)
 	return j
 }
 
@@ -383,7 +383,7 @@ func TestEvaluation(t *testing.T) {
 	}
 
 	j := jsonic.Make()
-	j.Use(Expr, nil)
+	_ = j.Use(Expr, nil)
 
 	tests := []struct {
 		input    string
