@@ -797,6 +797,16 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 		G: "expr,list,imp,space",
 	})
 
+	// Expression ends on non-expression token (catch-all).
+	// Required so ParseAlts finds a match when the expr rule has consumed
+	// its tokens but the next token isn't one that extends the expression
+	// (e.g. ZZ after a suffix like "1!"). Without this, jsonic/go >= v0.1.13
+	// raises jsonic/unexpected.
+	exprClose = append(exprClose, &jsonic.AltSpec{
+		N: map[string]int{"expr": 0},
+		G: "expr,expr-end",
+	})
+
 	exprSpec.Close = exprClose
 
 	// AC: propagate result and evaluate.
