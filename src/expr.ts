@@ -180,6 +180,12 @@ let Expr: Plugin = function Expr(jsonic: Jsonic, options: ExprOptions) {
         comment: { order: 1e5 },
       },
     },
+
+    rule: {
+      alt: {
+        g: 'expr',
+      },
+    },
   })
 
   const PREFIX = values(prefixTM).map((op: any) => op.tin)
