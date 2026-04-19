@@ -180,13 +180,33 @@ let Expr: Plugin = function Expr(jsonic: Jsonic, options: ExprOptions) {
         comment: { order: 1e5 },
       },
     },
-
-    rule: {
-      alt: {
-        g: 'expr',
-      },
-    },
   })
+
+  // Append 'expr' to the g (group tag) of every alt added below. Mirrors
+  // the jsonic grammar(...) setting {rule:{alt:{g:'expr'}}}, applied
+  // manually because the plugin uses jsonic.rule() (not jsonic.grammar()).
+  const tagExpr = (alts: any): any => {
+    if (!Array.isArray(alts)) return alts
+    return alts.map((a) => {
+      if (null == a || 'object' !== typeof a) return a
+      const existing = null == a.g
+        ? []
+        : Array.isArray(a.g)
+          ? [...a.g]
+          : String(a.g).split(/\s*,\s*/).filter((s: string) => s.length > 0)
+      return { ...a, g: [...existing, 'expr'] }
+    })
+  }
+
+  const rule = (name: string, fn: (rs: RuleSpec) => void) => {
+    jsonic.rule(name, (rs: RuleSpec) => {
+      const origOpen = rs.open.bind(rs)
+      const origClose = rs.close.bind(rs)
+      ;(rs as any).open = (alts: any, flags?: any) => origOpen(tagExpr(alts), flags)
+      ;(rs as any).close = (alts: any, flags?: any) => origClose(tagExpr(alts), flags)
+      fn(rs)
+    })
+  }
 
   const PREFIX = values(prefixTM).map((op: any) => op.tin)
   const INFIX = values(infixTM).map((op: any) => op.tin)
@@ -221,7 +241,7 @@ let Expr: Plugin = function Expr(jsonic: Jsonic, options: ExprOptions) {
 
   const NONE = null as unknown as AltSpec
 
-  jsonic.rule('val', (rs: RuleSpec) => {
+  rule('val', (rs: RuleSpec) => {
     // TODO: jsonic - make it easier to handle this case
     // Implicit pair not allowed inside ternary
     if (hasTernary && TERN1.includes(jsonic.token.CL)) {
@@ -400,7 +420,7 @@ let Expr: Plugin = function Expr(jsonic: Jsonic, options: ExprOptions) {
   })
 
 
-  jsonic.rule('list', (rs: RuleSpec) => {
+  rule('list', (rs: RuleSpec) => {
     // rs.bo(false, (...rest: any) => {
     rs.bo(false, (r: Rule) => {
       // List elements are new expressions.
@@ -422,7 +442,7 @@ let Expr: Plugin = function Expr(jsonic: Jsonic, options: ExprOptions) {
     ])
   })
 
-  jsonic.rule('map', (rs: RuleSpec) => {
+  rule('map', (rs: RuleSpec) => {
     rs.bo(false, (...rest: any) => {
       // Map values are new expressions.
       rest[0].n.expr = 0
@@ -439,7 +459,7 @@ let Expr: Plugin = function Expr(jsonic: Jsonic, options: ExprOptions) {
     ])
   })
 
-  jsonic.rule('elem', (rs: RuleSpec) => {
+  rule('elem', (rs: RuleSpec) => {
     rs.close([
       // Close implicit list within parens.
       hasParen
@@ -463,7 +483,7 @@ let Expr: Plugin = function Expr(jsonic: Jsonic, options: ExprOptions) {
     ])
   })
 
-  jsonic.rule('pair', (rs: RuleSpec) => {
+  rule('pair', (rs: RuleSpec) => {
     rs.close([
       // Close implicit map within parens.
       hasParen
@@ -477,7 +497,7 @@ let Expr: Plugin = function Expr(jsonic: Jsonic, options: ExprOptions) {
     ])
   })
 
-  jsonic.rule('expr', (rs: RuleSpec) => {
+  rule('expr', (rs: RuleSpec) => {
     rs.open([
 
       // An opening parenthesis of an expression.
@@ -727,7 +747,7 @@ let Expr: Plugin = function Expr(jsonic: Jsonic, options: ExprOptions) {
       })
   })
 
-  jsonic.rule('paren', (rs: RuleSpec) => {
+  rule('paren', (rs: RuleSpec) => {
     rs.bo((r: Rule) => {
       // Allow implicits inside parens
       r.n.dmap = 0
@@ -795,7 +815,7 @@ let Expr: Plugin = function Expr(jsonic: Jsonic, options: ExprOptions) {
 
   // Ternary operators are like fancy parens.
   if (hasTernary) {
-    jsonic.rule('ternary', (rs: RuleSpec) => {
+    rule('ternary', (rs: RuleSpec) => {
       rs.open([
         {
           s: [TERN0],

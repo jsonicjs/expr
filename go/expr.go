@@ -207,8 +207,62 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 
 	mkS := func(tins []int) [][]int { return [][]int{tins} }
 
+	// appendExprTag appends "expr" to the alt's G (group tag), mirroring
+	// the TS plugin's tagExpr helper — which in turn mirrors the jsonic
+	// grammar(...) setting {rule:{alt:{g:'expr'}}}. Applied manually
+	// because the plugin uses j.Rule() (not j.Grammar()).
+	appendExprTag := func(a *jsonic.AltSpec) {
+		if a == nil {
+			return
+		}
+		if a.G == "" {
+			a.G = "expr"
+		} else {
+			a.G = a.G + ",expr"
+		}
+	}
+
+	// modifyRule wraps j.Rule(): snapshot the existing alt pointers on
+	// rs.Open/rs.Close, run the modifier, then tag only the alts the
+	// modifier added (by identity) with "expr".
+	modifyRule := func(name string, fn func(rs *jsonic.RuleSpec)) {
+		j.Rule(name, func(rs *jsonic.RuleSpec) {
+			preOpen := make(map[*jsonic.AltSpec]bool, len(rs.Open))
+			for _, a := range rs.Open {
+				preOpen[a] = true
+			}
+			preClose := make(map[*jsonic.AltSpec]bool, len(rs.Close))
+			for _, a := range rs.Close {
+				preClose[a] = true
+			}
+			fn(rs)
+			for _, a := range rs.Open {
+				if !preOpen[a] {
+					appendExprTag(a)
+				}
+			}
+			for _, a := range rs.Close {
+				if !preClose[a] {
+					appendExprTag(a)
+				}
+			}
+		})
+	}
+
+	// tagAllAlts tags every alt on the given rule spec with "expr".
+	// Used for plugin-created rules (expr, paren, ternary) where every
+	// alt is plugin-added.
+	tagAllAlts := func(rs *jsonic.RuleSpec) {
+		for _, a := range rs.Open {
+			appendExprTag(a)
+		}
+		for _, a := range rs.Close {
+			appendExprTag(a)
+		}
+	}
+
 	// === VAL rule modifications ===
-	j.Rule("val", func(rs *jsonic.RuleSpec) {
+	modifyRule("val", func(rs *jsonic.RuleSpec) {
 		// Prefix operator: backtrack and push to 'expr'.
 		if hasPrefix {
 			rs.Open = append([]*jsonic.AltSpec{{
@@ -371,7 +425,7 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 	})
 
 	// === LIST rule modifications ===
-	j.Rule("list", func(rs *jsonic.RuleSpec) {
+	modifyRule("list", func(rs *jsonic.RuleSpec) {
 		rs.BO = append(rs.BO, func(r *jsonic.Rule, ctx *jsonic.Context) {
 			if r.Prev == nil || r.Prev == jsonic.NoRule || r.Prev.U["implist"] == nil {
 				r.N["expr"] = 0
@@ -404,7 +458,7 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 	})
 
 	// === MAP rule modifications ===
-	j.Rule("map", func(rs *jsonic.RuleSpec) {
+	modifyRule("map", func(rs *jsonic.RuleSpec) {
 		rs.BO = append(rs.BO, func(r *jsonic.Rule, ctx *jsonic.Context) {
 			r.N["expr"] = 0
 			r.N["expr_prefix"] = 0
@@ -427,7 +481,7 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 	})
 
 	// === PAIR rule modifications ===
-	j.Rule("pair", func(rs *jsonic.RuleSpec) {
+	modifyRule("pair", func(rs *jsonic.RuleSpec) {
 		if hasParen {
 			rs.Close = append([]*jsonic.AltSpec{{
 				S: mkS(CP),
@@ -441,7 +495,7 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 	})
 
 	// === ELEM rule modifications ===
-	j.Rule("elem", func(rs *jsonic.RuleSpec) {
+	modifyRule("elem", func(rs *jsonic.RuleSpec) {
 		if hasParen {
 			// Close implicit list within parens when ')' is seen.
 			rs.Close = append([]*jsonic.AltSpec{
@@ -833,6 +887,7 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 		},
 	}
 
+	tagAllAlts(exprSpec)
 	j.RSM()["expr"] = exprSpec
 
 	// === PAREN rule ===
@@ -976,6 +1031,7 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 			},
 		}
 
+		tagAllAlts(parenSpec)
 		j.RSM()["paren"] = parenSpec
 	}
 
@@ -1157,6 +1213,7 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 			},
 		}
 
+		tagAllAlts(ternarySpec)
 		j.RSM()["ternary"] = ternarySpec
 	}
 
