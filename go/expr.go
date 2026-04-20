@@ -12,6 +12,9 @@ import (
 	jsonic "github.com/jsonicjs/jsonic/go"
 )
 
+// Version is the Go module version of this plugin.
+const Version = "0.1.0"
+
 // OpDef defines an operator for the expression parser.
 type OpDef struct {
 	Src     interface{} // string or []string (for ternary)
@@ -226,7 +229,7 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 	// rs.Open/rs.Close, run the modifier, then tag only the alts the
 	// modifier added (by identity) with "expr".
 	modifyRule := func(name string, fn func(rs *jsonic.RuleSpec)) {
-		j.Rule(name, func(rs *jsonic.RuleSpec) {
+		j.Rule(name, func(rs *jsonic.RuleSpec, _ *jsonic.Parser) {
 			preOpen := make(map[*jsonic.AltSpec]bool, len(rs.Open))
 			for _, a := range rs.Open {
 				preOpen[a] = true
@@ -287,7 +290,7 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 						return false
 					}
 					if len(pdef.Preval.Allow) > 0 {
-						val, _ := r.O0.ResolveVal().(string)
+						val, _ := r.O0.ResolveVal(r, ctx).(string)
 						for _, a := range pdef.Preval.Allow {
 							if a == val {
 								return true
@@ -299,7 +302,7 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 				},
 				U: map[string]interface{}{"paren_preval": true},
 				A: func(r *jsonic.Rule, ctx *jsonic.Context) {
-					r.Node = r.O0.ResolveVal()
+					r.Node = r.O0.ResolveVal(r, ctx)
 				},
 				G: "expr,paren,preval",
 			}}, rs.Open...)

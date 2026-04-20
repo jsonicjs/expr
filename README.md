@@ -1,20 +1,44 @@
-# @jsonic/expr (JSONIC syntax plugin)
+# @jsonic/expr
 
-This plugin allows the [Jsonic](https://jsonic.senecajs.org) JSON
-parser to support expression syntax.
+An expression-syntax plugin for the [Jsonic](https://jsonic.senecajs.org)
+parser, available in both TypeScript and Go.
 
+Adds Pratt-parser expressions to Jsonic: infix, prefix, suffix, ternary,
+and paren operators with configurable precedence. Expressions parse into
+LISP-style S-expressions (arrays whose first element is the operator src),
+which a user-supplied evaluator can reduce to values.
 
 [![npm version](https://img.shields.io/npm/v/@jsonic/expr.svg)](https://npmjs.com/package/@jsonic/expr)
 [![build](https://github.com/jsonicjs/expr/actions/workflows/build.yml/badge.svg)](https://github.com/jsonicjs/expr/actions/workflows/build.yml)
-[![Coverage Status](https://coveralls.io/repos/github/jsonicjs/expr/badge.svg?branch=main)](https://coveralls.io/github/jsonicjs/expr?branch=main)
-[![Known Vulnerabilities](https://snyk.io/test/github/jsonicjs/expr/badge.svg)](https://snyk.io/test/github/jsonicjs/expr)
-[![DeepScan grade](https://deepscan.io/api/teams/5016/projects/22469/branches/663909/badge/grade.svg)](https://deepscan.io/dashboard#view=project&tid=5016&pid=22469&bid=663909)
-[![Maintainability](https://api.codeclimate.com/v1/badges/d44aad76c5a355d01f30/maintainability)](https://codeclimate.com/github/jsonicjs/expr/maintainability)
 
-| ![Voxgig](https://www.voxgig.com/res/img/vgt01r.png) | This open source module is sponsored and supported by [Voxgig](https://www.voxgig.com). |
-| ---------------------------------------------------- | --------------------------------------------------------------------------------------- |
+## Install
 
+TypeScript:
 
+```sh
+npm install @jsonic/expr jsonic
+```
 
+Go:
 
+```sh
+go get github.com/jsonicjs/expr/go
+```
 
+## Documentation
+
+Docs are organised following the [Diátaxis](https://diataxis.fr) framework:
+
+- **[Tutorial](docs/tutorial.md)** — start here. Parse your first expression in
+  TS and Go.
+- **[How-to guides](docs/how-to.md)** — focused recipes: add an operator,
+  plug in an evaluator, use paren-preval for function calls, restrict to
+  strict math.
+- **[Reference](docs/reference.md)** — exported types and functions,
+  `OpDef` schema, default operator set, grammar group tags.
+- **[Explanation](docs/explanation.md)** — design notes: Pratt algorithm,
+  S-expression AST, paren/ternary/preval semantics, why `g=expr` tagging.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
