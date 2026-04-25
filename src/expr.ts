@@ -1030,10 +1030,16 @@ function implicitList(rule: Rule, ctx: Context, a: any) {
   let paren: Rule | null = null
 
   // Find the paren rule that contains this implicit list.
+  // If a map or list rule sits between the expression and the paren,
+  // the expression is inside a contained value — not a direct paren
+  // child — so don't create an implicit list.
   for (let rI = ctx.rsI - 1; -1 < rI; rI--) {
     if ('paren' === ctx.rs[rI].name) {
       paren = ctx.rs[rI]
       break
+    }
+    if ('map' === ctx.rs[rI].name || 'list' === ctx.rs[rI].name) {
+      return a
     }
   }
 
