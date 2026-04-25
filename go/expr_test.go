@@ -701,6 +701,11 @@ func TestSpecAddParen(t *testing.T) {
 	runSpec(t, "add-paren.tsv", j)
 }
 
+func TestSpecInfixInParenMap(t *testing.T) {
+	j := makeExprJsonic()
+	runSpec(t, "infix-in-paren-map.tsv", j)
+}
+
 func TestTernaryMany(t *testing.T) {
 	// Two ternary operators.
 	j0 := makeExprJsonic(map[string]interface{}{

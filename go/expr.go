@@ -766,11 +766,17 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 	// replace with elem to process subsequent items.
 	implicitListAction := func(r *jsonic.Rule, ctx *jsonic.Context) {
 		// Find enclosing paren rule in the stack.
+		// If a map or list rule sits between the expression and the paren,
+		// the expression is inside a contained value — not a direct paren
+		// child — so don't create an implicit list.
 		var paren *jsonic.Rule
 		for rI := ctx.RSI - 1; rI >= 0; rI-- {
 			if ctx.RS[rI].Name == "paren" {
 				paren = ctx.RS[rI]
 				break
+			}
+			if ctx.RS[rI].Name == "map" || ctx.RS[rI].Name == "list" {
+				return
 			}
 		}
 		if paren == nil {

@@ -284,4 +284,10 @@ describe('spec', () => {
     runSpec('paren-preval-implicit.tsv', j)
   })
 
+
+  test('infix-in-paren-map', () => {
+    const j = mj(Jsonic.make().use(Expr))
+    runSpec('infix-in-paren-map.tsv', j)
+  })
+
 })
