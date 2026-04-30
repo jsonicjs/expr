@@ -290,4 +290,58 @@ describe('spec', () => {
     runSpec('infix-in-paren-map.tsv', j)
   })
 
+
+  test('evaluate-math', () => {
+    // Math expression grammar with evaluate callback.
+    // Tests the full pipeline: parse → S-expression → evaluate → result.
+    // This catches bugs where nested/chained expressions produce
+    // intermediate results instead of the final computed value.
+    // Includes: +, -, *, /, prefix negation, suffix factorial (!),
+    // and function parens min(x,y), max(x,y).
+    const factorial = (n: number): number => n <= 1 ? 1 : n * factorial(n - 1)
+
+    const je = Jsonic.make().use(Expr, {
+      op: {
+        addition:       { infix: true, src: '+', left: 140, right: 150 },
+        subtraction:    { infix: true, src: '-', left: 140, right: 150 },
+        multiplication: { infix: true, src: '*', left: 160, right: 170 },
+        division:       { infix: true, src: '/', left: 160, right: 170 },
+        negative:       { prefix: true, src: '-', right: 200 },
+        positive:       { prefix: true, src: '+', right: 200 },
+        factorial:      { suffix: true, src: '!', left: 300 },
+        func:           { paren: true, preval: { active: true }, osrc: '(', csrc: ')' },
+      },
+      evaluate: (_r: any, _ctx: any, op: any, terms: any) => {
+        switch (op.name) {
+          case 'addition-infix': return terms[0] + terms[1]
+          case 'subtraction-infix': return terms[0] - terms[1]
+          case 'multiplication-infix': return terms[0] * terms[1]
+          case 'division-infix': return terms[0] / terms[1]
+          case 'negative-prefix': return -terms[0]
+          case 'positive-prefix': return +terms[0]
+          case 'factorial-suffix': return factorial(terms[0])
+          case 'func-paren': {
+            const fname = terms[0]
+            if (typeof fname === 'string') {
+              // Preval function call: terms = [fname, [arg1, arg2, ...]] or [fname, arg1]
+              const rawArgs = terms.slice(1)
+              // Flatten: args may be wrapped in an array (implicit list)
+              const args = rawArgs.length === 1 && Array.isArray(rawArgs[0])
+                ? rawArgs[0] : rawArgs
+              if (fname === 'min') return Math.min(...args)
+              if (fname === 'max') return Math.max(...args)
+              return args[0]
+            }
+            // Plain parens (no preval) — return inner value
+            return fname
+          }
+          case 'plain-paren': return terms[0]
+          default: return terms[0]
+        }
+      },
+    })
+    const j = (s: string) => C(je(s))
+    runSpec('evaluate-math.tsv', j)
+  })
+
 })

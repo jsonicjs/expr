@@ -9,6 +9,8 @@
 package expr
 
 import (
+	"strings"
+
 	jsonic "github.com/jsonicjs/jsonic/go"
 )
 
@@ -872,25 +874,16 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 
 	exprSpec.Close = exprClose
 
-	// AC: propagate result and evaluate.
+	// AC: evaluate at root of expression, matching TS exactly:
+	//   if (options.evaluate && 0 === r.n.expr) {
+	//     r.parent.node = evaluation(r.parent, ctx, r.parent.node, options.evaluate)
+	//   }
 	exprSpec.AC = []jsonic.StateAction{
-		// Propagate expr result to the val it replaced (r.Prev).
-		// This ensures parent rules (elem, paren) see the expression
-		// result via their Child.Node, not the stale pre-replacement value.
 		func(r *jsonic.Rule, ctx *jsonic.Context) {
-			if r.Prev != nil && r.Prev != jsonic.NoRule {
-				r.Prev.Node = r.Node
-			}
-		},
-		// Evaluate if evaluator provided.
-		func(r *jsonic.Rule, ctx *jsonic.Context) {
-			if eopts.Evaluate != nil {
-				if isOp(r.Node) {
-					r.Node = evaluation(r, ctx, r.Node, eopts.Evaluate)
-					// Also update Prev to reflect evaluated result.
-					if r.Prev != nil && r.Prev != jsonic.NoRule {
-						r.Prev.Node = r.Node
-					}
+			if eopts.Evaluate != nil && r.N["expr"] < 1 {
+				parent := r.Parent
+				if parent != nil && parent != jsonic.NoRule {
+					parent.Node = evaluation(parent, ctx, parent.Node, eopts.Evaluate)
 				}
 			}
 		},
@@ -1484,9 +1477,29 @@ func addDefaultOps(eopts *ExprOptions) {
 		"plain":          {Paren: true, OSrc: "(", CSrc: ")"},
 	}
 	for name, def := range defaults {
-		if _, exists := eopts.Op[name]; !exists {
-			eopts.Op[name] = def
+		if _, exists := eopts.Op[name]; exists {
+			continue
 		}
+		// Skip default paren ops whose open/close source is already claimed
+		// by a user-provided paren op. Otherwise both ops share the same
+		// token tin and the non-deterministic map iteration in makeAllOps
+		// would let either win in parenOpenByTin (e.g. user's "func" with
+		// preval vs default "plain" without). This mirrors the TS plugin,
+		// where insertion-order iteration lets the user op win last-write.
+		if def.Paren {
+			conflict := false
+			for _, existing := range eopts.Op {
+				if existing != nil && existing.Paren &&
+					existing.OSrc == def.OSrc && existing.CSrc == def.CSrc {
+					conflict = true
+					break
+				}
+			}
+			if conflict {
+				continue
+			}
+		}
+		eopts.Op[name] = def
 	}
 }
 
@@ -1536,8 +1549,9 @@ func makeAllOps(j *jsonic.Jsonic, eopts *ExprOptions) []*Op {
 			op.OSrc = def.OSrc
 			op.CSrc = def.CSrc
 			op.Name = name + "-paren"
-			op.OTkn = "#E_" + name + "_o"
-			op.CTkn = "#E_" + name + "_c"
+			// Match TS: #E + src (e.g. "#E(" and "#E)")
+			op.OTkn = "#E" + def.OSrc
+			op.CTkn = "#E" + def.CSrc
 			op.OTin = getOrCreateTin(op.OTkn, op.OSrc)
 			op.CTin = getOrCreateTin(op.CTkn, op.CSrc)
 			if def.Preval != nil {
@@ -1574,9 +1588,10 @@ func makeAllOps(j *jsonic.Jsonic, eopts *ExprOptions) []*Op {
 				op.Src = src[0].(string)
 				op.CSrc = src[1].(string)
 			}
-			op.Tkn = "#E_" + name
+			// Match TS: #E + src
+			op.Tkn = "#E" + op.Src
 			op.Tin = getOrCreateTin(op.Tkn, op.Src)
-			op.CTkn = "#E_" + name + "_c"
+			op.CTkn = "#E" + op.CSrc
 			op.CTin = getOrCreateTin(op.CTkn, op.CSrc)
 		} else {
 			srcStr := ""
@@ -1590,8 +1605,16 @@ func makeAllOps(j *jsonic.Jsonic, eopts *ExprOptions) []*Op {
 			} else if def.Suffix {
 				kind = "suffix"
 			}
-			op.Name = name + "-" + kind
-			op.Tkn = "#E_" + name
+			// Match TS: only append "-kind" if name doesn't already end with it.
+			suffix := "-" + kind
+			if strings.HasSuffix(name, suffix) {
+				op.Name = name
+			} else {
+				op.Name = name + suffix
+			}
+			// Match TS token naming: #E + src (e.g. "#E&", "#E.", "#E$")
+			// TS: tin = fixed(src) || token('#E' + src)
+			op.Tkn = "#E" + srcStr
 			op.Tin = getOrCreateTin(op.Tkn, srcStr)
 		}
 		ops = append(ops, op)

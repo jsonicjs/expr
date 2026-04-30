@@ -701,6 +701,177 @@ func TestSpecAddParen(t *testing.T) {
 	runSpec(t, "add-paren.tsv", j)
 }
 
+// TestEvaluateNestedInfix verifies that a left-associative chain like a.b.c
+// evaluates correctly — the evaluate callback should receive the fully-built
+// result of inner expressions, and only the outermost result should appear
+// in the final parse output (not intermediate results).
+func TestEvaluateNestedInfix(t *testing.T) {
+	// Track evaluate calls
+	var calls []string
+
+	j := jsonic.Make()
+	j.Use(Expr, map[string]interface{}{
+		"op": map[string]interface{}{
+			"dot": map[string]interface{}{
+				"infix": true, "src": ".", "left": 250, "right": 240,
+			},
+			"plain": nil, "addition": nil, "subtraction": nil,
+			"multiplication": nil, "division": nil, "remainder": nil,
+		},
+		"evaluate": func(r *jsonic.Rule, ctx *jsonic.Context, op *Op, terms []interface{}) interface{} {
+			// Concatenate all terms with dots
+			parts := make([]string, len(terms))
+			for i, t := range terms {
+				parts[i] = fmt.Sprintf("%v", t)
+			}
+			result := strings.Join(parts, ".")
+			calls = append(calls, result)
+			return result
+		},
+	})
+
+	// a.b.c is left-associative: (a.b).c
+	// evaluate should be called twice:
+	//   1. dot("a", "b") → "a.b"
+	//   2. dot("a.b", "c") → "a.b.c"
+	// The final result should contain "a.b.c", NOT "a.b"
+	result, err := j.Parse("x:a.b.c")
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	m, ok := result.(map[string]interface{})
+	if !ok {
+		t.Fatalf("result type = %T, want map", result)
+	}
+
+	got := m["x"]
+	if got != "a.b.c" {
+		t.Errorf("x = %v, want %q", got, "a.b.c")
+		t.Logf("evaluate calls: %v", calls)
+	}
+
+	// Also test simple single infix
+	calls = nil
+	result, _ = j.Parse("p:a.b")
+	m = result.(map[string]interface{})
+	if m["p"] != "a.b" {
+		t.Errorf("p = %v, want %q", m["p"], "a.b")
+	}
+}
+
+// TestSpecEvaluateMath tests the evaluate callback with a math expression
+// grammar. This exercises the full pipeline: parse → S-expression → evaluate
+// → result. It catches bugs where nested/chained expressions produce
+// intermediate results instead of the final computed value.
+func TestSpecEvaluateMath(t *testing.T) {
+	factorial := func(n float64) float64 {
+		if n <= 1 {
+			return 1
+		}
+		r := 1.0
+		for i := 2.0; i <= n; i++ {
+			r *= i
+		}
+		return r
+	}
+
+	j := jsonic.Make()
+	j.Use(Expr, map[string]interface{}{
+		"op": map[string]interface{}{
+			"addition":       map[string]interface{}{"infix": true, "src": "+", "left": 140, "right": 150},
+			"subtraction":    map[string]interface{}{"infix": true, "src": "-", "left": 140, "right": 150},
+			"multiplication": map[string]interface{}{"infix": true, "src": "*", "left": 160, "right": 170},
+			"division":       map[string]interface{}{"infix": true, "src": "/", "left": 160, "right": 170},
+			"negative":       map[string]interface{}{"prefix": true, "src": "-", "right": 200},
+			"positive":       map[string]interface{}{"prefix": true, "src": "+", "right": 200},
+			"factorial":      map[string]interface{}{"suffix": true, "src": "!", "left": 300},
+			"func":           map[string]interface{}{"paren": true, "preval": map[string]interface{}{"active": true}, "osrc": "(", "csrc": ")"},
+		},
+		"evaluate": func(r *jsonic.Rule, ctx *jsonic.Context, op *Op, terms []interface{}) interface{} {
+			a := toNum(terms, 0)
+			b := toNum(terms, 1)
+			switch op.Name {
+			case "addition-infix":
+				return a + b
+			case "subtraction-infix":
+				return a - b
+			case "multiplication-infix":
+				return a * b
+			case "division-infix":
+				if b == 0 {
+					return 0.0
+				}
+				return a / b
+			case "negative-prefix":
+				return -a
+			case "positive-prefix":
+				return a
+			case "factorial-suffix":
+				return factorial(a)
+			case "func-paren":
+				fname, isStr := terms[0].(string)
+				if isStr {
+					// Preval function call: terms = [fname, [arg1, arg2]] or [fname, arg1]
+					rawArgs := terms[1:]
+					// Flatten: args may be wrapped in an array (implicit list from comma)
+					var args []interface{}
+					if len(rawArgs) == 1 {
+						if sl, ok := rawArgs[0].([]interface{}); ok {
+							args = sl
+						} else {
+							args = rawArgs
+						}
+					} else {
+						args = rawArgs
+					}
+					switch fname {
+					case "min":
+						x := toNum(args, 0)
+						y := toNum(args, 1)
+						if x < y {
+							return x
+						}
+						return y
+					case "max":
+						x := toNum(args, 0)
+						y := toNum(args, 1)
+						if x > y {
+							return x
+						}
+						return y
+					default:
+						return toNum(args, 0)
+					}
+				}
+				// Plain parens (no preval) — return inner value
+				return a
+			case "plain-paren":
+				return a
+			default:
+				return a
+			}
+		},
+	})
+	runSpec(t, "evaluate-math.tsv", j)
+}
+
+func toNum(terms []interface{}, idx int) float64 {
+	if idx >= len(terms) {
+		return 0
+	}
+	switch v := terms[idx].(type) {
+	case float64:
+		return v
+	case int:
+		return float64(v)
+	case int64:
+		return float64(v)
+	default:
+		return 0
+	}
+}
+
 func TestSpecInfixInParenMap(t *testing.T) {
 	j := makeExprJsonic()
 	runSpec(t, "infix-in-paren-map.tsv", j)

@@ -2566,4 +2566,27 @@ describe('expr', () => {
   })
 
 
+  test('evaluate-nested-infix', () => {
+    // Verify that a left-associative chain like a.b.c evaluates correctly —
+    // the evaluate callback should receive the fully-built result of inner
+    // expressions, and only the outermost result should appear in the
+    // final parse output (not intermediate results).
+    const je = Jsonic.make().use(Expr, {
+      op: {
+        dot: { infix: true, src: '.', left: 250, right: 240 },
+        plain: null, addition: null, subtraction: null,
+        multiplication: null, division: null, remainder: null,
+      },
+      evaluate: (_r: Rule, _ctx: Context, op: Op, terms: any) => {
+        return terms.join('.')
+      },
+    })
+
+    // a.b.c is left-associative: (a.b).c
+    // evaluate should produce "a.b.c", NOT "a.b"
+    expect(je('x:a.b.c')).equal({ x: 'a.b.c' })
+    expect(je('p:a.b')).equal({ p: 'a.b' })
+  })
+
+
 })
