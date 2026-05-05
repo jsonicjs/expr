@@ -1828,46 +1828,47 @@ describe('expr', () => {
     expect(j('<1>'))[_mo_](['<', 1])
     expect(j('1<2>'))[_mo_](['<', 1, 2])
 
-    // TODO: more general: preexpr not just preval!
-    // expect(j('<1><2>'))[_mo_](['<', ['<', 1], 2])
-    // expect(j('1<2><3>'))[_mo_](['<', ['<', 1, 2], 3])
-    // expect(j('<1><2><3>'))[_mo_](['<', ['<', ['<', 1], 2], 3])
-    // expect(j('1<2><3><4>'))[_mo_](['<', ['<', ['<', 1, 2], 3], 4])
-    // expect(j('<1><2><3><4>'))[_mo_](['<', ['<', ['<', ['<', 1], 2], 3], 4])
-    // expect(j('1<2><3><4><5>'))[_mo_](['<', ['<', ['<', ['<', 1, 2], 3], 4], 5])
+    // Chained postfix parens: each successive `<...>` takes the
+    // previous expression's value as its preval.
+    expect(j('<1><2>'))[_mo_](['<', ['<', 1], 2])
+    expect(j('1<2><3>'))[_mo_](['<', ['<', 1, 2], 3])
+    expect(j('<1><2><3>'))[_mo_](['<', ['<', ['<', 1], 2], 3])
+    expect(j('1<2><3><4>'))[_mo_](['<', ['<', ['<', 1, 2], 3], 4])
+    expect(j('<1><2><3><4>'))[_mo_](['<', ['<', ['<', ['<', 1], 2], 3], 4])
+    expect(j('1<2><3><4><5>'))[_mo_](['<', ['<', ['<', ['<', 1, 2], 3], 4], 5])
 
     expect(j('a:<1>'))[_mo_]({ a: ['<', 1] })
     expect(j('a:1<2>'))[_mo_]({ a: ['<', 1, 2] })
 
-    // expect(j('a:<1><2>'))[_mo_]({ a: ['<', ['<', 1], 2] })
-    // expect(j('a:1<2><3>'))[_mo_]({ a: ['<', ['<', 1, 2], 3] })
-    // expect(j('a:<1><2><3>'))[_mo_]({ a: ['<', ['<', ['<', 1], 2], 3] })
-    // expect(j('a:1<2><3><4>'))[_mo_]({ a: ['<', ['<', ['<', 1, 2], 3], 4] })
-    // expect(j('a:<1><2><3><4>'))[_mo_]({ a: ['<', ['<', ['<', ['<', 1], 2], 3], 4] })
-    // expect(j('a:1<2><3><4><5>'))
-    // [_mo_]({ a: ['<', ['<', ['<', ['<', 1, 2], 3], 4], 5] })
+    expect(j('a:<1><2>'))[_mo_]({ a: ['<', ['<', 1], 2] })
+    expect(j('a:1<2><3>'))[_mo_]({ a: ['<', ['<', 1, 2], 3] })
+    expect(j('a:<1><2><3>'))[_mo_]({ a: ['<', ['<', ['<', 1], 2], 3] })
+    expect(j('a:1<2><3><4>'))[_mo_]({ a: ['<', ['<', ['<', 1, 2], 3], 4] })
+    expect(j('a:<1><2><3><4>'))[_mo_]({ a: ['<', ['<', ['<', ['<', 1], 2], 3], 4] })
+    expect(j('a:1<2><3><4><5>'))
+    [_mo_]({ a: ['<', ['<', ['<', ['<', 1, 2], 3], 4], 5] })
 
     expect(j('9+<1>'))[_mo_](['+', 9, ['<', 1]])
     expect(j('9+1<2>'))[_mo_](['+', 9, ['<', 1, 2]])
-    // expect(j('9+<1><2>'))[_mo_](['+', 9, ['<', ['<', 1], 2]])
-    // expect(j('9+1<2><3>'))[_mo_](['+', 9, ['<', ['<', 1, 2], 3]])
-    // expect(j('9+<1><2><3>'))[_mo_](['+', 9, ['<', ['<', ['<', 1], 2], 3]])
-    // expect(j('9+1<2><3><4>'))[_mo_](['+', 9, ['<', ['<', ['<', 1, 2], 3], 4]])
-    // expect(j('9+<1><2><3><4>'))
-    // [_mo_](['+', 9, ['<', ['<', ['<', ['<', 1], 2], 3], 4]])
-    // expect(j('9+1<2><3><4><5>'))
-    // [_mo_](['+', 9, ['<', ['<', ['<', ['<', 1, 2], 3], 4], 5]])
+    expect(j('9+<1><2>'))[_mo_](['+', 9, ['<', ['<', 1], 2]])
+    expect(j('9+1<2><3>'))[_mo_](['+', 9, ['<', ['<', 1, 2], 3]])
+    expect(j('9+<1><2><3>'))[_mo_](['+', 9, ['<', ['<', ['<', 1], 2], 3]])
+    expect(j('9+1<2><3><4>'))[_mo_](['+', 9, ['<', ['<', ['<', 1, 2], 3], 4]])
+    expect(j('9+<1><2><3><4>'))
+    [_mo_](['+', 9, ['<', ['<', ['<', ['<', 1], 2], 3], 4]])
+    expect(j('9+1<2><3><4><5>'))
+    [_mo_](['+', 9, ['<', ['<', ['<', ['<', 1, 2], 3], 4], 5]])
 
     expect(j('<1>+9'))[_mo_](['+', ['<', 1], 9])
     expect(j('1<2>+9'))[_mo_](['+', ['<', 1, 2], 9])
-    // expect(j('<1><2>+9'))[_mo_](['+', ['<', ['<', 1], 2], 9])
-    // expect(j('1<2><3>+9'))[_mo_](['+', ['<', ['<', 1, 2], 3], 9])
-    // expect(j('<1><2><3>+9'))[_mo_](['+', ['<', ['<', ['<', 1], 2], 3], 9])
-    // expect(j('1<2><3><4>+9'))[_mo_](['+', ['<', ['<', ['<', 1, 2], 3], 4], 9])
-    // expect(j('<1><2><3><4>+9'))
-    // [_mo_](['+', ['<', ['<', ['<', ['<', 1], 2], 3], 4], 9])
-    // expect(j('1<2><3><4><5>+9'))
-    // [_mo_](['+', ['<', ['<', ['<', ['<', 1, 2], 3], 4], 5], 9])
+    expect(j('<1><2>+9'))[_mo_](['+', ['<', ['<', 1], 2], 9])
+    expect(j('1<2><3>+9'))[_mo_](['+', ['<', ['<', 1, 2], 3], 9])
+    expect(j('<1><2><3>+9'))[_mo_](['+', ['<', ['<', ['<', 1], 2], 3], 9])
+    expect(j('1<2><3><4>+9'))[_mo_](['+', ['<', ['<', ['<', 1, 2], 3], 4], 9])
+    expect(j('<1><2><3><4>+9'))
+    [_mo_](['+', ['<', ['<', ['<', ['<', 1], 2], 3], 4], 9])
+    expect(j('1<2><3><4><5>+9'))
+    [_mo_](['+', ['<', ['<', ['<', ['<', 1, 2], 3], 4], 5], 9])
 
   })
 
@@ -1975,6 +1976,123 @@ describe('expr', () => {
     expect(j('foo,(1+2,a)'))[_mo_](['foo', ['(', [['+', 1, 2], 'a']]])
     expect(j('foo,(1+2+3,a)'))
     [_mo_](['foo', ['(', [['+', ['+', 1, 2], 3], 'a']]])
+  })
+
+
+  test('paren-preval-chain-required', () => {
+    // Required-preval parens (e.g. index-style `[...]`) chain through a
+    // produced value. The chain alt in val.close fires whenever the
+    // current val has a node and the next token is a preval-active
+    // paren-open.
+    const je = Jsonic.make().use(Expr, {
+      op: {
+        index: {
+          osrc: '[',
+          csrc: ']',
+          paren: true,
+          preval: { required: true },
+        },
+        call: {
+          osrc: '(',
+          csrc: ')',
+          paren: true,
+          preval: { active: true },
+        },
+        // Disable default `plain` paren so `(...)` only matches `call`.
+        plain: null as any,
+      }
+    })
+    const j = mj(je)
+
+    // Same-paren chain.
+    expect(j('a[0]'))[_mo_](['[', 'a', 0])
+    expect(j('a[0][1]'))[_mo_](['[', ['[', 'a', 0], 1])
+    expect(j('a[0][1][2]'))[_mo_](['[', ['[', ['[', 'a', 0], 1], 2])
+
+    // Mixed paren chain: `f(x)[i]`, `a[0](x)`, etc.
+    expect(j('f(x)'))[_mo_](['(', 'f', 'x'])
+    expect(j('f(x)(y)'))[_mo_](['(', ['(', 'f', 'x'], 'y'])
+    expect(j('f(x)[i]'))[_mo_](['[', ['(', 'f', 'x'], 'i'])
+    expect(j('a[0](x)'))[_mo_](['(', ['[', 'a', 0], 'x'])
+    expect(j('f(x)[i](y)'))[_mo_](['(', ['[', ['(', 'f', 'x'], 'i'], 'y'])
+
+    // Chain starting from a parenthesised expression: (...)( ... )
+    expect(j('(1+2)(3)'))[_mo_](['(', ['(', ['+', 1, 2]], 3])
+  })
+
+
+  test('no-comma-op-suppression', () => {
+    // Define `,` as an infix operator so the comma operator is active.
+    const opts = {
+      op: {
+        comma_op: { infix: true, src: ',', left: 100, right: 110 }
+      }
+    }
+
+    // Baseline: with comma-op defined, `,` is absorbed as the comma
+    // operator everywhere — including inside list/map/paren contexts
+    // where it would otherwise have been a separator.
+    const jBase = mj(Jsonic.make().use(Expr, opts))
+    expect(jBase('1,2'))[_mo_]([',', 1, 2])
+    expect(jBase('[1,2]'))[_mo_]([[',', 1, 2]])
+    expect(jBase('(1,2)'))[_mo_](['(', [',', 1, 2]])
+
+    // Suppression plugin: hook the built-in list rule's bo() so any
+    // expressions parsed *inside* `[...]` see n.no_comma_op set. The
+    // val.close (and expr.close) bail alts then leave `,` for the
+    // list rule to consume as a separator. This mirrors how a host
+    // grammar (e.g. C around `static_assert(cond, msg)`) uses
+    // n.no_comma_op around boundary expressions to keep `,` out of
+    // the comma-op infix alt's reach.
+    const suppressInsideList = (jsonic: any) => {
+      jsonic.rule('list', (rs: any) => {
+        rs.bo((r: any) => {
+          r.n.no_comma_op = (r.n.no_comma_op || 0) + 1
+        })
+      })
+    }
+    const je = Jsonic.make().use(Expr, opts).use(suppressInsideList)
+    const j = mj(je)
+
+    // Inside `[...]`, `,` is a separator again, not the comma op.
+    expect(j('[1,2]'))[_mo_]([1, 2])
+    expect(j('[1,2,3]'))[_mo_]([1, 2, 3])
+    // Other operators inside the list still work.
+    expect(j('[1+2,3+4]'))[_mo_]([['+', 1, 2], ['+', 3, 4]])
+    // Outside the list, comma-op still applies — n.no_comma_op is
+    // scoped to the list rule and its child val/expr rules.
+    expect(j('1,2'))[_mo_]([',', 1, 2])
+  })
+
+
+  test('ternary-evaluate-ac', () => {
+    // The ternary rule's .ac fires evaluation when options.evaluate is
+    // set, even for ternaries that aren't wrapped in an expr (the
+    // val.close TERN0 alt does `r: 'ternary'` directly). Without the
+    // .ac, the result would leak as a raw [op, ...] op-array.
+    const evalTernary: Evaluate = (_r, _ctx, op, terms) => {
+      if (op.name === 'q-ternary' || op.name === 'q') {
+        return terms[0] ? terms[1] : terms[2]
+      }
+      return NaN
+    }
+    const je = Jsonic.make().use(Expr, {
+      op: {
+        q: { ternary: true, src: ['?', ':'] }
+      },
+      evaluate: evalTernary,
+    })
+
+    // Direct ternary at top level evaluates through the .ac.
+    expect(je('1?2:3')).equal(2)
+    expect(je('0?2:3')).equal(3)
+
+    // Right-associative chains evaluate fully (only the final step
+    // triggers — earlier steps are skipped because r.next is another
+    // ternary instance).
+    expect(je('1?2: 0?4:5')).equal(2)
+    expect(je('0?2: 1?4:5')).equal(4)
+    expect(je('0?2: 0?4:5')).equal(5)
   })
 
 

@@ -332,6 +332,22 @@ let Expr: Plugin = function Expr(jsonic: Jsonic, options: ExprOptions) {
         }
         : NONE,
     ]).close([
+      // Comma-op suppression. When a parent rule (e.g. an embedding
+      // grammar's wrapper rule) sets n.no_comma_op, bail at `,` without
+      // treating it as the comma operator — the parent then consumes
+      // the `,` itself as a separator. Match by `src` on the next infix
+      // token so this works regardless of which token the embedding
+      // grammar uses for `,`.
+      hasInfix
+        ? {
+          s: [INFIX],
+          c: (r: Rule) =>
+            0 < (r.n.no_comma_op || 0) && r.c0?.src === ',',
+          b: 1,
+          g: 'expr,no-comma-op-bail',
+        }
+        : NONE,
+
       hasTernary
         ? {
           s: [TERN0],
@@ -374,19 +390,35 @@ let Expr: Plugin = function Expr(jsonic: Jsonic, options: ExprOptions) {
         }
         : NONE,
 
-      // WWW
-      // // The opening parenthesis of an expression with a preceding value.
-      // // foo(1) => ['(','foo',1]
-      // hasParen
-      //   ? {
-      //     s: [OP],
-      //     b: 1,
-      //     r: 'val',
-      //     c: (r: Rule) => parenOTM[r.c0.tin].preval.active,
-      //     u: { paren_preval: true },
-      //     g: 'expr,expr-paren,expr-paren-preval',
-      //   }
-      //   : NONE,
+      // Chain for postfix paren forms. When a val has just produced a
+      // value (e.g. `a[0]`, `f(0)`, or a parenthesised expression like
+      // `(*p)`) and the next token is another preval-active paren-open,
+      // push expr (which descends into paren) so the new paren-form
+      // picks up this val's node as the preval. Use `p: 'expr'` (not
+      // `r: 'val'`) so the current val rule stays alive and
+      // `ctx.root().node` still reflects the chained result on parser
+      // return. `u: { paren_preval: true }` is set so makeCloseParen
+      // finds it on r.parent.parent (= this val) and pushes our node
+      // into the new paren CST. This complements the open-time
+      // s:[VAL,OP] preval alt above, which only fires on the first
+      // preval-paren of an expression; chain-time detection is needed
+      // for subsequent parens because the leading "value" is by then a
+      // produced node, not a token in the lex buffer.
+      hasParen
+        ? {
+          s: [OP],
+          b: 1,
+          c: (r: Rule) => {
+            const pdef = parenOTM[r.c0.tin]
+            return pdef.preval.active &&
+              undefined !== r.node &&
+              (null == pdef.preval.allow || pdef.preval.allow.includes(r.node))
+          },
+          p: 'expr',
+          u: { paren_preval: true },
+          g: 'expr,expr-paren,expr-paren-preval-chain',
+        }
+        : NONE,
 
       hasTernary
         ? {
@@ -604,6 +636,23 @@ let Expr: Plugin = function Expr(jsonic: Jsonic, options: ExprOptions) {
           g: 'expr,expr-end,expr-paren-end',
         },
 
+        // Comma-op suppression. When n.no_comma_op is set by a parent
+        // rule, terminate the expression at `,` without treating it as
+        // the comma operator (mirrors the val.close bail above for
+        // expressions that have already passed the first term). Match
+        // by `src` on the next infix token. n: { expr: 0 } closes the
+        // expression frame so the parent rule regains control before
+        // any comma-op INFIX alt below fires.
+        hasInfix
+          ? {
+            s: [INFIX],
+            c: (r: Rule) =>
+              0 < (r.n.no_comma_op || 0) && r.c0?.src === ',',
+            b: 1,
+            n: { expr: 0 },
+            g: 'expr,no-comma-op-bail',
+          }
+          : NONE,
 
         hasInfix
           ? {
@@ -914,6 +963,42 @@ let Expr: Plugin = function Expr(jsonic: Jsonic, options: ExprOptions) {
           g: 'expr,expr-ternary,close',
         },
       ])
+        // Ensure ternary results get evaluated. Without this, ternaries
+        // that aren't wrapped in expr (e.g. val.close's TERN0 alt does
+        // `r: 'ternary'` directly, not via an expr intermediate) leave
+        // the result as a raw [op_ternary, ...] op-array. Fire on every
+        // ternary instance's after-close, but only act when the chain
+        // has reached its final step (the node has accumulated all 3
+        // operands and r.next is not another ternary). Walk the
+        // r.prev chain back to the original rule (the val that started
+        // `r: 'ternary'`) and write the evaluated CST so jsonic returns
+        // the structured conditional_expression instead of the op-array.
+        .ac((r: Rule, ctx: Context) => {
+          if (!options.evaluate) return
+          // Skip while the chain is still ongoing: r:'ternary' replaces
+          // the current rule with another ternary instance, and we want
+          // to evaluate only on the FINAL step. r.next is the rule the
+          // parser will process after this .ac returns.
+          if (r.next && r.next.name === 'ternary') return
+          if (!Array.isArray(r.node)) return
+          if (!isOp(r.node)) return
+          // Op-array isn't fully populated until 3 operands (cond, then,
+          // else) sit at r.node[1..3]. Early steps have length 2 or 3.
+          if (r.node.length < 4) return
+          const out = evaluation(r, ctx, r.node, options.evaluate)
+          // Write the evaluated CST back to every rule along the
+          // r:-replacement chain (each successive ternary instance and
+          // the original val that started the chain). Their .node
+          // references currently all point at the same op-array;
+          // replace them all with the structured CST so ctx.root().node
+          // — whichever one jsonic returns — reflects the evaluated form.
+          let cur: any = r
+          while (cur) {
+            cur.node = out
+            cur = cur.prev
+          }
+          if (r.parent) r.parent.node = out
+        })
     })
   }
 }
