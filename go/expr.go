@@ -71,78 +71,114 @@ type ExprOptions struct {
 }
 
 // _unfilled is a sentinel value for pre-allocated but unfilled expression slots.
-// Go slices don't have JS-like reference semantics for append, so we
-// pre-allocate expression slices to their final length and fill slots
-// as child results arrive.
+// Expression nodes are wrapped in *jsonic.ListRef so the slice header lives
+// inside a struct that all references share by pointer. Re-pointing a
+// ListRef.Val in one rule's action is then visible to every other rule
+// that captured the same *ListRef — the property TS arrays get for free
+// via in-place mutation.
 var _unfilled interface{} = &struct{ x int }{-1}
 
 func isUnfilled(v interface{}) bool { return v == _unfilled }
 
-// isOp checks if a node is an expression (slice starting with *Op).
-func isOp(node interface{}) bool {
-	if sl, ok := node.([]interface{}); ok && len(sl) > 0 {
-		_, isOp := sl[0].(*Op)
-		return isOp
+// unwrapExpr returns the underlying op-array from a *ListRef wrapper,
+// or the value as-is if it's already a plain slice (or anything else).
+// Returns (slice, ok) where ok is true if the value is an expression
+// slice (wrapped or unwrapped).
+func unwrapExpr(node interface{}) ([]interface{}, bool) {
+	if lr, ok := node.(*jsonic.ListRef); ok {
+		return lr.Val, lr.Val != nil
 	}
-	return false
+	if sl, ok := node.([]interface{}); ok {
+		return sl, true
+	}
+	return nil, false
+}
+
+// isOp checks if a node is an expression (slice starting with *Op).
+// Accepts *jsonic.ListRef wrappers and plain []interface{}.
+func isOp(node interface{}) bool {
+	sl, ok := unwrapExpr(node)
+	if !ok || len(sl) == 0 {
+		return false
+	}
+	_, isOpV := sl[0].(*Op)
+	return isOpV
 }
 
 // isExprOp checks if a node's op is an infix/prefix/suffix expression
 // (not a ternary or paren, which are structural and shouldn't be drilled into).
 func isExprOp(node interface{}) bool {
-	if sl, ok := node.([]interface{}); ok && len(sl) > 0 {
-		if op, ok := sl[0].(*Op); ok {
-			return !op.Ternary && !op.Paren
-		}
+	sl, ok := unwrapExpr(node)
+	if !ok || len(sl) == 0 {
+		return false
+	}
+	if op, ok := sl[0].(*Op); ok {
+		return !op.Ternary && !op.Paren
 	}
 	return false
 }
 
-// fillNextSlot walks the expression tree depth-first and fills
-// the deepest unfilled (_unfilled sentinel) slot with val.
-// Returns true if a slot was filled.
-func fillNextSlot(node []interface{}, val interface{}) bool {
-	if len(node) == 0 {
+// fillNextSlot walks the expression tree depth-first and fills the deepest
+// unfilled (_unfilled sentinel) slot with val. The node parameter must be
+// a *jsonic.ListRef (or nil/non-expr — returns false). Mutates ListRef.Val
+// in place via index assignment so every rule holding the same pointer
+// observes the fill. Returns true if a slot was filled.
+func fillNextSlot(node interface{}, val interface{}) bool {
+	box, _ := node.(*jsonic.ListRef)
+	if box == nil || len(box.Val) == 0 {
 		return false
 	}
-	op, ok := node[0].(*Op)
+	op, ok := box.Val[0].(*Op)
 	if !ok {
 		return false
 	}
 	// Check children first (depth-first) to fill innermost incomplete expr.
-	for i := 1; i <= op.Terms && i < len(node); i++ {
-		if sub, ok := node[i].([]interface{}); ok && len(sub) > 0 {
-			if _, subOp := sub[0].(*Op); subOp {
-				if fillNextSlot(sub, val) {
-					return true
-				}
+	for i := 1; i <= op.Terms && i < len(box.Val); i++ {
+		if sub, ok := box.Val[i].(*jsonic.ListRef); ok {
+			if fillNextSlot(sub, val) {
+				return true
 			}
 		}
 	}
 	// Then check this node's own slots.
-	for i := 1; i <= op.Terms && i < len(node); i++ {
-		if isUnfilled(node[i]) {
-			node[i] = val
+	for i := 1; i <= op.Terms && i < len(box.Val); i++ {
+		if isUnfilled(box.Val[i]) {
+			box.Val[i] = val
 			return true
 		}
 	}
 	return false
 }
 
-// makeExpr creates a pre-allocated expression slice [op, term1, term2, ...]
-// with unfilled slots marked by _unfilled sentinel.
-func makeExpr(op *Op, terms ...interface{}) []interface{} {
+// makeExpr creates a pre-allocated expression wrapped in *jsonic.ListRef.
+// The wrapper means later rule actions can re-point ListRef.Val (e.g. when
+// a ternary opens after a prefix/suffix expr) and every rule holding the
+// same pointer sees the update — Go slices don't share that property.
+func makeExpr(op *Op, terms ...interface{}) *jsonic.ListRef {
 	n := op.Terms + 1
-	expr := make([]interface{}, n)
-	expr[0] = op
+	val := make([]interface{}, n)
+	val[0] = op
 	for i := 1; i < n; i++ {
 		if i-1 < len(terms) {
-			expr[i] = terms[i-1]
+			val[i] = terms[i-1]
 		} else {
-			expr[i] = _unfilled
+			val[i] = _unfilled
 		}
 	}
-	return expr
+	return &jsonic.ListRef{Val: val, Meta: map[string]any{"expr": true}}
+}
+
+// asListRef returns node as *jsonic.ListRef if it already is one, or wraps
+// a plain []interface{} op-array in a fresh ListRef. Used to box values
+// that arrived from outside this plugin so subsequent rebinding works.
+func asListRef(node interface{}) *jsonic.ListRef {
+	if lr, ok := node.(*jsonic.ListRef); ok {
+		return lr
+	}
+	if sl, ok := node.([]interface{}); ok {
+		return &jsonic.ListRef{Val: sl, Meta: map[string]any{"expr": true}}
+	}
+	return nil
 }
 
 // Expr is the expression parser plugin for jsonic.
@@ -427,6 +463,58 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 			},
 			G: "expr,imp,space",
 		}}, rs.Close...)
+
+		// Chain-time preval: when val has produced a node and the next
+		// token is a preval-active paren-open, push to 'expr' so the new
+		// paren-form picks up this val's node as the preval term. This
+		// complements the open-time [VAL,OP] preval alt for the leading
+		// preval-paren of an expression — chain-time detection handles
+		// subsequent parens because the leading "value" is by then a
+		// produced node, not a token in the lex buffer.
+		// Examples: a[0][1], f(x)(y), f(x)[i], (1+2)(3).
+		if hasParen && hasPreval {
+			rs.Close = append([]*jsonic.AltSpec{{
+				S: mkS(OP),
+				B: 1,
+				P: "expr",
+				C: func(r *jsonic.Rule, ctx *jsonic.Context) bool {
+					pdef := parenOpenByTin[r.C0.Tin]
+					if pdef == nil || !pdef.Preval.Active {
+						return false
+					}
+					if r.Node == nil || jsonic.IsUndefined(r.Node) {
+						return false
+					}
+					if len(pdef.Preval.Allow) > 0 {
+						s, _ := r.Node.(string)
+						for _, a := range pdef.Preval.Allow {
+							if a == s {
+								return true
+							}
+						}
+						return false
+					}
+					return true
+				},
+				U: map[string]interface{}{"paren_preval": true},
+				G: "expr,paren,preval,chain",
+			}}, rs.Close...)
+		}
+
+		// Comma-op suppression: when an enclosing rule (e.g. an embedding
+		// grammar's wrapper) sets n.no_comma_op, bail at `,` without
+		// treating it as the comma operator — the parent then consumes
+		// the `,` itself as a separator.
+		if hasInfix {
+			rs.Close = append([]*jsonic.AltSpec{{
+				S: mkS(INFIX),
+				B: 1,
+				C: func(r *jsonic.Rule, ctx *jsonic.Context) bool {
+					return r.N["no_comma_op"] > 0 && r.C0 != nil && r.C0.Src == ","
+				},
+				G: "expr,no-comma-op-bail",
+			}}, rs.Close...)
+		}
 	})
 
 	// === LIST rule modifications ===
@@ -640,9 +728,9 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 				childNode = nil
 			}
 
-			if sl, ok := r.Node.([]interface{}); ok && len(sl) > 0 {
-				if _, isOpV := sl[0].(*Op); isOpV {
-					fillNextSlot(sl, childNode)
+			if box, ok := r.Node.(*jsonic.ListRef); ok && len(box.Val) > 0 {
+				if _, isOpV := box.Val[0].(*Op); isOpV {
+					fillNextSlot(box, childNode)
 				}
 			}
 		},
@@ -659,6 +747,21 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 			},
 			N: map[string]int{"expr": 0},
 			G: "expr,paren,end",
+		})
+	}
+
+	// Comma-op suppression: bail at `,` and close the expr frame so the
+	// parent rule (e.g. an embedding grammar's wrapper) consumes the
+	// comma as a separator instead of as the comma operator.
+	if hasInfix {
+		exprClose = append(exprClose, &jsonic.AltSpec{
+			S: mkS(INFIX),
+			C: func(r *jsonic.Rule, ctx *jsonic.Context) bool {
+				return r.N["no_comma_op"] > 0 && r.C0 != nil && r.C0.Src == ","
+			},
+			B: 1,
+			N: map[string]int{"expr": 0},
+			G: "expr,no-comma-op-bail",
 		})
 	}
 
@@ -734,7 +837,7 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 		A: func(r *jsonic.Rule, ctx *jsonic.Context) {
 			node := r.Node
 			if isOp(node) {
-				node = cleanExpr(node.([]interface{}))
+				node = cleanExpr(node)
 			}
 			r.Parent.Node = []interface{}{node}
 			r.Node = r.Parent.Node
@@ -754,7 +857,7 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 		A: func(r *jsonic.Rule, ctx *jsonic.Context) {
 			node := r.Node
 			if isOp(node) {
-				node = cleanExpr(node.([]interface{}))
+				node = cleanExpr(node)
 			}
 			r.Parent.Node = []interface{}{node}
 			r.Node = r.Parent.Node
@@ -786,13 +889,13 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 		}
 		node := r.Node
 		if isOp(node) {
-			node = cleanExpr(node.([]interface{}))
+			node = cleanExpr(node)
 		}
-		// If paren already has a list node, append to it.
+		// If paren already has a plain list (not an op-array), append.
 		// Otherwise create a new list.
 		if sl, ok := paren.Node.([]interface{}); ok && len(sl) > 0 {
 			if _, isOpV := sl[0].(*Op); !isOpV {
-				// It's a plain list, append.
+				// Plain list, append.
 				paren.Node = append(sl, node)
 				r.Node = paren.Node
 				return
@@ -978,22 +1081,25 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 
 					val := r.Node
 
-					// Build paren expression node.
-					result := []interface{}{pop}
+					// Build paren expression node as a *ListRef so it shares
+					// the same shared-mutation contract as other op-arrays
+					// (e.g., the chain-preval case where a chained paren
+					// wraps a previously-built one).
+					resultVal := []interface{}{pop}
 
 					// Inject function name if preval is active.
 					if r.Parent != nil && r.Parent != jsonic.NoRule &&
 						r.Parent.Parent != nil && r.Parent.Parent != jsonic.NoRule &&
 						r.Parent.Parent.U["paren_preval"] == true &&
 						r.Parent.Parent.Node != nil {
-						result = append(result, r.Parent.Parent.Node)
+						resultVal = append(resultVal, r.Parent.Parent.Node)
 					}
 
 					if !jsonic.IsUndefined(val) {
-						result = append(result, val)
+						resultVal = append(resultVal, val)
 					}
 
-					r.Node = result
+					r.Node = &jsonic.ListRef{Val: resultVal, Meta: map[string]any{"expr": true}}
 				},
 				G: "expr,paren,close",
 			},
@@ -1050,10 +1156,30 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 					op := ternaryByTin[r.O0.Tin]
 					prev := r.Prev
 					prevNode := prev.Node
-					if isOp(prevNode) {
-						prevNode = dupExpr(prevNode.([]interface{}))
+					// If prev.Node is already a *ListRef expression box, REUSE
+					// the same box pointer and rebind its Val to the new
+					// ternary expression. Any other rule that captured the
+					// pointer (e.g. an outer ternary's r.Child.Node, or a
+					// prefix expr's slot) sees the new ternary on next read.
+					// Without this indirection, Go's slice reassignment leaves
+					// the outer rules pointing at stale pre-rewrap slices.
+					if box, ok := prevNode.(*jsonic.ListRef); ok && len(box.Val) > 0 {
+						if _, isOpV := box.Val[0].(*Op); isOpV {
+							priorCopy := dupExpr(box)
+							n := op.Terms + 1
+							newVal := make([]interface{}, n)
+							newVal[0] = op
+							newVal[1] = priorCopy
+							for i := 2; i < n; i++ {
+								newVal[i] = _unfilled
+							}
+							box.Val = newVal
+							r.Node = box
+							return
+						}
 					}
-					r.Node = makeExpr(op, prevNode) // [op, cond, _unfilled, _unfilled]
+					// Scalar (or unwrapped) cond — first ternary level.
+					r.Node = makeExpr(op, prevNode)
 					prev.Node = r.Node
 				},
 				G: "expr,ternary,open",
@@ -1069,18 +1195,18 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 				if jsonic.IsUndefined(childNode) {
 					childNode = nil
 				}
-				if sl, ok := r.Node.([]interface{}); ok {
+				if box, ok := r.Node.(*jsonic.ListRef); ok {
 					step, _ := r.U["ternary_step"].(int)
 					if step == 0 {
-						fillNextSlot(sl, childNode)
+						fillNextSlot(box, childNode)
 						r.U["ternary_step"] = 1
 					} else if step == 1 {
-						fillNextSlot(sl, childNode)
+						fillNextSlot(box, childNode)
 						r.U["ternary_step"] = 2
 					} else if step == 2 {
 						// Final slot filled when ternary ends
 						// (e.g., inside an existing elem/list).
-						fillNextSlot(sl, childNode)
+						fillNextSlot(box, childNode)
 					}
 				}
 			},
@@ -1126,14 +1252,14 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 				if jsonic.IsUndefined(childNode) {
 					childNode = nil
 				}
-				if sl, ok := r.Node.([]interface{}); ok {
-					fillNextSlot(sl, childNode)
+				if box, ok := r.Node.(*jsonic.ListRef); ok {
+					fillNextSlot(box, childNode)
 				}
 			}
 			// Wrap the completed ternary node as the first element of a list.
 			ternaryNode := r.Node
 			if isOp(ternaryNode) {
-				ternaryNode = cleanExpr(ternaryNode.([]interface{}))
+				ternaryNode = cleanExpr(ternaryNode)
 			}
 			listNode := []interface{}{ternaryNode}
 
@@ -1223,149 +1349,151 @@ func Expr(j *jsonic.Jsonic, opts map[string]interface{}) error {
 }
 
 // prior converts a prior rule's node into the start of a new expression.
-// Uses pre-allocated expression slices with unfilled sentinel slots.
-func prior(rule *jsonic.Rule, priorRule *jsonic.Rule, op *Op) []interface{} {
+// All expression nodes are returned as *jsonic.ListRef so subsequent rule
+// actions can re-point ListRef.Val and have every reference (including the
+// outer rule's r.Child.Node) observe the update.
+func prior(rule *jsonic.Rule, priorRule *jsonic.Rule, op *Op) *jsonic.ListRef {
 	priorNode := priorRule.Node
 	if isOp(priorNode) {
-		priorNode = dupExpr(priorNode.([]interface{}))
+		priorNode = dupExpr(priorNode)
 	}
 
-	var expr []interface{}
+	var expr *jsonic.ListRef
 	if op.Prefix {
-		expr = makeExpr(op) // [op, _unfilled]
+		expr = makeExpr(op)
 	} else {
-		expr = makeExpr(op, priorNode) // [op, priorNode, _unfilled]
+		expr = makeExpr(op, priorNode)
 	}
 	priorRule.Node = expr
 	rule.Parent = priorRule
 	return expr
 }
 
-// prattify integrates a new operator into the expression tree
-// according to operator precedence (Pratt algorithm).
-// Always returns the outermost expression (for Go parser compatibility).
-func prattify(exprNode interface{}, op *Op) []interface{} {
-	expr, ok := exprNode.([]interface{})
-	if !ok || len(expr) == 0 {
+// prattify integrates a new operator into the expression tree according to
+// operator precedence (Pratt algorithm). Operates on the *jsonic.ListRef
+// wrapper so any rebinding of expr.Val is visible to all holders of the
+// pointer. Returns the outermost expression *ListRef.
+func prattify(exprNode interface{}, op *Op) *jsonic.ListRef {
+	box := asListRef(exprNode)
+	if box == nil || len(box.Val) == 0 {
 		return makeExpr(op, exprNode)
 	}
 
-	exprOp, isOpV := expr[0].(*Op)
+	exprOp, isOpV := box.Val[0].(*Op)
 	if !isOpV {
 		return makeExpr(op, exprNode)
 	}
 
 	// Paren expressions are complete units — never drill into them.
 	if exprOp.Paren {
-		return makeExpr(op, dupExpr(expr))
+		return makeExpr(op, dupExpr(box))
 	}
 
 	if op.Infix {
-		// op is lower or equal precedence: wrap entire expression.
+		// op is lower or equal precedence: wrap entire expression in place.
 		if exprOp.Suffix || op.Left <= exprOp.Right {
-			return wrapExpr(expr, op)
+			wrapExpr(box, op)
+			return box
 		}
 
 		// op is higher: drill into last term. Create inner expression.
 		end := exprOp.Terms
-		if end < len(expr) {
-			if isOp(expr[end]) {
-				subExpr := expr[end].([]interface{})
-				subOp := subExpr[0].(*Op)
+		if end < len(box.Val) {
+			if isOp(box.Val[end]) {
+				subBox := asListRef(box.Val[end])
+				subOp := subBox.Val[0].(*Op)
 				if subOp.Right < op.Left {
-					expr[end] = prattify(subExpr, op)
-					return expr
+					box.Val[end] = prattify(subBox, op)
+					return box
 				}
 			}
-			// Create pre-allocated inner expression with old value as first term.
-			expr[end] = makeExpr(op, expr[end])
-			return expr
+			box.Val[end] = makeExpr(op, box.Val[end])
+			return box
 		}
-		return expr
+		return box
 	}
 
 	if op.Prefix {
 		end := exprOp.Terms
-		if end < len(expr) {
-			expr[end] = makeExpr(op) // [op, _unfilled]
-			return expr
+		if end < len(box.Val) {
+			box.Val[end] = makeExpr(op)
+			return box
 		}
-		return expr
+		return box
 	}
 
 	if op.Suffix {
-		return prattifySuffix(exprNode, op)
+		return prattifySuffix(box, op)
 	}
 
-	return expr
+	return box
 }
 
-// wrapExpr wraps an existing expression with a new operator.
-// Reuses the slice in-place: [new_op, dup(old), _unfilled, ...]
-func wrapExpr(expr []interface{}, op *Op) []interface{} {
-	oldCopy := dupExpr(expr)
+// wrapExpr rewraps an existing expression with a new operator IN PLACE on
+// the ListRef. The same *ListRef pointer continues to be used; only its
+// Val slice is replaced. Other rules holding the pointer see the new Val
+// on next read.
+func wrapExpr(box *jsonic.ListRef, op *Op) {
+	oldCopy := dupExpr(box)
 	needed := op.Terms + 1
-	// Ensure slice is long enough.
-	for len(expr) < needed {
-		expr = append(expr, _unfilled)
-	}
-	expr[0] = op
-	expr[1] = oldCopy
-	// Clear remaining slots and truncate extras.
+	newVal := make([]interface{}, needed)
+	newVal[0] = op
+	newVal[1] = oldCopy
 	for i := 2; i < needed; i++ {
-		expr[i] = _unfilled
+		newVal[i] = _unfilled
 	}
-	if len(expr) > needed {
-		// Clear excess slots to avoid stale data.
-		for i := needed; i < len(expr); i++ {
-			expr[i] = nil
-		}
-		expr = expr[:needed]
-	}
-	return expr
+	box.Val = newVal
 }
 
 // prattifySuffix integrates a suffix operator into the expression tree.
-func prattifySuffix(node interface{}, op *Op) []interface{} {
-	expr, ok := node.([]interface{})
-	if !ok {
+func prattifySuffix(node interface{}, op *Op) *jsonic.ListRef {
+	box := asListRef(node)
+	if box == nil || len(box.Val) == 0 {
 		return makeExpr(op, node)
 	}
 
-	exprOp, isOpV := expr[0].(*Op)
+	exprOp, isOpV := box.Val[0].(*Op)
 	if !isOpV {
 		return makeExpr(op, node)
 	}
 
 	if !exprOp.Suffix && exprOp.Right <= op.Left {
 		end := exprOp.Terms
-		if end < len(expr) {
-			lastTerm := expr[end]
+		if end < len(box.Val) {
+			lastTerm := box.Val[end]
 			// Drill into prefix.
-			if subExpr, ok := lastTerm.([]interface{}); ok && len(subExpr) > 0 {
-				if subOp, isSub := subExpr[0].(*Op); isSub && subOp.Prefix && subOp.Right < op.Left {
-					prattifySuffix(subExpr, op)
-					return expr
+			if subBox := asListRef(lastTerm); subBox != nil && len(subBox.Val) > 0 {
+				if subOp, isSub := subBox.Val[0].(*Op); isSub && subOp.Prefix && subOp.Right < op.Left {
+					prattifySuffix(subBox, op)
+					return box
 				}
 			}
-			expr[end] = makeExpr(op, lastTerm)
-			return expr
+			box.Val[end] = makeExpr(op, lastTerm)
+			return box
 		}
 	}
 
 	// Wrap entire expression.
-	return wrapExpr(expr, op)
+	wrapExpr(box, op)
+	return box
 }
 
-// cleanExpr removes _unfilled sentinels from an expression tree.
-func cleanExpr(expr []interface{}) []interface{} {
-	out := make([]interface{}, 0, len(expr))
-	for _, el := range expr {
+// cleanExpr removes _unfilled sentinels from an expression tree, returning
+// a plain []interface{}. Used at the boundary where a partially-built
+// expression escapes into an enclosing list/elem (and so loses its slot
+// allocation contract).
+func cleanExpr(node interface{}) []interface{} {
+	sl, ok := unwrapExpr(node)
+	if !ok {
+		return nil
+	}
+	out := make([]interface{}, 0, len(sl))
+	for _, el := range sl {
 		if isUnfilled(el) {
 			continue
 		}
-		if sub, ok := el.([]interface{}); ok && isOp(sub) {
-			out = append(out, cleanExpr(sub))
+		if isOp(el) {
+			out = append(out, cleanExpr(el))
 		} else {
 			out = append(out, el)
 		}
@@ -1373,10 +1501,18 @@ func cleanExpr(expr []interface{}) []interface{} {
 	return out
 }
 
-func dupExpr(expr []interface{}) []interface{} {
-	out := make([]interface{}, len(expr))
-	copy(out, expr)
-	return out
+// dupExpr produces a shallow copy of an expression as a fresh *jsonic.ListRef.
+// Children that are themselves *ListRef remain shared (they each have their
+// own pointer-mutation contract); top-level slots are copied so the new
+// ListRef is independent of the original.
+func dupExpr(node interface{}) *jsonic.ListRef {
+	sl, ok := unwrapExpr(node)
+	if !ok {
+		return nil
+	}
+	out := make([]interface{}, len(sl))
+	copy(out, sl)
+	return &jsonic.ListRef{Val: out, Meta: map[string]any{"expr": true}}
 }
 
 // Parse is a convenience function.
@@ -1634,7 +1770,7 @@ func evaluation(
 	rule *jsonic.Rule, ctx *jsonic.Context, node interface{},
 	resolve func(*jsonic.Rule, *jsonic.Context, *Op, []interface{}) interface{},
 ) interface{} {
-	expr, isSlice := node.([]interface{})
+	expr, isSlice := unwrapExpr(node)
 	if !isSlice || len(expr) == 0 {
 		return node
 	}
@@ -1657,9 +1793,15 @@ func evaluation(
 }
 
 // Simplify converts an expression tree with *Op nodes into plain
-// arrays/maps with string operator names.
+// arrays/maps with string operator names. Handles both bare slices and
+// *jsonic.ListRef wrappers (the internal representation).
 func Simplify(node interface{}) interface{} {
 	switch v := node.(type) {
+	case *jsonic.ListRef:
+		if v == nil {
+			return nil
+		}
+		return Simplify(v.Val)
 	case []interface{}:
 		if len(v) == 0 {
 			return v

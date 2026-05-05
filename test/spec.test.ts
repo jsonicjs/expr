@@ -168,6 +168,68 @@ describe('spec', () => {
   })
 
 
+  test('ternary-implicit-list', () => {
+    const je = Jsonic.make().use(Expr, {
+      op: {
+        factorial: { suffix: true, src: '!', left: 15000 },
+        ternary: { ternary: true, src: ['?', ':'] },
+      }
+    })
+    const j = mj(je)
+    runSpec('ternary-implicit-list.tsv', j)
+  })
+
+
+  test('ternary-paren-preval', () => {
+    const je = Jsonic.make().use(Expr, {
+      op: {
+        ternary: { ternary: true, src: ['?', ':'] },
+        plain: { paren: true, osrc: '(', csrc: ')', preval: { active: true } },
+      }
+    })
+    const j = mj(je)
+    runSpec('ternary-paren-preval.tsv', j)
+  })
+
+
+  test('ternary-many-2', () => {
+    const je = Jsonic.make().use(Expr, {
+      op: {
+        foo: { ternary: true, src: ['?', ':'] },
+        bar: { ternary: true, src: ['QQ', 'CC'] },
+      }
+    })
+    const j = mj(je)
+    runSpec('ternary-many-2.tsv', j)
+  })
+
+
+  test('ternary-many-3', () => {
+    const je = Jsonic.make().use(Expr, {
+      op: {
+        foo: { ternary: true, src: ['?', ':'] },
+        bar: { ternary: true, src: ['QQ', 'CC'] },
+        zed: { ternary: true, src: ['%%', '@@'] },
+      }
+    })
+    const j = mj(je)
+    runSpec('ternary-many-3.tsv', j)
+  })
+
+
+  test('paren-preval-chain', () => {
+    const je = Jsonic.make().use(Expr, {
+      op: {
+        index: { paren: true, osrc: '[', csrc: ']', preval: { required: true } },
+        call: { paren: true, osrc: '(', csrc: ')', preval: { active: true } },
+        plain: null as any,
+      }
+    })
+    const j = mj(je)
+    runSpec('paren-preval-chain.tsv', j)
+  })
+
+
   test('json-base', () => {
     const j = mj(Jsonic.make().use(Expr))
     runSpec('json-base.tsv', j)
